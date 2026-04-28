@@ -3712,6 +3712,8 @@ function saveMulti(){
     status:'รอดำเนินการ',note:'',
   };
   const created=[];
+  const __mc_byName=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'ไม่ระบุ';
+  const __mc_nowISO=new Date().toISOString();
   for(let i=1;i<=n;i++){
     const job={
       ...shared,
@@ -3722,9 +3724,12 @@ function saveMulti(){
       weight:document.getElementById(`mc-r${i}-weight`).value.trim(),
       plate:document.getElementById(`mc-r${i}-plate`).value.trim(),
       driver:document.getElementById(`mc-r${i}-driver`).value.trim(),
+      createdBy:__mc_byName,
+      createdAt:__mc_nowISO,
     };
     jobs.unshift(job);
     created.push(job.id);
+    if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncJobSave(job); }catch(e){ console.warn('saveMulti sync error:', e); } }
   }
   addCarrier(document.getElementById('mc-carrier')?.value?.trim());
   closeModal('modal-multi');
@@ -4088,13 +4093,17 @@ function saveBilling(){
   };
   if(editBID){var i=billings.findIndex(function(x){return x.id===editBID;});billings[i]=obj;}
   else billings.push(obj);
-  saveMasterDB();closeModal('modal-billing');renderMasterTable('billing');populateBillingDropdown();
+  saveMasterDB();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncMasterUpsert('gyt_billings', obj); }catch(e){ console.warn('saveBilling sync error:', e); } }
+  closeModal('modal-billing');renderMasterTable('billing');populateBillingDropdown();
   showToast((editBID?'อัปเดต':'เพิ่ม')+' Billing Party เรียบร้อย');
 }
 function deleteBilling(id){
   if(!confirm('ยืนยันลบข้อมูลนี้?'))return;
   billings=billings.filter(function(x){return x.id!==id;});
-  saveMasterDB();renderBillingList();populateBillingDropdown();
+  saveMasterDB();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncMasterDelete('gyt_billings', id); }catch(e){ console.warn('deleteBilling sync error:', e); } }
+  renderBillingList();populateBillingDropdown();
   showToast('ลบข้อมูลเรียบร้อย');
 }
 function populateBillingDropdown(){
@@ -14898,14 +14907,22 @@ function saveMaster(){
   const list=masterType==='customer'?customers:shippers;
   if(editMID){const i=list.findIndex(x=>x.id===editMID);list[i]=obj;}
   else list.push(obj);
-  saveMasterDB();closeModal('modal-master');renderMasterTable(masterType==='customer'?'cust':'ship');populateMasterDropdowns();
+  saveMasterDB();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){
+    try{ syncMasterUpsert(masterType==='customer'?'gyt_customers':'gyt_shippers', obj); }catch(e){ console.warn('saveMaster sync error:', e); }
+  }
+  closeModal('modal-master');renderMasterTable(masterType==='customer'?'cust':'ship');populateMasterDropdowns();
   showToast((editMID?'อัปเดต':'เพิ่ม')+(masterType==='customer'?' ลูกค้า ':' Shipper ')+'เรียบร้อย');
 }
 function deleteMaster(type,id){
   if(!confirm('ยืนยันลบข้อมูลนี้?'))return;
   if(type==='customer')customers=customers.filter(x=>x.id!==id);
   else shippers=shippers.filter(x=>x.id!==id);
-  saveMasterDB();renderSettings();showToast('ลบข้อมูลเรียบร้อย');
+  saveMasterDB();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){
+    try{ syncMasterDelete(type==='customer'?'gyt_customers':'gyt_shippers', id); }catch(e){ console.warn('deleteMaster sync error:', e); }
+  }
+  renderSettings();showToast('ลบข้อมูลเรียบร้อย');
 }
 
 // Modal backdrop close
@@ -15452,7 +15469,11 @@ function _dummy_for_parser(){
 function quickStatus(id){
   const j=jobs.find(x=>x.id===id);if(!j)return;
   const n={'รอดำเนินการ':'กำลังดำเนินการ','กำลังดำเนินการ':'เสร็จสิ้น','เสร็จสิ้น':'เสร็จสิ้น'};
-  j.status=n[j.status];renderJobs();showToast('อัปเดตสถานะ: '+j.status);
+  j.status=n[j.status];
+  j.updatedBy=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'';
+  j.updatedAt=new Date().toISOString();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncJobSave(j); }catch(e){ console.warn('quickStatus sync error:', e); } }
+  renderJobs();showToast('อัปเดตสถานะ: '+j.status);
 }
 
 // ============================
@@ -15522,6 +15543,7 @@ function confirmDeleteUser(id){
   if(!confirm('ยืนยันลบผู้ใช้: '+u.fname+' '+u.lname+' ('+u.username+')\n\nการลบจะไม่สามารถกู้คืนได้'))return;
   users=users.filter(function(x){return x.id!==id;});
   saveUsers();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncUserDelete(id); }catch(e){ console.warn('deleteUser sync error:', e); } }
   renderUsers();
   showToast('ลบผู้ใช้ '+u.fname+' '+u.lname+' เรียบร้อย');
 }
@@ -15599,6 +15621,8 @@ async function saveUser(){
 function toggleUser(id){
   const u=users.find(x=>x.id===id);if(!u)return;
   u.status=u.status==='active'?'inactive':'active';
+  saveUsers();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncUserSave(u); }catch(e){ console.warn('toggleUser sync error:', e); } }
   showToast((u.status==='active'?'เปิดใช้งาน':'ระงับ')+' '+u.fname);
   renderUsers();
 }
@@ -15638,6 +15662,8 @@ function openPerms(id){
 function savePerms(){
   const u=users.find(x=>x.id===permUID);if(!u)return;
   u.perms=[...document.querySelectorAll('#mp-body input:checked')].map(c=>c.value);
+  saveUsers();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncUserSave(u); }catch(e){ console.warn('savePerms sync error:', e); } }
   closeModal('modal-perms');renderUsers();
   showToast('บันทึกสิทธิ์ของ '+u.fname+' แล้ว');
 }
@@ -16332,7 +16358,11 @@ function saveVehicle(){
   var list=editVType==='tractor'?tractors:trailers;
   if(editVID){var i=list.findIndex(function(x){return x.id===editVID;});list[i]=obj;}
   else list.push(obj);
-  saveVehicleDB();closeModal('modal-vehicle');renderVehicleTable(editVType);
+  saveVehicleDB();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){
+    try{ syncMasterUpsert(editVType==='tractor'?'gyt_tractors':'gyt_trailers', obj); }catch(e){ console.warn('saveVehicle sync error:', e); }
+  }
+  closeModal('modal-vehicle');renderVehicleTable(editVType);
   showToast((editVID?'อัปเดต':'เพิ่ม')+(editVType==='tractor'?' หัวรถ ':' หางรถ ')+plate+' เรียบร้อย');
 }
 function deleteVehicle(type,id){
@@ -16341,7 +16371,11 @@ function deleteVehicle(type,id){
   if(!confirm('ยืนยันลบ: '+(v?v.plate:'')))return;
   if(type==='tractor')tractors=tractors.filter(function(x){return x.id!==id;});
   else trailers=trailers.filter(function(x){return x.id!==id;});
-  saveVehicleDB();renderVehicleTable(type);showToast('ลบข้อมูลเรียบร้อย');
+  saveVehicleDB();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){
+    try{ syncMasterDelete(type==='tractor'?'gyt_tractors':'gyt_trailers', id); }catch(e){ console.warn('deleteVehicle sync error:', e); }
+  }
+  renderVehicleTable(type);showToast('ลบข้อมูลเรียบร้อย');
 }
 function resetVehicles(type){
   var preload=type==='tractor'?_PRELOAD_TRACTORS:_PRELOAD_TRAILERS;
@@ -16559,14 +16593,18 @@ function saveDriver(){
   };
   if(editDrvID){var i=drivers.findIndex(function(x){return x.id===editDrvID;});drivers[i]=obj;}
   else drivers.push(obj);
-  saveDriverDB();closeModal('modal-driver');renderDriverPage();
+  saveDriverDB();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncMasterUpsert('gyt_drivers', obj); }catch(e){ console.warn('saveDriver sync error:', e); } }
+  closeModal('modal-driver');renderDriverPage();
   showToast((editDrvID?'อัปเดต':'เพิ่ม')+' '+name+' เรียบร้อย');
 }
 function deleteDriver(id){
   var d=drivers.find(function(x){return x.id===id;});
   if(!confirm('ยืนยันลบคนขับ: '+(d?d.name:'')))return;
   drivers=drivers.filter(function(x){return x.id!==id;});
-  saveDriverDB();renderDriverPage();showToast('ลบข้อมูลเรียบร้อย');
+  saveDriverDB();
+  if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncMasterDelete('gyt_drivers', id); }catch(e){ console.warn('deleteDriver sync error:', e); } }
+  renderDriverPage();showToast('ลบข้อมูลเรียบร้อย');
 }
 function resetDrivers(){
   if(!confirm('โหลดข้อมูลคนขับ '+_PRELOAD_DRIVERS.length+' คนจาก Excel ใหม่?'))return;
@@ -16736,7 +16774,12 @@ function doPrint(){
   };
   // บันทึก costs ลงในใบงาน
   var jIdx=jobs.findIndex(function(x){return x.id===_printJobId;});
-  if(jIdx>=0){jobs[jIdx].costs=JSON.parse(JSON.stringify(costs));}
+  if(jIdx>=0){
+    jobs[jIdx].costs=JSON.parse(JSON.stringify(costs));
+    jobs[jIdx].updatedBy=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'';
+    jobs[jIdx].updatedAt=new Date().toISOString();
+    if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncJobSave(jobs[jIdx]); }catch(e){ console.warn('doPrint sync error:', e); } }
+  }
   closeModal('modal-cost');
   var pw=window.open('','gyt_print','width=900,height=1200,scrollbars=yes');
   if(!pw){showToast('กรุณาอนุญาต Popup ใน browser ก่อนครับ');return;}
@@ -16823,6 +16866,10 @@ function restoreJob(idx){
   if(!entry)return;
   jobs.unshift(entry.job);
   deletedJobs.splice(idx,1);
+  // re-sync ใบงานที่กู้คืนกลับขึ้น cloud
+  if(typeof _onlineMode!=='undefined' && _onlineMode){
+    try{ syncJobSave(entry.job); }catch(e){ console.warn('restoreJob sync error:', e); }
+  }
   renderBinList();
   renderJobs();
   updateBinBadge();
@@ -16935,6 +16982,9 @@ function executeBulkDelete(){
   jobs.forEach(function(j){
     if(selectedJobs.has(j.id)) deletedJobs.unshift({job:JSON.parse(JSON.stringify(j)),reason:reason,deletedAt:now,deletedBy:by});
   });
+  if(typeof _onlineMode!=='undefined' && _onlineMode){
+    ids.forEach(function(jid){ try{ syncJobDelete(jid, reason, by); }catch(e){ console.warn('bulkDelete sync error:', e); } });
+  }
   jobs=jobs.filter(function(j){return!selectedJobs.has(j.id);});
   selectedJobs.clear();
   closeModal('modal-bulk-delete');
@@ -17038,7 +17088,12 @@ function doPrint(){
   };
   // บันทึก costs ลงในใบงาน
   var jIdx=jobs.findIndex(function(x){return x.id===_printJobId;});
-  if(jIdx>=0){jobs[jIdx].costs=JSON.parse(JSON.stringify(costs));}
+  if(jIdx>=0){
+    jobs[jIdx].costs=JSON.parse(JSON.stringify(costs));
+    jobs[jIdx].updatedBy=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'';
+    jobs[jIdx].updatedAt=new Date().toISOString();
+    if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncJobSave(jobs[jIdx]); }catch(e){ console.warn('doPrint sync error:', e); } }
+  }
   closeModal('modal-cost');
   var pw=window.open('','gyt_print','width=900,height=1200,scrollbars=yes');
   if(!pw){showToast('กรุณาอนุญาต Popup ใน browser ก่อนครับ');return;}
@@ -17125,6 +17180,10 @@ function restoreJob(idx){
   if(!entry)return;
   jobs.unshift(entry.job);
   deletedJobs.splice(idx,1);
+  // re-sync ใบงานที่กู้คืนกลับขึ้น cloud
+  if(typeof _onlineMode!=='undefined' && _onlineMode){
+    try{ syncJobSave(entry.job); }catch(e){ console.warn('restoreJob sync error:', e); }
+  }
   renderBinList();
   renderJobs();
   updateBinBadge();
@@ -17238,6 +17297,9 @@ function executeBulkDelete(){
   jobs.forEach(function(j){
     if(selectedJobs.has(j.id)) deletedJobs.unshift({job:JSON.parse(JSON.stringify(j)),reason:reason,deletedAt:now,deletedBy:by});
   });
+  if(typeof _onlineMode!=='undefined' && _onlineMode){
+    ids.forEach(function(jid){ try{ syncJobDelete(jid, reason, by); }catch(e){ console.warn('bulkDelete sync error:', e); } });
+  }
   jobs=jobs.filter(function(j){return!selectedJobs.has(j.id);});
   selectedJobs.clear();
   closeModal('modal-bulk-delete');
@@ -17992,6 +18054,32 @@ async function syncJobDelete(jobId, reason, deletedBy) {
   await sbFetch('gyt_jobs','DELETE',null,'?id=eq.'+encodeURIComponent(jobId));
   await sbFetch('gyt_deleted_jobs','POST',{job:{id:jobId},reason,deleted_by:deletedBy,deleted_at:new Date().toISOString()});
   setSyncStatus('online');
+}
+
+// Helper: upsert รายการเดียวขึ้น cloud (เร็วกว่า syncMasterData ที่ส่งทั้ง array)
+async function syncMasterUpsert(table, item) {
+  if(!_onlineMode) return;
+  try {
+    setSyncStatus('syncing');
+    await sbFetch(table,'POST',[item],'?on_conflict=id');
+    setSyncStatus('online');
+  } catch(e) {
+    setSyncStatus('error');
+    console.warn('syncMasterUpsert '+table+' error:', e.message);
+  }
+}
+
+// Helper: ลบ master record บน cloud
+async function syncMasterDelete(table, id) {
+  if(!_onlineMode) return;
+  try {
+    setSyncStatus('syncing');
+    await sbFetch(table,'DELETE',null,'?id=eq.'+encodeURIComponent(id));
+    setSyncStatus('online');
+  } catch(e) {
+    setSyncStatus('error');
+    console.warn('syncMasterDelete '+table+' error:', e.message);
+  }
 }
 
 async function syncMasterData() {
