@@ -1086,6 +1086,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="fg"><label class="fl">ประเภทงาน</label>
         <select class="fi" id="fj-job-type">
           <option value="">-- เลือกประเภทงาน --</option>
+          <option value="ขาเข้า(ตู้เปิด)">ขาเข้า (ตู้เปิด)</option>
+          <option value="ขาออก(ตู้บรรจุ)">ขาออก (ตู้บรรจุ)</option>
           <option value="งานขาเข้า(ตู้เปิด)">งานขาเข้า (ตู้เปิด)</option>
           <option value="งานขาออก(ตู้บรรจุ)">งานขาออก (ตู้บรรจุ)</option>
         </select>
@@ -15256,7 +15258,16 @@ function openEditJob(id){
   document.getElementById('fj-note').value=j.note||'';
   document.getElementById('fj-weight').value=j.weight||'';
   ctypeSetValue('fj',j.type||'');
-  var jt=document.getElementById('fj-job-type');if(jt)jt.value=j.job_type||'';
+  var jt=document.getElementById('fj-job-type');
+  if(jt){
+    // normalize: รองรับทั้ง "ขาเข้า(ตู้เปิด)" และ "งานขาเข้า(ตู้เปิด)"
+    var jtVal = j.job_type||'';
+    jt.value = jtVal;
+    // ถ้า set ไม่ได้ ลองเพิ่ม "งาน" นำหน้า
+    if(jt.value !== jtVal && !jtVal.startsWith('งาน')) jt.value = 'งาน'+jtVal;
+    // หรือลบ "งาน" นำหน้า
+    if(jt.value !== jtVal && jtVal.startsWith('งาน')) jt.value = jtVal.replace('งาน','');
+  }
   document.getElementById('fj-status').value=j.status;
   document.getElementById('fj-startdate').value=j.startdate||'';
   document.getElementById('fj-deliverdate').value=j.deliverdate||'';
