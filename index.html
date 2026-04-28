@@ -3975,6 +3975,68 @@ function getReceiptData(formPrefix){
   };
 }
 
+// Reset/restore ส่วน "ที่อยู่ออกใบเสร็จ" — ใช้ตอนเปิด modal เพิ่มใหม่ (j=null) หรือแก้ไขใบงานเดิม (j=job object)
+// แก้บั๊กที่ค่า hidden ค้างจาก modal ครั้งก่อน ทำให้ preview แสดงข้อมูลผิด
+function restoreReceiptSection(fp, j){
+  // 1. Clear hidden + reset radio เป็น "shipper" ก่อน (กันค่าค้าง)
+  ['receipt-name','receipt-addr','receipt-taxid'].forEach(function(f){
+    var el=document.getElementById(fp+'-'+f); if(el) el.value='';
+  });
+
+  if(!j){
+    // กรณีเปิดใบงานใหม่ — default "shipper" mode + fillReceipt
+    setBillingMode(fp,'shipper');
+    return;
+  }
+
+  // กรณีแก้ไขใบงานเดิม — เดา mode จากข้อมูลที่บันทึกไว้
+  var receiptName = j.receiptName || j.receipt_name || '';
+  var shipperName = j.shipper || '';
+  var customerName = j.customer || '';
+  var mode = 'shipper'; // default
+  if(receiptName){
+    if(receiptName === shipperName) mode = 'shipper';
+    else if(receiptName === customerName) mode = 'customer';
+    else mode = 'billing'; // ของที่บันทึกไม่ใช่ทั้ง shipper/customer → custom/billing
+  }
+
+  // อัปเดต radio + ไฮไลต์ label
+  document.querySelectorAll('[name="'+fp+'-billing-mode"]').forEach(function(r){
+    r.checked = (r.value === mode);
+  });
+  document.querySelectorAll('#'+fp+'-billing-toggle .billing-opt').forEach(function(l){
+    var inp = l.querySelector('input');
+    l.classList.toggle('selected', !!(inp && inp.value === mode));
+  });
+
+  if(mode === 'shipper' || mode === 'customer'){
+    // setBillingMode จะเรียก fillReceipt → preview ตรงกับ master
+    setBillingMode(fp, mode);
+  } else {
+    // mode === 'billing' — ไม่ใช้ setBillingMode (มันจะ clear) แสดง preview จากข้อมูลที่บันทึกไว้
+    var bWrap = document.getElementById(fp+'-billing-party-wrap');
+    var rManual = document.getElementById(fp+'-receipt-manual');
+    var rPreview = document.getElementById(fp+'-receipt-preview');
+    if(bWrap) bWrap.style.display='block';
+    if(rManual) rManual.style.display='none';
+    // populate hidden fields กลับมา (เพื่อให้ save แล้วยังเป็นค่าเดิม)
+    var rn=document.getElementById(fp+'-receipt-name'); if(rn) rn.value=receiptName;
+    var ra=document.getElementById(fp+'-receipt-addr'); if(ra) ra.value=j.receiptAddr || j.receipt_addr || '';
+    var rt=document.getElementById(fp+'-receipt-taxid'); if(rt) rt.value=j.receiptTaxid || j.receipt_taxid || '';
+    if(rPreview){
+      rPreview.innerHTML =
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
+          '<div>' +
+            '<span class="rp-label">ที่อยู่ออกใบเสร็จ (Billing Party / กำหนดเอง)</span>' +
+            '<div class="rp-name">' + receiptName + '</div>' +
+            (rt && rt.value ? '<div class="rp-tax">Tax ID: ' + rt.value + '</div>' : '') +
+          '</div>' +
+          '<button class="receipt-edit-btn" onclick="toggleReceiptEdit(\'' + fp + '\')" title="แก้ไขด้วยตัวเอง">&#9998; แก้ไข</button>' +
+        '</div>';
+    }
+  }
+}
+
 
 function setBillingMode(fp,mode){
   document.querySelectorAll('[name="'+fp+'-billing-mode"]').forEach(function(r){
@@ -15329,6 +15391,8 @@ function openAddJob(){
   setTimeout(function(){
     initDateTimePicker('fj-startdate');
     initDateTimePicker('fj-deliverdate');
+    // reset ส่วน "ที่อยู่ออกใบเสร็จ" — กันค่าค้างจาก modal ครั้งก่อน
+    if(typeof restoreReceiptSection === 'function') restoreReceiptSection('fj', null);
   }, 50);
 }
 function openEditJob(id){
@@ -15373,6 +15437,8 @@ function openEditJob(id){
   setTimeout(function(){
     initDateTimePicker('fj-startdate');
     initDateTimePicker('fj-deliverdate');
+    // refresh ส่วน "ที่อยู่ออกใบเสร็จ" จากข้อมูลใบงานนี้ (ไม่เอาค่าค้างจากใบงานก่อนหน้า)
+    if(typeof restoreReceiptSection === 'function') restoreReceiptSection('fj', j);
   }, 50);
 }
 function saveJob(){
