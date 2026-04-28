@@ -18494,7 +18494,7 @@ function importExcelData() {
     localStorage.setItem('gyt_jobs', JSON.stringify(jobs));
     // Update UI
     renderJobs();
-    renderStats();
+    if (typeof renderDashboard === "function") renderDashboard();
   }
   
   // Show results
