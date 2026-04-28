@@ -18343,21 +18343,57 @@ function previewExcel() {
     try {
       const workbook = XLSX.read(e.target.result, { type: 'binary' });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
       
       if (jsonData.length < 2) {
         showToast('ไฟล์ Excel ไม่มีข้อมูลที่เพียงพอ');
         return;
       }
       
+      // Auto-detect header row (find row containing 'Shipper' or 'ทะเบียนรถ' or 'วันที่ปฏิบัติงาน')
+      let headerRowIndex = -1;
+      const headerKeywords = ['Shipper', 'ทะเบียนรถ', 'วันที่ปฏิบัติงาน', 'ต้นทาง', 'ปลายทาง'];
+      
+      for (let i = 0; i < Math.min(jsonData.length, 10); i++) {
+        const row = jsonData[i];
+        if (!Array.isArray(row)) continue;
+        const rowText = row.map(c => (c || '').toString()).join('|');
+        // Header row should contain at least 2 keywords
+        const matches = headerKeywords.filter(kw => rowText.includes(kw)).length;
+        if (matches >= 2) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+      
+      if (headerRowIndex === -1) {
+        showToast('ไม่พบแถว header ที่ถูกต้อง (ต้องมีคอลัมน์ Shipper, ทะเบียนรถ, วันที่ปฏิบัติงาน)');
+        console.error('Could not find header row. First 5 rows:', jsonData.slice(0, 5));
+        return;
+      }
+      
+      // Slice data starting from header row
+      const cleanData = jsonData.slice(headerRowIndex);
+      
+      // Filter out completely empty rows
+      const filteredData = cleanData.filter((row, idx) => {
+        if (idx === 0) return true; // keep header
+        if (!Array.isArray(row)) return false;
+        return row.some(cell => cell !== null && cell !== undefined && cell.toString().trim() !== '');
+      });
+      
+      console.log('Header row found at index:', headerRowIndex);
+      console.log('Headers:', filteredData[0]);
+      console.log('Total data rows:', filteredData.length - 1);
+      
       // Store data for import
-      excelData = jsonData;
+      excelData = filteredData;
       
       // Show preview
-      showExcelPreview(jsonData);
+      showExcelPreview(filteredData);
       
       // Set starting job ID
-      const maxJobId = Math.max(...jobs.map(j => parseInt(j.id.replace('JOB-N', '')) || 0));
+      const maxJobId = jobs.length > 0 ? Math.max(...jobs.map(j => parseInt((j.id || '').replace('JOB-N', '')) || 0)) : 0;
       document.getElementById('start-job-id').value = `JOB-N${String(maxJobId + 1).padStart(3, '0')}`;
       
     } catch (error) {
@@ -18387,7 +18423,7 @@ function loadXLSXLibrary() {
 }
 
 function showExcelPreview(data) {
-  const headers = data[0];
+  const headers = data[0] || [];
   const rows = data.slice(1, 6); // Show first 5 rows
   
   // Create preview table
@@ -18400,11 +18436,14 @@ function showExcelPreview(data) {
   }
   
   // Headers
-  thead.innerHTML = '<tr>' + headers.map(h => `<th style="border:1px solid #ddd;padding:4px;font-size:10px;background:#f5f5f5">${h || ''}</th>`).join('') + '</tr>';
+  thead.innerHTML = '<tr>' + headers.map(h => `<th style="border:1px solid #ddd;padding:4px;font-size:10px;background:#f5f5f5;white-space:nowrap">${h || '(ว่าง)'}</th>`).join('') + '</tr>';
   
   // Rows
   tbody.innerHTML = rows.map(row => 
-    '<tr>' + headers.map((_, i) => `<td style="border:1px solid #ddd;padding:4px;font-size:10px">${row[i] || ''}</td>`).join('') + '</tr>'
+    '<tr>' + headers.map((_, i) => {
+      const val = (row && row[i] != null) ? row[i].toString() : '';
+      return `<td style="border:1px solid #ddd;padding:4px;font-size:10px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis" title="${val}">${val}</td>`;
+    }).join('') + '</tr>'
   ).join('');
   
   // Show info
@@ -18470,52 +18509,74 @@ function importExcelData() {
 }
 
 function mapExcelRowToJob(headers, row, jobNumber) {
-  // Map Excel columns to job fields
-  const getCol = (name) => {
-    const index = headers.findIndex(h => h && h.includes(name));
-    return index >= 0 ? (row[index] || '').toString().trim() : '';
+  // Map Excel columns to job fields - exact match first, then partial
+  const getCol = (names) => {
+    const nameList = Array.isArray(names) ? names : [names];
+    for (const name of nameList) {
+      // Exact match first
+      let index = headers.findIndex(h => h && h.toString().trim() === name);
+      if (index >= 0) return (row[index] || '').toString().trim();
+      // Partial match
+      index = headers.findIndex(h => h && h.toString().includes(name));
+      if (index >= 0) return (row[index] || '').toString().trim();
+    }
+    return '';
   };
   
   // Extract data from Excel
   const id = `JOB-N${String(jobNumber).padStart(3, '0')}`;
-  const dateTimeStr = getCol('วันที่ปฏิบัติงาน'); // "28/04/2569 09:00"
-  const shipper = getCol('Shipper');
-  const customer = getCol('ลูกค้า');
-  const plate = getCol('ทะเบียนรถ');
-  const driver = getCol('คนขับรถ');
-  const origin = getCol('ต้นทาง');
-  const dest = getCol('เปิด/บรรจุ');
-  const returnyard = getCol('ปลายทาง');
-  const containerType = getCol('ประเภทรถ/ตู้');
-  const container = getCol('หมายเลขตู้');
-  const jobType = getCol('ประเภทงาน');
-  const deliveryType = getCol('สถานะการจัดส่ง');
-  const weight = getCol('น้ำหนักต้นทาง');
-  const carrier = getCol('Carrier line/Agent');
-  const booking = getCol('Booking NO.');
+  const dateTimeStr = getCol(['วันที่ปฏิบัติงาน', 'วันที่']);
+  const shipper = getCol(['Shipper', 'ชิปเปอร์']);
+  const customer = getCol(['ลูกค้า', 'Customer']);
+  const plate = getCol(['ทะเบียนรถ', 'ทะเบียน']);
+  const driver = getCol(['คนขับรถ', 'คนขับ']);
+  const origin = getCol(['ต้นทาง']);
+  const dest = getCol(['เปิด/บรรจุ', 'เข้าโรงงาน', 'ปลายทาง']);
+  const returnyard = getCol(['ปลายทาง', 'ลานคืน']);
+  const containerType = getCol(['ประเภทรถ/ตู้', 'ประเภทตู้', 'ประเภทรถ']);
+  const container = getCol(['หมายเลขตู้', 'เลขตู้']);
+  const jobType = getCol(['ประเภทงาน']);
+  const deliveryType = getCol(['สถานะการจัดส่ง', 'สถานะ']);
+  const weight = getCol(['น้ำหนักต้นทาง', 'น้ำหนัก']);
+  const carrier = getCol(['Carrier line/Agent', 'Carrier', 'Agent']);
+  const booking = getCol(['Booking NO.', 'Booking', 'BookingNo']);
   
   // Convert Buddhist year to Christian year and parse date
   let startdate = '';
   if (dateTimeStr) {
     try {
-      // "28/04/2569 09:00" → "2026-04-28T09:00"
-      const parts = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s*(\d{1,2}):(\d{2})/);
+      // Try formats: "28/04/2569 09:00" or "28/04/2569" or "2026-04-28 09:00"
+      let parts = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s*(\d{1,2}):(\d{2})/);
       if (parts) {
         const day = parts[1].padStart(2, '0');
         const month = parts[2].padStart(2, '0');
-        const year = parseInt(parts[3]) - 543; // Convert พ.ศ. to ค.ศ.
+        let year = parseInt(parts[3]);
+        if (year > 2400) year -= 543; // Convert พ.ศ. to ค.ศ.
         const hour = parts[4].padStart(2, '0');
         const minute = parts[5];
         startdate = `${year}-${month}-${day}T${hour}:${minute}`;
+      } else {
+        // Try date only "28/04/2569"
+        parts = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (parts) {
+          const day = parts[1].padStart(2, '0');
+          const month = parts[2].padStart(2, '0');
+          let year = parseInt(parts[3]);
+          if (year > 2400) year -= 543;
+          startdate = `${year}-${month}-${day}T09:00`;
+        }
       }
     } catch (e) {
       console.warn('Date parsing error:', e);
     }
   }
   
-  // Validate required fields
-  if (!shipper || !startdate) {
-    throw new Error('ข้อมูลไม่ครบ (ต้องมี Shipper และวันที่)');
+  // Validate required fields - relaxed: only need Shipper OR Customer, plus a date
+  if (!shipper && !customer) {
+    throw new Error('ข้อมูลไม่ครบ (ต้องมี Shipper หรือ ลูกค้า)');
+  }
+  if (!startdate) {
+    throw new Error('ข้อมูลไม่ครบ (ไม่พบวันที่ปฏิบัติงาน หรือรูปแบบไม่ถูกต้อง)');
   }
   
   // Map job type
@@ -18533,7 +18594,7 @@ function mapExcelRowToJob(headers, row, jobNumber) {
     carrier,
     booking,
     container,
-    type: normalizeType(containerType),
+    type: typeof normalizeType === 'function' ? normalizeType(containerType) : containerType,
     origin,
     originUrl: '',
     dest,
