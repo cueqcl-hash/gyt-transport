@@ -14988,12 +14988,26 @@ function renderDashboard(){
   document.getElementById('d-wait').textContent=jobs.filter(j=>j.status==='รอดำเนินการ').length;
   document.getElementById('d-go').textContent=jobs.filter(j=>j.status==='กำลังดำเนินการ').length;
   document.getElementById('d-done').textContent=jobs.filter(j=>j.status==='เสร็จสิ้น').length;
+  // เรียงใบงานล่าสุดที่เพิ่มเข้ามาก่อน (ใช้ createdAt; ของเก่าที่ไม่มีจะอยู่ลำดับหลัง)
+  const __recent=jobs.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,6);
+  const __fmtCreated=(iso)=>{
+    if(!iso)return '';
+    try{
+      const d=new Date(iso);
+      const hh=String(d.getHours()).padStart(2,'0');
+      const mm=String(d.getMinutes()).padStart(2,'0');
+      const today=new Date();
+      const sameDay=d.toDateString()===today.toDateString();
+      return sameDay?`วันนี้ ${hh}:${mm}`:`${d.getDate()}/${d.getMonth()+1} ${hh}:${mm}`;
+    }catch(e){return '';}
+  };
   document.getElementById('d-recent-tbl').innerHTML=`
-    <thead><tr><th>เลขใบงาน</th><th>Shipper</th><th>ปลายทาง</th><th>สถานะ</th></tr></thead>
-    <tbody>${jobs.slice(0,6).map(j=>`<tr>
+    <thead><tr><th>เลขใบงาน</th><th>Shipper</th><th>ปลายทาง</th><th>ผู้ลงงาน</th><th>สถานะ</th></tr></thead>
+    <tbody>${__recent.map(j=>`<tr>
       <td style="color:var(--green);font-weight:700">${j.id}</td>
       <td style="color:var(--green-d)">${j.shipper}</td>
       <td>${j.dest}</td>
+      <td>${j.createdBy?`<div style="font-size:12px;font-weight:600">${j.createdBy}</div>${j.createdAt?`<div style="font-size:10px;color:var(--text-3)">${__fmtCreated(j.createdAt)}</div>`:''}`:'<span style="color:var(--text-3)">—</span>'}</td>
       <td>${badge(j.status)}</td>
     </tr>`).join('')}</tbody>`;
   const drv=['สมชาย ดีใจ','วิชัย มั่นคง','ประสิทธิ์ ทำงาน','นิรันดร์ ขยัน'];
@@ -15350,8 +15364,21 @@ function saveJob(){
     status:document.getElementById('fj-status').value,
     note:document.getElementById('fj-note').value.trim(),
   };
-  if(editJID){const i=jobs.findIndex(x=>x.id===editJID);jobs[i]=obj;}
-  else jobs.unshift(obj);
+  var __byName=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'ไม่ระบุ';
+  var __nowISO=new Date().toISOString();
+  if(editJID){
+    const i=jobs.findIndex(x=>x.id===editJID);
+    // เก็บข้อมูลผู้ลงงานเดิมไว้ + บันทึกผู้แก้ไขล่าสุด
+    obj.createdBy=(jobs[i]&&jobs[i].createdBy)||__byName;
+    obj.createdAt=(jobs[i]&&jobs[i].createdAt)||__nowISO;
+    obj.updatedBy=__byName;
+    obj.updatedAt=__nowISO;
+    jobs[i]=obj;
+  }else{
+    obj.createdBy=__byName;
+    obj.createdAt=__nowISO;
+    jobs.unshift(obj);
+  }
   saveLocUrl('fj-origin','fj-origin-url');
   saveLocUrl('fj-dest','fj-dest-url');
   saveLocUrl('fj-return','fj-return-url');
