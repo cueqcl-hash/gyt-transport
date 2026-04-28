@@ -18340,7 +18340,7 @@ if(document.readyState === 'loading') {
 document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
 // ================================
-// EXCEL IMPORT FUNCTIONS
+// EXCEL IMPORT FUNCTIONS (NO API)
 // ================================
 
 let excelData = null;
@@ -18350,6 +18350,13 @@ function previewExcel() {
   const file = fileInput.files[0];
   
   if (!file) return;
+  
+  // Check if XLSX library is loaded
+  if (typeof XLSX === 'undefined') {
+    showToast('กำลังโหลด XLSX library...');
+    loadXLSXLibrary();
+    return;
+  }
   
   const reader = new FileReader();
   reader.onload = function(e) {
@@ -18382,6 +18389,23 @@ function previewExcel() {
   reader.readAsBinaryString(file);
 }
 
+function loadXLSXLibrary() {
+  if (window.xlsxLoading) return; // Prevent multiple loads
+  window.xlsxLoading = true;
+  
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  script.onload = function() {
+    window.xlsxLoading = false;
+    showToast('XLSX library โหลดเสร็จแล้ว ลองเลือกไฟล์อีกครั้ง');
+  };
+  script.onerror = function() {
+    window.xlsxLoading = false;
+    showToast('ไม่สามารถโหลด XLSX library ได้ กรุณาลองใหม่');
+  };
+  document.head.appendChild(script);
+}
+
 function showExcelPreview(data) {
   const headers = data[0];
   const rows = data.slice(1, 6); // Show first 5 rows
@@ -18389,6 +18413,11 @@ function showExcelPreview(data) {
   // Create preview table
   const thead = document.getElementById('excel-thead');
   const tbody = document.getElementById('excel-tbody');
+  
+  if (!thead || !tbody) {
+    showToast('พบปัญหา: ไม่เจอ preview table elements');
+    return;
+  }
   
   // Headers
   thead.innerHTML = '<tr>' + headers.map(h => `<th style="border:1px solid #ddd;padding:4px;font-size:10px;background:#f5f5f5">${h || ''}</th>`).join('') + '</tr>';
@@ -18423,34 +18452,41 @@ function importExcelData() {
   let imported = 0;
   let errors = [];
   
+  // Import each row
   dataRows.forEach((row, index) => {
     try {
       const jobData = mapExcelRowToJob(headers, row, startNum + index);
       if (jobData) {
-        jobs.unshift(jobData);
-        imported++;
+        // Check for duplicate ID
+        if (!jobs.find(j => j.id === jobData.id)) {
+          jobs.unshift(jobData);
+          imported++;
+        } else {
+          errors.push(`แถว ${index + 2}: Job ID ${jobData.id} ซ้ำ`);
+        }
       }
     } catch (error) {
       errors.push(`แถว ${index + 2}: ${error.message}`);
     }
   });
   
-  // Save to Supabase
-  saveJobsDB();
-  
-  // Update UI
-  renderJobs();
-  renderStats();
+  // Save to localStorage (not Supabase API)
+  if (imported > 0) {
+    localStorage.setItem('gyt_jobs', JSON.stringify(jobs));
+    // Update UI
+    renderJobs();
+    renderStats();
+  }
   
   // Show results
-  const resultText = `✅ Import สำเร็จ: ${imported} งาน\n`;
-  const errorText = errors.length > 0 ? `\n❌ ข้อผิดพลาด:\n${errors.join('\n')}` : '';
+  const resultText = `✅ Import สำเร็จ: ${imported} งาน`;
+  const errorText = errors.length > 0 ? `\n\n❌ ข้อผิดพลาด:\n${errors.slice(0,5).join('\n')}${errors.length > 5 ? `\n...และอีก ${errors.length-5} ข้อผิดพลาด` : ''}` : '';
   
   document.getElementById('import-result').textContent = resultText + errorText;
   document.getElementById('excel-import-log').style.display = 'block';
   document.getElementById('btn-import-excel').style.display = 'none';
   
-  showToast(`Import เสร็จแล้ว: ${imported} งาน`);
+  showToast(`Import เสร็จแล้ว: ${imported} งาน${errors.length > 0 ? ` (${errors.length} ข้อผิดพลาด)` : ''}`);
 }
 
 function mapExcelRowToJob(headers, row, jobNumber) {
@@ -18537,11 +18573,9 @@ function mapExcelRowToJob(headers, row, jobNumber) {
   };
 }
 
-// Load XLSX library if not already loaded
-if (typeof XLSX === 'undefined') {
-  const script = document.createElement('script');
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-  document.head.appendChild(script);
+// Preload XLSX library if available
+if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
+  loadXLSXLibrary();
 }
 </script>
 
