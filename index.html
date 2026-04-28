@@ -418,6 +418,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .deploy-log .info{color:#ffd700}
 .deploy-input{width:100%;height:36px;padding:0 12px;border-radius:6px;border:1.5px solid var(--border);font-size:13px;font-family:var(--font);margin-bottom:10px}
 
+
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -558,9 +559,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <input type="text" class="tb-input tb-search" id="j-search" placeholder="ค้นหา เลขใบงาน / ลูกค้า / Shipper / ตู้...">
           <div class="date-range">
             <span class="date-label">ช่วงวันที่:</span>
-            <input type="date" class="tb-input" id="j-date-from" style="width:140px">
+            <input type="text" class="tb-input" id="j-date-from" placeholder="วว/ดด/ปปปป" maxlength="10" style="width:120px;font-family:var(--mono);letter-spacing:.05em" oninput="onDateInput(this)" onblur="onDateBlur(this)">
             <span class="date-label">ถึง</span>
-            <input type="date" class="tb-input" id="j-date-to" style="width:140px">
+            <input type="text" class="tb-input" id="j-date-to" placeholder="วว/ดด/ปปปป" maxlength="10" style="width:120px;font-family:var(--mono);letter-spacing:.05em" oninput="onDateInput(this)" onblur="onDateBlur(this)">
             <button class="btn btn-ghost btn-icon" onclick="clearDates()" title="ล้างตัวกรองวันที่">✕</button>
           </div>
           <select class="tb-input" id="j-fstatus">
@@ -3507,13 +3508,16 @@ function initApp(){
 
   // Set default date range (today → today)
   const today=new Date();
-  const todayStr=today.toISOString().slice(0,10);
-  document.getElementById('j-date-from').value=todayStr;
-  document.getElementById('j-date-to').value=todayStr;
+  var dd=String(today.getDate()).padStart(2,'0');
+  var mm=String(today.getMonth()+1).padStart(2,'0');
+  var yyyy=today.getFullYear();
+  var todayDDMMYYYY=dd+'/'+mm+'/'+yyyy;
+  document.getElementById('j-date-from').value=todayDDMMYYYY;
+  document.getElementById('j-date-to').value=todayDDMMYYYY;
 
   // บันทึก session 24 ชั่วโมง
   const session = {
-    userId: u.id,
+    userId: currentUser.id,
     expiry: Date.now() + 24*60*60*1000  // 24 ชม.
   };
   localStorage.setItem('gyt_session', JSON.stringify(session));
@@ -14957,8 +14961,8 @@ function renderDashboard(){
 function getFiltered(){
   const q=document.getElementById('j-search').value.toLowerCase();
   const st=document.getElementById('j-fstatus').value;
-  const df=document.getElementById('j-date-from').value;
-  const dt=document.getElementById('j-date-to').value;
+  const df=toISO(document.getElementById('j-date-from').value) || document.getElementById('j-date-from').value;
+  const dt=toISO(document.getElementById('j-date-to').value) || document.getElementById('j-date-to').value;
   let list=currentUser.role==='driver'?jobs.filter(j=>j.driver===currentUser.fname+' '+currentUser.lname):jobs;
   return list.filter(j=>{
     const mq=!q||[j.id,j.customer,j.shipper,j.carrier,j.booking,j.container,j.driver,j.plate,j.origin,j.dest].some(v=>v&&v.toLowerCase().includes(q));
@@ -18090,14 +18094,33 @@ async function startDeploy() {
     if (d.url) {
       addDeployLog('✅ Deploy สำเร็จ!', 'ok');
       addDeployLog('🌐 URL: https://' + d.url, 'ok');
-      addDeployLog('⏳ รอ ~30 วินาทีแล้วกด Reload', 'info');
-      
-      // เพิ่มปุ่ม Reload
+
+      // นับถอยหลัง
+      var sec = 35;
+      var countEl = document.createElement('div');
+      countEl.style.cssText = 'margin-top:8px;padding:8px 12px;background:rgba(232,184,0,0.15);border-radius:6px;text-align:center;font-size:13px;font-weight:700;color:var(--yellow-d)';
+      countEl.textContent = '🔄 Reload อัตโนมัติใน ' + sec + ' วินาที...';
       var log = document.getElementById('deploy-log');
+      log.appendChild(countEl);
+
+      var timer = setInterval(function(){
+        sec--;
+        if(sec <= 0){
+          clearInterval(timer);
+          countEl.textContent = '✅ กำลัง Reload...';
+          location.reload();
+        } else {
+          countEl.textContent = '🔄 Reload อัตโนมัติใน ' + sec + ' วินาที...';
+          // แสดง progress bar
+          countEl.style.background = 'linear-gradient(90deg, rgba(45,122,79,0.3) '+Math.round((35-sec)/35*100)+'%, rgba(232,184,0,0.15) '+Math.round((35-sec)/35*100)+'%)';
+        }
+      }, 1000);
+
+      // ปุ่ม Reload ทันที
       var reloadBtn = document.createElement('button');
-      reloadBtn.style.cssText = 'margin-top:8px;padding:6px 14px;background:#2D7A4F;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px';
-      reloadBtn.textContent = '🔄 Reload หน้านี้';
-      reloadBtn.onclick = function(){ location.reload(); };
+      reloadBtn.style.cssText = 'margin-top:6px;padding:6px 14px;background:#2D7A4F;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;width:100%';
+      reloadBtn.textContent = '🔄 Reload เลย (ไม่ต้องรอ)';
+      reloadBtn.onclick = function(){ clearInterval(timer); location.reload(); };
       log.appendChild(reloadBtn);
     } else if (d.error) {
       addDeployLog('❌ Error: ' + d.error.message, 'err');
@@ -18155,6 +18178,42 @@ async function startDeploy() {
     localStorage.removeItem('gyt_session');
   }
 })();
+
+
+// ── Date format helpers (dd/mm/yyyy ↔ yyyy-mm-dd) ──────────
+function toISO(ddmmyyyy) {
+  if(!ddmmyyyy) return '';
+  var p = ddmmyyyy.split('/');
+  if(p.length !== 3) return '';
+  var d=p[0].padStart(2,'0'), m=p[1].padStart(2,'0'), y=p[2];
+  if(y.length !== 4 || isNaN(d) || isNaN(m) || isNaN(y)) return '';
+  return y+'-'+m+'-'+d;
+}
+function toDDMMYYYY(iso) {
+  if(!iso) return '';
+  var p = iso.split('T')[0].split('-');
+  if(p.length !== 3) return '';
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
+function onDateInput(el) {
+  var v = el.value.replace(/[^0-9\/]/g,'');
+  // auto insert /
+  if(v.length === 2 && el._prev && el._prev.length === 1) v += '/';
+  if(v.length === 5 && el._prev && el._prev.length === 4) v += '/';
+  el.value = v;
+  el._prev = v;
+  jPage=1; renderJobs();
+}
+function onDateBlur(el) {
+  var v = el.value;
+  if(v && v.length < 10) {
+    // auto complete year ถ้าพิมพ์แค่ dd/mm
+    var p = v.split('/');
+    if(p.length === 2) el.value = p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+new Date().getFullYear();
+    else if(p.length === 3 && p[2].length < 4) el.value = p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2];
+  }
+  jPage=1; renderJobs();
+}
 
 // Init date display
 document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
