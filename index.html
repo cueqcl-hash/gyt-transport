@@ -17355,44 +17355,24 @@ function onManualOil() {
 async function fetchOilPrice() {
   var btn = document.getElementById('btn-fetch-oil');
   var icon = document.getElementById('fetch-icon');
-  btn.classList.add('loading');
-  icon.innerHTML = '<span class="loading-spinner"></span>';
-  try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 200,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
-        messages: [{
-          role: "user",
-          content: "ราคาน้ำมันดีเซล B7 ปั๊มบางจาก วันนี้ บาทต่อลิตร ตอบเฉพาะตัวเลขราคา เช่น 29.94"
-        }]
-      })
-    });
-    const data = await response.json();
-    var text = data.content.map(function(b){return b.text||''}).join('');
-    var m = text.match(/(\d{2,3}\.\d{1,2})/);
-    if (m) {
-      var price = parseFloat(m[1]);
-      if (price > 20 && price < 80) {
-        setOilDisplay(price, 'live');
-        document.getElementById('oil-update-text').textContent = 'อัปเดต: ' + new Date().toLocaleTimeString('th-TH') + ' (บางจาก ดีเซล B7)';
-        showToast('ดึงราคาน้ำมัน ' + price.toFixed(2) + ' บาท/ลิตร สำเร็จ');
-        document.getElementById('oil-change-badge').style.display = 'none';
-      } else throw new Error('invalid price');
-    } else throw new Error('no price found');
-  } catch(e) {
-    document.getElementById('oil-update-text').textContent = 'ไม่สามารถดึงราคาได้ — กรอกเองได้ที่ช่องด้านขวา';
-    showToast('กรุณากรอกราคาน้ำมันด้วยตัวเอง');
-  }
-  btn.classList.remove('loading');
-  icon.innerHTML = '🔄';
+  if(btn) btn.classList.add('loading');
+  if(icon) icon.innerHTML = '<span class="loading-spinner"></span>';
+  
+  // Note: Direct calls to Anthropic API from browser are blocked by CORS.
+  // To use live oil price, you need a backend proxy server.
+  // For now, please enter the oil price manually.
+  
+  setTimeout(function(){
+    var updateEl = document.getElementById('oil-update-text');
+    if(updateEl) updateEl.textContent = 'กรุณากรอกราคาน้ำมันด้วยตัวเอง (CORS จำกัดการดึงอัตโนมัติ)';
+    if(btn) btn.classList.remove('loading');
+    if(icon) icon.innerHTML = '🔄';
+    showToast('กรุณากรอกราคาน้ำมันที่ช่องด้านขวา');
+  }, 300);
 }
 
-// Auto-fetch on load
-fetchOilPrice();
+// Auto-fetch DISABLED to prevent CORS errors
+// fetchOilPrice();
 
 // ══════════════════════════════════════════════════════
 // TABS
