@@ -18282,6 +18282,9 @@ function importExcelData() {
       if (jobData) {
         // Check for duplicate ID
         if (!jobs.find(j => j.id === jobData.id)) {
+          // ติดผู้ import + เวลา (ถ้า Excel ไม่ได้ระบุมาเอง)
+          if(!jobData.createdBy) jobData.createdBy = currentUser?(currentUser.fname+' '+currentUser.lname).trim():'ไม่ระบุ';
+          if(!jobData.createdAt) jobData.createdAt = new Date().toISOString();
           jobs.unshift(jobData);
           imported++;
         } else {
