@@ -420,7 +420,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
 
 
-.import-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:none;align-items:center;justify-content:center}
+.import-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:none;align-items:center;justify-content:center}
 .import-modal.open{display:flex}
 .import-box{background:#fff;border-radius:12px;padding:24px;width:520px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:var(--font)}
 .import-box h3{font-size:16px;font-weight:700;margin-bottom:4px;color:var(--text)}
@@ -18243,9 +18243,13 @@ function onDateBlur(el) {
 // IMPORT EXCEL
 // ════════════════════════════════════════════════════════════
 function openImportExcel() {
+  var modal = document.getElementById('modal-import');
+  if(!modal) { showToast('ไม่พบ Import Modal'); return; }
   document.getElementById('import-file-input').value = '';
   setImportLog('▶ เลือกไฟล์แล้วกด Import ได้เลยครับ', 'ok');
-  document.getElementById('modal-import').classList.add('open');
+  modal.classList.add('open');
+  modal.style.display = 'flex';
+  modal.style.zIndex = '9999';
 }
 
 function setImportLog(msg, type) {
