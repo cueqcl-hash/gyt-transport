@@ -18492,6 +18492,9 @@ function importExcelData() {
   // Save to localStorage (not Supabase API)
   if (imported > 0) {
     localStorage.setItem('gyt_jobs', JSON.stringify(jobs));
+    // Sync imported jobs to Supabase
+    const newlyImported = jobs.slice(0, imported);
+    (async () => { for (const j of newlyImported) { await syncJobSave(j); await new Promise(r => setTimeout(r, 50)); } })();
     // Update UI
     renderJobs();
     if (typeof renderDashboard === "function") renderDashboard();
