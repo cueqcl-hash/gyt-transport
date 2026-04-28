@@ -372,6 +372,27 @@ td.cb-td{position:sticky;left:0;background:#fff;z-index:1;border-right:1px solid
 .bin-del-btn:hover{background:var(--red-m);color:#fff}
 .bin-reason-tag{font-size:10px;padding:2px 7px;border-radius:20px;background:#FEF3CD;color:#856404;border:1px solid #FEDD85;font-weight:500}
 
+/* Excel Import Modal */
+#excel-preview-table th, #excel-preview-table td {
+  border: 1px solid #ddd;
+  padding: 4px;
+  font-size: 10px;
+  text-align: left;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#excel-preview-table th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+#excel-preview-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
+
 
 :root{
   --green:#2D7A4F;--green-d:#1E5C3A;--green-l:#E8F5EE;--green-m:#A8D5BB;
@@ -601,6 +622,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <button class="btn btn-ghost" onclick="openBin()" id="bin-btn" style="color:var(--red);border-color:var(--red-m)" title="ถังขยะ — งานที่ลบไปแล้ว">🗑 ถังขยะ<span class="bin-badge" id="bin-badge" style="display:none">0</span></button>
           <button class="btn btn-green" id="btn-add-job" onclick="openAddJob()">+ ใบงานใหม่</button>
           <button class="btn btn-yellow" id="btn-add-multi" onclick="openMultiJob()">+ หลายตู้ (BL เดียว)</button>
+          <button class="btn btn-blue" onclick="openModal('modal-excel-import')" title="Import งานจากไฟล์ Excel">📊 Import Excel</button>
         </div>
         <div class="tbl-wrap"><div class="tbl-scroll"><table><thead><tr id="j-thead-row"><th class="cb-th"><input type="checkbox" class="row-cb" id="cb-all-hdr" onchange="toggleSelectAll(this)" title="เลือกทั้งหมดในหน้านี้"></th><th style="width:110px;position:sticky;left:40px;background:#F2F7F4;z-index:2"></th></tr></thead><tbody id="j-tbody"></tbody></table>
         <div id="j-nodata" class="no-data" style="display:none">ไม่พบใบงานในช่วงวันที่ที่เลือก</div>
@@ -3578,6 +3600,7 @@ function fmt(dt){if(!dt)return'—';const d=new Date(dt);return`${d.getDate().to
 function fmtDate(dt){if(!dt)return'—';const d=new Date(dt);return`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;}
 function badge(s){const c=s==='รอดำเนินการ'?'b-wait':s==='กำลังดำเนินการ'?'b-go':'b-done';return`<span class="badge ${c}">${s}</span>`;}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
+function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 
@@ -18315,6 +18338,211 @@ if(document.readyState === 'loading') {
 
 // Init date display
 document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+// ================================
+// EXCEL IMPORT FUNCTIONS
+// ================================
+
+let excelData = null;
+
+function previewExcel() {
+  const fileInput = document.getElementById('excel-file');
+  const file = fileInput.files[0];
+  
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const workbook = XLSX.read(e.target.result, { type: 'binary' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+      
+      if (jsonData.length < 2) {
+        showToast('ไฟล์ Excel ไม่มีข้อมูลที่เพียงพอ');
+        return;
+      }
+      
+      // Store data for import
+      excelData = jsonData;
+      
+      // Show preview
+      showExcelPreview(jsonData);
+      
+      // Set starting job ID
+      const maxJobId = Math.max(...jobs.map(j => parseInt(j.id.replace('JOB-N', '')) || 0));
+      document.getElementById('start-job-id').value = `JOB-N${String(maxJobId + 1).padStart(3, '0')}`;
+      
+    } catch (error) {
+      console.error('Excel read error:', error);
+      showToast('ไม่สามารถอ่านไฟล์ Excel ได้: ' + error.message);
+    }
+  };
+  
+  reader.readAsBinaryString(file);
+}
+
+function showExcelPreview(data) {
+  const headers = data[0];
+  const rows = data.slice(1, 6); // Show first 5 rows
+  
+  // Create preview table
+  const thead = document.getElementById('excel-thead');
+  const tbody = document.getElementById('excel-tbody');
+  
+  // Headers
+  thead.innerHTML = '<tr>' + headers.map(h => `<th style="border:1px solid #ddd;padding:4px;font-size:10px;background:#f5f5f5">${h || ''}</th>`).join('') + '</tr>';
+  
+  // Rows
+  tbody.innerHTML = rows.map(row => 
+    '<tr>' + headers.map((_, i) => `<td style="border:1px solid #ddd;padding:4px;font-size:10px">${row[i] || ''}</td>`).join('') + '</tr>'
+  ).join('');
+  
+  // Show info
+  document.getElementById('excel-row-count').value = `${data.length - 1} แถว`;
+  document.getElementById('excel-preview').style.display = 'block';
+  document.getElementById('btn-import-excel').style.display = 'inline-block';
+}
+
+function importExcelData() {
+  if (!excelData) {
+    showToast('กรุณาเลือกไฟล์ Excel ก่อน');
+    return;
+  }
+  
+  const startJobId = document.getElementById('start-job-id').value.trim();
+  if (!startJobId.match(/^JOB-N\d{3}$/)) {
+    showToast('รูปแบบ Job ID ไม่ถูกต้อง (ต้องเป็น JOB-NXXX)');
+    return;
+  }
+  
+  const startNum = parseInt(startJobId.replace('JOB-N', ''));
+  const headers = excelData[0];
+  const dataRows = excelData.slice(1);
+  
+  let imported = 0;
+  let errors = [];
+  
+  dataRows.forEach((row, index) => {
+    try {
+      const jobData = mapExcelRowToJob(headers, row, startNum + index);
+      if (jobData) {
+        jobs.unshift(jobData);
+        imported++;
+      }
+    } catch (error) {
+      errors.push(`แถว ${index + 2}: ${error.message}`);
+    }
+  });
+  
+  // Save to Supabase
+  saveJobsDB();
+  
+  // Update UI
+  renderJobs();
+  renderStats();
+  
+  // Show results
+  const resultText = `✅ Import สำเร็จ: ${imported} งาน\n`;
+  const errorText = errors.length > 0 ? `\n❌ ข้อผิดพลาด:\n${errors.join('\n')}` : '';
+  
+  document.getElementById('import-result').textContent = resultText + errorText;
+  document.getElementById('excel-import-log').style.display = 'block';
+  document.getElementById('btn-import-excel').style.display = 'none';
+  
+  showToast(`Import เสร็จแล้ว: ${imported} งาน`);
+}
+
+function mapExcelRowToJob(headers, row, jobNumber) {
+  // Map Excel columns to job fields
+  const getCol = (name) => {
+    const index = headers.findIndex(h => h && h.includes(name));
+    return index >= 0 ? (row[index] || '').toString().trim() : '';
+  };
+  
+  // Extract data from Excel
+  const id = `JOB-N${String(jobNumber).padStart(3, '0')}`;
+  const dateTimeStr = getCol('วันที่ปฏิบัติงาน'); // "28/04/2569 09:00"
+  const shipper = getCol('Shipper');
+  const customer = getCol('ลูกค้า');
+  const plate = getCol('ทะเบียนรถ');
+  const driver = getCol('คนขับรถ');
+  const origin = getCol('ต้นทาง');
+  const dest = getCol('เปิด/บรรจุ');
+  const returnyard = getCol('ปลายทาง');
+  const containerType = getCol('ประเภทรถ/ตู้');
+  const container = getCol('หมายเลขตู้');
+  const jobType = getCol('ประเภทงาน');
+  const deliveryType = getCol('สถานะการจัดส่ง');
+  const weight = getCol('น้ำหนักต้นทาง');
+  const carrier = getCol('Carrier line/Agent');
+  const booking = getCol('Booking NO.');
+  
+  // Convert Buddhist year to Christian year and parse date
+  let startdate = '';
+  if (dateTimeStr) {
+    try {
+      // "28/04/2569 09:00" → "2026-04-28T09:00"
+      const parts = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s*(\d{1,2}):(\d{2})/);
+      if (parts) {
+        const day = parts[1].padStart(2, '0');
+        const month = parts[2].padStart(2, '0');
+        const year = parseInt(parts[3]) - 543; // Convert พ.ศ. to ค.ศ.
+        const hour = parts[4].padStart(2, '0');
+        const minute = parts[5];
+        startdate = `${year}-${month}-${day}T${hour}:${minute}`;
+      }
+    } catch (e) {
+      console.warn('Date parsing error:', e);
+    }
+  }
+  
+  // Validate required fields
+  if (!shipper || !startdate) {
+    throw new Error('ข้อมูลไม่ครบ (ต้องมี Shipper และวันที่)');
+  }
+  
+  // Map job type
+  let mappedJobType = '';
+  if (jobType.includes('ขาเข้า')) mappedJobType = 'งานขาเข้า(ตู้เปิด)';
+  else if (jobType.includes('ขาออก')) mappedJobType = 'งานขาออก(ตู้บรรจุ)';
+  
+  return {
+    id,
+    startdate,
+    deliverdate: startdate, // Same as start for now
+    customer: customer || shipper,
+    phone: '',
+    shipper,
+    carrier,
+    booking,
+    container,
+    type: normalizeType(containerType),
+    origin,
+    originUrl: '',
+    dest,
+    destUrl: '',
+    returnyard,
+    returnyardUrl: '',
+    weight,
+    plate,
+    driver,
+    job_type: mappedJobType,
+    delivery_type: deliveryType || 'จัดส่งสินค้าภายในวัน',
+    status: 'รอดำเนินการ',
+    note: '',
+    receiptName: shipper,
+    receiptAddr: '',
+    receiptTaxid: ''
+  };
+}
+
+// Load XLSX library if not already loaded
+if (typeof XLSX === 'undefined') {
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  document.head.appendChild(script);
+}
 </script>
 
 <!-- MODAL: MASTER DATA -->
@@ -18924,6 +19152,49 @@ document.getElementById('topbar-date').textContent=new Date().toLocaleDateString
     <button class="btn btn-ghost" onclick="closeModal('modal-import')">ยกเลิก</button>
     <button class="btn btn-green" onclick="importCSV()">📥 Import</button>
   </div>
+</div>
+
+<!-- MODAL: EXCEL IMPORT -->
+<div class="modal-overlay" id="modal-excel-import">
+<div class="modal">
+  <div class="modal-head">
+    <div><div class="modal-title">📊 Import งานจากไฟล์ Excel</div><div class="modal-sub">เลือกไฟล์ .xlsx ที่มีข้อมูลใบงาน</div></div>
+    <button class="close-x" onclick="closeModal('modal-excel-import')">×</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg"><label class="fl">เลือกไฟล์ Excel (.xlsx)</label>
+      <input type="file" class="fi" id="excel-file" accept=".xlsx,.xls" onchange="previewExcel()">
+    </div>
+    
+    <div id="excel-preview" style="display:none;margin-top:16px">
+      <div class="sec-title">ตัวอย่างข้อมูล (5 แถวแรก)</div>
+      <div style="overflow-x:auto;margin:8px 0">
+        <table id="excel-preview-table" style="font-size:11px;border-collapse:collapse;width:100%">
+          <thead id="excel-thead"></thead>
+          <tbody id="excel-tbody"></tbody>
+        </table>
+      </div>
+      <div class="fg-row" style="margin-top:12px">
+        <div class="fg"><label class="fl">จำนวนแถวที่พบ</label><input class="fi" id="excel-row-count" readonly style="background:#f5f5f5"></div>
+        <div class="fg"><label class="fl">เริ่ม Job ID ที่</label><input class="fi" id="start-job-id" value="" placeholder="เช่น JOB-N064"></div>
+      </div>
+      
+      <div class="note-bar warning" style="margin-top:12px">
+        <strong>⚠️ คำเตือน:</strong> การ Import จะเพิ่มงานใหม่เข้าระบบ ตรวจสอบข้อมูลให้ถูกต้องก่อน Import
+      </div>
+    </div>
+    
+    <div id="excel-import-log" style="display:none;margin-top:16px">
+      <div class="sec-title">ผลการ Import</div>
+      <div id="import-result" style="font-family:var(--mono);font-size:11px;background:#f8f9fa;padding:12px;border-radius:6px;white-space:pre-wrap;max-height:200px;overflow-y:auto;border:1px solid var(--border)"></div>
+    </div>
+  </div>
+  
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-excel-import')">ยกเลิก</button>
+    <button class="btn btn-green" id="btn-import-excel" onclick="importExcelData()" style="display:none">📥 Import ข้อมูล</button>
+  </div>
+</div>
 </div>
 
 <!-- DEPLOY MODAL -->
