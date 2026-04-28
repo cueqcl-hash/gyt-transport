@@ -419,6 +419,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .deploy-input{width:100%;height:36px;padding:0 12px;border-radius:6px;border:1.5px solid var(--border);font-size:13px;font-family:var(--font);margin-bottom:10px}
 
 
+
+.import-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:none;align-items:center;justify-content:center}
+.import-modal.open{display:flex}
+.import-box{background:#fff;border-radius:12px;padding:24px;width:520px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:var(--font)}
+.import-box h3{font-size:16px;font-weight:700;margin-bottom:4px;color:var(--text)}
+.import-box p{font-size:13px;color:var(--text-2);margin-bottom:14px}
+.import-log{background:#1a1a1a;color:#00ff88;font-family:monospace;font-size:11px;padding:12px;border-radius:8px;height:150px;overflow-y:auto;margin-bottom:14px;line-height:1.7}
+.import-log .err{color:#ff6b6b}
+.import-log .warn{color:#E8B800}
+.import-log .ok{color:#00ff88}
+
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18226,6 +18237,205 @@ function onDateBlur(el) {
   jPage=1; renderJobs();
 }
 
+
+// ════════════════════════════════════════════════════════════
+// IMPORT EXCEL
+// ════════════════════════════════════════════════════════════
+function openImportExcel() {
+  document.getElementById('import-file-input').value = '';
+  setImportLog('▶ เลือกไฟล์แล้วกด Import ได้เลยครับ', 'ok');
+  document.getElementById('modal-import').classList.add('open');
+}
+
+function setImportLog(msg, type) {
+  var log = document.getElementById('import-log');
+  if(!log) return;
+  log.innerHTML = '<div class="'+( type||'ok')+'">'+msg+'</div>';
+}
+function addImportLog(msg, type) {
+  var log = document.getElementById('import-log');
+  if(!log) return;
+  var d = document.createElement('div');
+  d.className = type||'ok';
+  d.textContent = msg;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function startImportExcel() {
+  var fileInput = document.getElementById('import-file-input');
+  var file = fileInput.files[0];
+  if(!file) { addImportLog('❌ กรุณาเลือกไฟล์ก่อนครับ', 'err'); return; }
+
+  var btn = document.getElementById('import-btn');
+  btn.disabled = true; btn.textContent = '⏳ กำลัง Import...';
+
+  setImportLog('⏳ กำลังอ่านไฟล์ ' + file.name + '...', 'ok');
+
+  try {
+    // โหลด SheetJS
+    if(typeof XLSX === 'undefined') {
+      addImportLog('⏳ โหลด SheetJS library...', 'ok');
+      await new Promise((res, rej) => {
+        var s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+
+    // อ่านไฟล์
+    var data = await file.arrayBuffer();
+    var wb = XLSX.read(data, {type:'array'});
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+    addImportLog('✅ อ่านไฟล์สำเร็จ — ' + rows.length + ' แถว', 'ok');
+
+    // หา header row (แถวที่มี "วันที่ปฏิบัติงาน")
+    var headerIdx = -1;
+    for(var i=0; i<rows.length; i++) {
+      if(rows[i].some(function(c){ return String(c).includes('วันที่ปฏิบัติงาน'); })) {
+        headerIdx = i; break;
+      }
+    }
+    if(headerIdx < 0) { addImportLog('❌ ไม่พบ header row — ต้องมีคอลัมน์ "วันที่ปฏิบัติงาน"', 'err'); btn.disabled=false; btn.textContent='📥 Import เลย'; return; }
+
+    var headers = rows[headerIdx];
+    addImportLog('✅ พบ header ที่แถว ' + (headerIdx+1) + ': ' + headers.filter(function(h){return h;}).join(', ').slice(0,80), 'ok');
+
+    // map column index
+    function colIdx(name) {
+      return headers.findIndex(function(h){ return String(h).includes(name); });
+    }
+    var colMap = {
+      date: colIdx('วันที่ปฏิบัติงาน'),
+      plate: colIdx('ทะเบียนรถ'),
+      driver: colIdx('คนขับรถ'),
+      shipper: colIdx('Shipper'),
+      origin: colIdx('ต้นทาง'),
+      dest: colIdx('เปิด/บรรจุ'),
+      deliverdate: colIdx('เข้าถึงโรงงาน'),
+      returnyard: colIdx('ปลายทาง'),
+      ctype: colIdx('ประเภทรถ/ตู้'),
+      container: colIdx('หมายเลขตู้'),
+      job_type: colIdx('ประเภทงาน'),
+      customer: colIdx('ลูกค้า'),
+      weight: colIdx('น้ำหนัก'),
+      carrier: colIdx('Carrier'),
+      booking: colIdx('Booking')
+    };
+
+    // แปลงวันที่ พ.ศ. → ISO
+    function parseThaiDate(s) {
+      if(!s) return null;
+      s = String(s).trim();
+      var m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s*(\d{2}):(\d{2})?/);
+      if(m) {
+        var y = parseInt(m[3]) > 2500 ? parseInt(m[3])-543 : parseInt(m[3]);
+        return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0')+'T'+(m[4]||'00')+':'+(m[5]||'00');
+      }
+      return null;
+    }
+
+    // หา max job ID
+    var maxNum = 0;
+    jobs.forEach(function(j){
+      var n = parseInt((j.id||'').replace(/\D/g,''));
+      if(n > maxNum) maxNum = n;
+    });
+
+    // แปลงแถวข้อมูล
+    var newJobs = [];
+    var skipped = 0;
+    for(var r=headerIdx+1; r<rows.length; r++) {
+      var row = rows[r];
+      if(!row[0] || String(row[0]).trim() === '') { skipped++; continue; }
+      // ตรวจว่าแถวมีข้อมูลจริง
+      var hasData = row.some(function(c){ return String(c).trim() !== ''; });
+      if(!hasData) { skipped++; continue; }
+
+      maxNum++;
+      var jobId = 'JOB-N' + String(maxNum).padStart(3,'0');
+
+      var job = {
+        id: jobId,
+        startdate: parseThaiDate(colMap.date >= 0 ? row[colMap.date] : ''),
+        deliverdate: parseThaiDate(colMap.deliverdate >= 0 ? row[colMap.deliverdate] : ''),
+        plate: colMap.plate >= 0 ? String(row[colMap.plate]||'').trim() : '',
+        driver: colMap.driver >= 0 ? String(row[colMap.driver]||'').trim() : '',
+        shipper: colMap.shipper >= 0 ? String(row[colMap.shipper]||'').trim() : '',
+        origin: colMap.origin >= 0 ? String(row[colMap.origin]||'').trim() : '',
+        dest: colMap.dest >= 0 ? String(row[colMap.dest]||'').trim() : '',
+        returnyard: colMap.returnyard >= 0 ? String(row[colMap.returnyard]||'').trim() : '',
+        type: colMap.ctype >= 0 ? String(row[colMap.ctype]||'').trim().replace("' ","'") : '',
+        container: colMap.container >= 0 ? String(row[colMap.container]||'').trim() : '',
+        job_type: colMap.job_type >= 0 ? String(row[colMap.job_type]||'').trim() : '',
+        customer: colMap.customer >= 0 ? String(row[colMap.customer]||'').trim() : '',
+        weight: colMap.weight >= 0 ? String(row[colMap.weight]||'').trim() : '',
+        carrier: colMap.carrier >= 0 ? String(row[colMap.carrier]||'').trim() : '',
+        booking: colMap.booking >= 0 ? String(row[colMap.booking]||'').trim() : '',
+        delivery_type: 'จัดส่งสินค้าภายในวัน',
+        status: 'รอดำเนินการ',
+        note: '',
+        created_by: currentUser ? currentUser.fname+' '+currentUser.lname : '',
+        created_at: new Date().toISOString()
+      };
+      newJobs.push(job);
+    }
+
+    addImportLog('📊 พบ ' + newJobs.length + ' ใบงาน (ข้าม ' + skipped + ' แถวว่าง)', 'ok');
+    if(newJobs.length === 0) { addImportLog('❌ ไม่พบข้อมูลใบงาน', 'err'); btn.disabled=false; btn.textContent='📥 Import เลย'; return; }
+
+    // แสดง preview 3 รายการแรก
+    newJobs.slice(0,3).forEach(function(j,i){
+      addImportLog('  '+(i+1)+'. '+j.id+' | '+j.startdate+' | '+(j.shipper||'').slice(0,25), 'ok');
+    });
+
+    // Sync ขึ้น Supabase
+    addImportLog('⏳ กำลัง Upload ขึ้น Supabase...', 'ok');
+
+    var SUPA_URL = 'https://djdzhepbejsghetbsrmw.supabase.co';
+    var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqZHpoZXBiZWpzZ2hldGJzcm13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNjIwNTQsImV4cCI6MjA5MjgzODA1NH0.MmXpTzaioKeUc4W44a3z9ys6qTTnwIAu1VEWgW7s6XU';
+    var H = {'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'};
+
+    // map to DB format
+    var dbJobs = newJobs.map(function(j){
+      return {
+        id:j.id, startdate:j.startdate, deliverdate:j.deliverdate,
+        customer:j.customer, shipper:j.shipper, carrier:j.carrier,
+        booking:j.booking, container:j.container, type:j.type,
+        origin:j.origin, dest:j.dest, returnyard:j.returnyard,
+        weight:j.weight, plate:j.plate, driver:j.driver,
+        delivery_type:j.delivery_type, job_type:j.job_type,
+        status:j.status, note:j.note,
+        created_by:j.created_by, created_at:j.created_at
+      };
+    });
+
+    var r = await fetch(SUPA_URL+'/rest/v1/gyt_jobs?on_conflict=id', {
+      method:'POST', headers:H, body:JSON.stringify(dbJobs)
+    });
+
+    if(r.status === 201) {
+      // เพิ่มเข้า local jobs ด้วย
+      newJobs.forEach(function(j){ jobs.push(j); });
+      renderJobs();
+      addImportLog('✅ Import สำเร็จ! ' + newJobs.length + ' ใบงาน', 'ok');
+      addImportLog('🎉 ข้อมูลขึ้น Supabase แล้ว ทีมทุกคนเห็นทันที', 'ok');
+      showToast('✅ Import Excel สำเร็จ ' + newJobs.length + ' ใบงาน');
+    } else {
+      var errTxt = await r.text();
+      addImportLog('❌ Upload failed: ' + r.status + ' — ' + errTxt.slice(0,80), 'err');
+    }
+
+  } catch(e) {
+    addImportLog('❌ Error: ' + e.message, 'err');
+  }
+
+  btn.disabled = false; btn.textContent = '📥 Import เลย';
+}
+
 // Init date display
 document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 </script>
@@ -18858,6 +19068,24 @@ document.getElementById('topbar-date').textContent=new Date().toLocaleDateString
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="document.getElementById('deploy-modal').classList.remove('open')">ปิด</button>
       <button class="btn btn-green" id="deploy-start-btn" onclick="startDeploy()">🚀 Deploy เลย</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- IMPORT EXCEL MODAL -->
+<div class="import-modal" id="modal-import">
+  <div class="import-box">
+    <h3>📥 Import ใบงานจาก Excel</h3>
+    <p>รองรับไฟล์ .xlsx จากระบบแพลนงาน GYT — คอลัมน์ต้องตรงกับ template</p>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px">เลือกไฟล์ Excel (.xlsx)</label>
+      <input type="file" accept=".xlsx,.xls" id="import-file-input" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:var(--font)">
+    </div>
+    <div id="import-log" class="import-log">▶ เลือกไฟล์แล้วกด Import ได้เลยครับ</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal('modal-import')">ปิด</button>
+      <button class="btn btn-green" id="import-btn" onclick="startImportExcel()">📥 Import เลย</button>
     </div>
   </div>
 </div>
