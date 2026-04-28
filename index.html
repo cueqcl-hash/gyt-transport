@@ -584,6 +584,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <button class="btn btn-ghost" onclick="openColManager()" title="จัดเรียง Column">⚙ Column</button>
           <button class="btn btn-ghost" onclick="openBin()" id="bin-btn" style="color:var(--red);border-color:var(--red-m)" title="ถังขยะ — งานที่ลบไปแล้ว">🗑 ถังขยะ<span class="bin-badge" id="bin-badge" style="display:none">0</span></button>
           <button class="btn btn-green" id="btn-add-job" onclick="openAddJob()">+ ใบงานใหม่</button>
+            <button class="btn btn-yellow" onclick="openImportExcel()" title="Import ใบงานจากไฟล์ Excel">📥 Import Excel</button>
           <button class="btn btn-yellow" id="btn-add-multi" onclick="openMultiJob()">+ หลายตู้ (BL เดียว)</button>
         </div>
         <div class="tbl-wrap"><div class="tbl-scroll"><table><thead><tr id="j-thead-row"><th class="cb-th"><input type="checkbox" class="row-cb" id="cb-all-hdr" onchange="toggleSelectAll(this)" title="เลือกทั้งหมดในหน้านี้"></th><th style="width:110px;position:sticky;left:40px;background:#F2F7F4;z-index:2"></th></tr></thead><tbody id="j-tbody"></tbody></table>
