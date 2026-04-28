@@ -15379,6 +15379,10 @@ function saveJob(){
     obj.createdAt=__nowISO;
     jobs.unshift(obj);
   }
+  // Sync ขึ้น cloud (fire-and-forget; ถ้า offline จะข้ามอัตโนมัติใน syncJobSave)
+  if(typeof _onlineMode!=='undefined' && _onlineMode){
+    try{ syncJobSave(obj); }catch(e){ console.warn('saveJob sync error:', e); }
+  }
   saveLocUrl('fj-origin','fj-origin-url');
   saveLocUrl('fj-dest','fj-dest-url');
   saveLocUrl('fj-return','fj-return-url');
