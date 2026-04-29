@@ -17956,7 +17956,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.005';
+const APP_VERSION = '2026.04.29.006';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -18155,9 +18155,14 @@ async function loadFromSupabase() {
       if(currentUser && currentUser.id){
         var fresh = users.find(function(u){return u.id===currentUser.id;});
         if(fresh){
+          var roleChanged = currentUser.role !== fresh.role || JSON.stringify(currentUser.perms) !== JSON.stringify(fresh.perms);
           ['role','perms','fname','lname','username','phone','status'].forEach(function(k){
             if(fresh[k] !== undefined) currentUser[k] = fresh[k];
           });
+          // ถ้า role/perms เปลี่ยน → re-render sidebar + UI ให้ตรง
+          if(roleChanged && typeof initApp === 'function'){
+            try{ initApp(); }catch(e){ console.warn('initApp re-render error:', e); }
+          }
         }
       }
     }
