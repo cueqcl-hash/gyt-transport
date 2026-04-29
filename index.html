@@ -310,6 +310,8 @@ tr:hover td{background:#FAFCFB}
 /* Floating bottom scrollbar — ติดอยู่ล่างสุดของหน้าจอเสมอ (JS-positioned via fixed) */
 .tbl-sticky-bot-scroll{overflow-x:auto;overflow-y:hidden;height:14px;background:var(--surface);border-top:1px solid var(--border);z-index:1000;display:none;box-shadow:0 -2px 8px rgba(0,0,0,0.06)}
 .tbl-sticky-bot-scroll-inner{height:1px}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+#refresh-icon{display:inline-block}
 table{min-width:max-content}
 
 
@@ -623,6 +625,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
             <option value="เสร็จสิ้น">เสร็จสิ้น</option>
           </select>
+          <button class="btn btn-ghost" onclick="refreshJobsFromCloud()" id="btn-refresh-jobs" title="ดึงข้อมูลล่าสุดจาก Cloud — เห็นที่ทีมแก้ไข"><span id="refresh-icon">🔄</span> รีเฟรช</button>
           <button class="btn btn-ghost" onclick="openColManager()" title="จัดเรียง Column">⚙ Column</button>
           <button class="btn btn-ghost" onclick="openBin()" id="bin-btn" style="color:var(--red);border-color:var(--red-m)" title="ถังขยะ — งานที่ลบไปแล้ว">🗑 ถังขยะ<span class="bin-badge" id="bin-badge" style="display:none">0</span></button>
           <button class="btn btn-green" id="btn-add-job" onclick="openAddJob()">+ ใบงานใหม่</button>
@@ -17834,6 +17837,9 @@ const sb = {
   }
 };
 
+// ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
+const APP_VERSION = '2026.04.29.001';
+
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
 var _onlineMode = false;
@@ -17847,6 +17853,140 @@ function setSyncStatus(status) {
   el.textContent = (icons[status]||'') + (labels[status]?' '+labels[status]:'');
   el.style.display = status==='offline'?'none':'inline';
   el.style.color = status==='online'?'#4CAF50':status==='syncing'?'var(--yellow)':status==='error'?'var(--red)':'rgba(255,255,255,0.6)';
+}
+
+// ── VERSION CHECK + FORCE LOGOUT ON UPDATE ────────────────
+// เช็ค APP_VERSION ของ HTML บน server เทียบกับเวอร์ชันที่โหลดอยู่
+// ถ้า version cloud ใหม่กว่า → force logout + reload (กันใช้งานเวอร์ชันเก่าที่อาจมี bug)
+var _versionCheckRunning = false;
+var _forcedLogoutShown = false;
+async function checkAppVersion(){
+  if(_versionCheckRunning || _forcedLogoutShown) return;
+  _versionCheckRunning = true;
+  try {
+    var resp = await fetch(window.location.pathname + '?_v=' + Date.now(), {cache:'no-store'});
+    var text = await resp.text();
+    var m = text.match(/const APP_VERSION = '([^']+)'/);
+    if(!m) return;
+    var serverVersion = m[1];
+    if(serverVersion !== APP_VERSION){
+      console.log('[Version] new version detected:', serverVersion, 'vs local:', APP_VERSION);
+      _forcedLogoutShown = true;
+      showVersionUpdateModal(serverVersion);
+    }
+  } catch(e){
+    console.warn('[Version] check error:', e.message);
+  } finally {
+    _versionCheckRunning = false;
+  }
+}
+
+function showVersionUpdateModal(newVer){
+  // สร้าง modal overlay
+  var existing = document.getElementById('version-update-overlay');
+  if(existing) existing.remove();
+  var el = document.createElement('div');
+  el.id = 'version-update-overlay';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:var(--font,sans-serif)';
+  el.innerHTML = '<div style="background:#fff;border-radius:12px;padding:32px 40px;max-width:480px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.3)">' +
+    '<div style="font-size:48px;margin-bottom:12px">🔄</div>' +
+    '<div style="font-size:20px;font-weight:700;color:#1E5C3A;margin-bottom:8px">มีเวอร์ชันใหม่</div>' +
+    '<div style="font-size:14px;color:#555;margin-bottom:6px">ระบบมีการอัปเดต ระบบจะออกจากระบบและโหลดเวอร์ชันใหม่อัตโนมัติ</div>' +
+    '<div style="font-size:11px;color:#888;margin-bottom:20px">เพื่อป้องกันการบันทึกข้อมูลด้วยเวอร์ชันเก่าที่อาจมีบั๊ก</div>' +
+    '<div style="font-size:13px;color:#666;margin-bottom:8px">เวอร์ชันใหม่: <strong style="color:#1E5C3A">'+newVer+'</strong></div>' +
+    '<div style="font-size:13px;color:#666;margin-bottom:20px">เวอร์ชันปัจจุบัน: <strong>'+APP_VERSION+'</strong></div>' +
+    '<div style="font-size:14px;color:#C0392B;font-weight:600">ออกจากระบบใน <span id="version-countdown">5</span> วินาที...</div>' +
+    '<button onclick="reloadNow()" style="margin-top:18px;padding:10px 24px;background:#2D7A4F;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">โหลดเวอร์ชันใหม่ทันที</button>' +
+    '</div>';
+  document.body.appendChild(el);
+  // countdown
+  var n = 5;
+  var timer = setInterval(function(){
+    n--;
+    var c = document.getElementById('version-countdown');
+    if(c) c.textContent = n;
+    if(n<=0){
+      clearInterval(timer);
+      reloadNow();
+    }
+  }, 1000);
+}
+
+function reloadNow(){
+  // logout + clear localStorage user state (เก็บ jobs cache ไว้)
+  try {
+    if(typeof currentUser !== 'undefined') currentUser = null;
+    localStorage.removeItem('gyt_currentUser');
+  } catch(e){}
+  // hard reload (bust cache)
+  window.location.href = window.location.pathname + '?_v=' + Date.now();
+}
+
+// เช็ค version: ทุก 5 นาที + ตอน tab focus
+setInterval(checkAppVersion, 5*60*1000);
+
+// ── TAB FOCUS — auto-refresh jobs ─────────────────────────
+// เมื่อ user สลับ tab กลับมา → refresh jobs ให้เห็นที่ทีมแก้
+// (skip ถ้ามี modal เปิดอยู่ — ป้องกันรีเฟรชระหว่างกรอกข้อมูล)
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState !== 'visible') return;
+  // เช็ค version ก่อน
+  checkAppVersion();
+  // ถ้ามี modal เปิดอยู่ → skip refresh
+  if(document.querySelector('.modal-overlay.open')) return;
+  // refresh เฉพาะถ้าอยู่ใน "ตารางงาน" หรือ Dashboard
+  var jobsView = document.getElementById('pg-jobs');
+  var dashView = document.getElementById('pg-dash');
+  var inJobsOrDash = (jobsView && getComputedStyle(jobsView).display !== 'none')
+                  || (dashView && getComputedStyle(dashView).display !== 'none');
+  if(inJobsOrDash && _onlineMode && typeof refreshJobsFromCloud === 'function'){
+    refreshJobsFromCloud();
+  }
+});
+
+// ── REFRESH JOBS FROM CLOUD ────────────────────────────────
+// ดึงเฉพาะใบงานล่าสุดจาก cloud เพื่อให้เห็นที่ทีมแก้ไข (เร็วกว่า loadFromSupabase ที่โหลดทุก master)
+async function refreshJobsFromCloud(){
+  if(!_onlineMode){
+    showToast('⚠ ออฟไลน์ — โหลดข้อมูลใหม่ไม่ได้');
+    return;
+  }
+  var btn = document.getElementById('btn-refresh-jobs');
+  var icon = document.getElementById('refresh-icon');
+  if(btn) btn.disabled = true;
+  if(icon){ icon.style.display='inline-block'; icon.style.animation='spin 0.6s linear infinite'; }
+  setSyncStatus('syncing');
+
+  try {
+    var sbJobs = await sbFetch('gyt_jobs','GET',null,'?order=startdate');
+    if(sbJobs !== null){
+      var oldCount = jobs.length;
+      jobs = (sbJobs||[]).map(mapJobFromDB);
+      nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return parseInt((j.id||'0').replace(/\D/g,''))||0;}))+1 : 100;
+      try { localStorage.setItem('gyt_jobs', JSON.stringify(jobs)); } catch(e){}
+
+      // Re-render
+      if(typeof renderJobs === 'function') renderJobs();
+      if(typeof renderDashboard === 'function') renderDashboard();
+
+      var diff = jobs.length - oldCount;
+      var msg = '🔄 รีเฟรชสำเร็จ — มี ' + jobs.length + ' ใบงาน';
+      if(diff > 0) msg += ' (เพิ่ม ' + diff + ')';
+      else if(diff < 0) msg += ' (ลด ' + Math.abs(diff) + ')';
+      showToast(msg);
+      setSyncStatus('online');
+    } else {
+      showToast('⚠ โหลดข้อมูลไม่ได้ — ลองใหม่อีกครั้ง');
+      setSyncStatus('error');
+    }
+  } catch(e){
+    console.warn('refreshJobsFromCloud error:', e.message);
+    showToast('⚠ ผิดพลาด: ' + e.message);
+    setSyncStatus('error');
+  } finally {
+    if(btn) btn.disabled = false;
+    if(icon){ icon.style.animation=''; }
+  }
 }
 
 // ── INITIAL LOAD FROM SUPABASE ─────────────────────────────
