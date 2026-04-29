@@ -1162,7 +1162,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <span class="sd-arrow">&#9662;</span>
         <div class="sd-list" id="fj-type-list" style="max-height:220px"></div>
       </div>
-      <input type="hidden" id="fj-type" value="40'HC">
+      <input type="hidden" id="fj-type" value="">
       <div id="fj-type-preview" style="margin-top:4px;display:none">
         <span id="fj-type-badge"></span>
       </div>
@@ -3618,7 +3618,7 @@ function openMultiJob(){
    'origin-url','dest-url','return-url'].forEach(f=>{
     const el=document.getElementById('mc-'+f);if(el)el.value='';
   });
-  document.getElementById('mc-type').value="40'HC";
+  document.getElementById('mc-type').value="";
   document.getElementById('mc-delivery-type').value='จัดส่งสินค้าภายในวัน';
   document.getElementById('mc-count').value='5';
   document.getElementById('mc-preview').style.display='none';
@@ -15489,11 +15489,11 @@ function openAddJob(){
   document.getElementById('mj-sub').textContent='';
   locCache={origin:null,dest:null,return:null};
   ['customer','phone','shipper','carrier','booking','container','origin','dest','return','plate','driver','note','weight','origin-url','dest-url','return-url'].forEach(f=>{const el=document.getElementById('fj-'+f);if(el)el.value='';});
-  ctypeSetValue('fj',"40'HC");
+  ctypeSetValue('fj',"");
   var ftPrev=document.getElementById('fj-type-preview');if(ftPrev)ftPrev.style.display='none';
   ['fj-customer-val','fj-shipper-val'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('fj-delivery-type').value='จัดส่งสินค้าภายในวัน';
-  document.getElementById('fj-type').value="40'HC";
+  document.getElementById('fj-type').value="";
   document.getElementById('fj-status').value='รอดำเนินการ';
   const now=new Date();now.setMinutes(0,0,0);
   document.getElementById('fj-startdate').value=now.toISOString().slice(0,16);
@@ -17838,7 +17838,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.001';
+const APP_VERSION = '2026.04.29.002';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -18939,7 +18939,7 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
         <span class="sd-arrow">&#9662;</span>
         <div class="sd-list" id="mc-type-list" style="max-height:220px"></div>
       </div>
-      <input type="hidden" id="mc-type" value="40'HC">
+      <input type="hidden" id="mc-type" value="">
     </div>
       <div class="fg"><label class="fl">ประเภทงาน</label>
         <select class="fi" id="mc-job-type">
