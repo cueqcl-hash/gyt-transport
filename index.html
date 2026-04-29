@@ -1143,8 +1143,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <option value="">-- เลือกประเภทงาน --</option>
           <option value="ขาเข้า(ตู้เปิด)">ขาเข้า (ตู้เปิด)</option>
           <option value="ขาออก(ตู้บรรจุ)">ขาออก (ตู้บรรจุ)</option>
-          <option value="งานขาเข้า(ตู้เปิด)">งานขาเข้า (ตู้เปิด)</option>
-          <option value="งานขาออก(ตู้บรรจุ)">งานขาออก (ตู้บรรจุ)</option>
         </select>
       </div>
       <div class="fg"><label class="fl">สถานะการจัดส่ง</label>
@@ -1359,8 +1357,8 @@ const CONTAINER_TYPES = [
   "45'","ขนส่งสิบล้อ","ขนส่งเทลเลอร์"
 ];
 const JOB_TYPES = [
-  "งานขาเข้า(ตู้เปิด)",
-  "งานขาออก(ตู้บรรจุ)"
+  "ขาเข้า(ตู้เปิด)",
+  "ขาออก(ตู้บรรจุ)"
 ];
 
 const ALL_PERMS = [
@@ -15284,7 +15282,13 @@ function renderJobs(){
         if(c.id==='id')return`<td style="color:var(--green);font-weight:700">${v}</td>`;
         if(c.id==='startdate')return`<td style="font-size:11px">${fmt(v)}</td>`;
         if(c.id==='deliverdate')return`<td style="font-size:11px">${fmt(v)}</td>`;
-        if(c.id==='job_type'){const jc=v==='งานขาเข้า(ตู้เปิด)'?'b-cool':'b-hot';return`<td><span class="badge ${jc}">${v||'—'}</span></td>`;}
+        if(c.id==='job_type'){
+          // รองรับทั้ง "ขาเข้า(ตู้เปิด)" และ "งานขาเข้า(ตู้เปิด)" (data เก่าก่อน migrate)
+          const isIn = v && v.indexOf('ขาเข้า')>=0;
+          const isOut = v && v.indexOf('ขาออก')>=0;
+          const jc = isIn?'b-cool':(isOut?'b-hot':'');
+          return`<td>${v?`<span class="badge ${jc}">${v}</span>`:'—'}</td>`;
+        }
         if(c.id==='delivery_type'){const dc=v==='จัดส่งสินค้าช่วงเช้า'?'b-cool':'b-hot';return`<td><span class="badge ${dc}">${v||'—'}</span></td>`;}
         if(c.id==='status')return`<td>${badge(v)}</td>`;
         if(c.id==='type'){const vn=(v||'').replace(/\'\s+/g,"'").trim();const tc=CTYPE_RED.has(vn)?'ctype-red':'ctype-green';return`<td><span class="${tc}">${v||'—'}</span></td>`;}
@@ -15631,7 +15635,7 @@ function openDetail(id){
       <div class="dc"><div class="dk">ทะเบียนรถ</div><div class="dv">${j.plate||'ยังไม่กำหนด'}</div></div>
       <div class="dc"><div class="dk">พนักงานขับ</div><div class="dv">${j.driver||'ยังไม่กำหนด'}</div></div>
     </div>
-    ${j.job_type?`<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg);border-radius:var(--radius);margin-top:12px"><span style="font-size:12px;color:var(--text-2);flex:1;font-weight:600">ประเภทงาน</span><span class="badge ${j.job_type==='งานขาเข้า(ตู้เปิด)'?'b-cool':'b-hot'}">${j.job_type}</span></div>`:''}
+    ${j.job_type?`<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg);border-radius:var(--radius);margin-top:12px"><span style="font-size:12px;color:var(--text-2);flex:1;font-weight:600">ประเภทงาน</span><span class="badge ${j.job_type.indexOf('ขาเข้า')>=0?'b-cool':(j.job_type.indexOf('ขาออก')>=0?'b-hot':'')}">${j.job_type}</span></div>`:''}
     <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg);border-radius:var(--radius);margin-top:6px">
       <span style="font-size:12px;color:var(--text-2);flex:1;font-weight:600">สถานะการจัดส่ง</span><span class="badge ${j.delivery_type==='จัดส่งสินค้าช่วงเช้า'?'b-cool':'b-hot'}">${j.delivery_type||'—'}</span>
     </div>
@@ -18634,8 +18638,8 @@ function mapExcelRowToJob(headers, row, jobNumber) {
   
   // Map job type
   let mappedJobType = '';
-  if (jobType.includes('ขาเข้า')) mappedJobType = 'งานขาเข้า(ตู้เปิด)';
-  else if (jobType.includes('ขาออก')) mappedJobType = 'งานขาออก(ตู้บรรจุ)';
+  if (jobType.includes('ขาเข้า')) mappedJobType = 'ขาเข้า(ตู้เปิด)';
+  else if (jobType.includes('ขาออก')) mappedJobType = 'ขาออก(ตู้บรรจุ)';
   
   return {
     id,
@@ -18793,8 +18797,8 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
       <div class="fg"><label class="fl">ประเภทงาน</label>
         <select class="fi" id="mc-job-type">
           <option value="">-- เลือกประเภทงาน --</option>
-          <option value="งานขาเข้า(ตู้เปิด)">งานขาเข้า (ตู้เปิด)</option>
-          <option value="งานขาออก(ตู้บรรจุ)">งานขาออก (ตู้บรรจุ)</option>
+          <option value="ขาเข้า(ตู้เปิด)">ขาเข้า (ตู้เปิด)</option>
+          <option value="ขาออก(ตู้บรรจุ)">ขาออก (ตู้บรรจุ)</option>
         </select>
       </div>
       <div class="fg"><label class="fl">สถานะการจัดส่ง</label>
