@@ -137,6 +137,44 @@ tr:hover td{background:#FAFCFB}
 .b-type{background:#F0F4F1;color:var(--text-2);font-size:10px;padding:2px 7px;border-radius:5px;font-weight:600}
 .tbl-action{font-size:11px;color:var(--green);background:none;border:none;cursor:pointer;font-family:var(--font);padding:3px 8px;border-radius:5px;transition:background 0.15s;font-weight:500}
 .tbl-action:hover{background:var(--green-l)}
+/* Icon-only action buttons */
+.tbl-icon-btn{font-size:16px;padding:3px 5px;line-height:1;position:relative}
+.tbl-icon-btn:hover{background:rgba(0,0,0,0.06);transform:scale(1.15);transition:all 0.1s}
+
+/* Custom tooltip — ใช้ data-tip="..." แสดงทันทีบน hover (ไม่มี delay เหมือน title=) */
+[data-tip]{position:relative}
+[data-tip]:hover::after,[data-tip]:focus::after{
+  content:attr(data-tip);
+  position:absolute;
+  bottom:calc(100% + 6px);
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(30,30,30,0.92);
+  color:#fff;
+  font-size:11px;
+  font-weight:500;
+  font-family:var(--font);
+  padding:4px 10px;
+  border-radius:4px;
+  white-space:nowrap;
+  z-index:9999;
+  pointer-events:none;
+  box-shadow:0 2px 8px rgba(0,0,0,0.2);
+  opacity:1;
+  animation:tipFade 0.12s ease-out
+}
+[data-tip]:hover::before,[data-tip]:focus::before{
+  content:'';
+  position:absolute;
+  bottom:calc(100% + 1px);
+  left:50%;
+  transform:translateX(-50%);
+  border:5px solid transparent;
+  border-top-color:rgba(30,30,30,0.92);
+  z-index:9999;
+  pointer-events:none
+}
+@keyframes tipFade{from{opacity:0;transform:translateX(-50%) translateY(2px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .no-data{padding:3rem;text-align:center;color:var(--text-3);font-size:13px}
 .loc-icon{display:inline-flex;align-items:center;gap:4px;color:var(--green);font-size:11px;cursor:pointer;font-weight:500}
 .loc-icon:hover{text-decoration:underline}
@@ -15327,7 +15365,11 @@ function renderJobs(){
   const canStatus = hasPerm('update_status');
 
   // Header
-  document.getElementById('j-thead-row').innerHTML=cols.map(c=>`<th style="min-width:${c.width}" data-col="${c.id}" class="draggable">${c.label}</th>`).join('')+'<th style="width:160px;text-align:center;position:sticky;right:0;background:#F2F7F4;z-index:2">จัดการ &nbsp;<input type="checkbox" class="row-cb" id="cb-all-hdr" onchange="toggleSelectAll(this)" title="เลือกทั้งหมด" style="vertical-align:middle"></th>';
+  // checkbox col ซ้ายสุด (sticky left) + action col ขวาสุด (sticky right) เฉพาะ icon buttons
+  document.getElementById('j-thead-row').innerHTML=
+    '<th class="cb-th-left" style="width:36px;min-width:36px;text-align:center;position:sticky;left:0;background:#F2F7F4;z-index:3"><input type="checkbox" class="row-cb" id="cb-all-hdr" onchange="toggleSelectAll(this)" title="เลือกทั้งหมด" style="vertical-align:middle;cursor:pointer"></th>'+
+    cols.map(c=>`<th style="min-width:${c.width}" data-col="${c.id}" class="draggable">${c.label}</th>`).join('')+
+    '<th style="width:140px;min-width:140px;text-align:center;position:sticky;right:0;background:#F2F7F4;z-index:2">จัดการ</th>';
   initColDrag();
 
   const tbody=document.getElementById('j-tbody');
@@ -15358,15 +15400,19 @@ function renderJobs(){
         return`<td>${v||'<span style="color:var(--text-3)">—</span>'}</td>`;
       }).join('');
       const isSelected=selectedJobs.has(j.id);
-      const actionCell=`<td style="position:sticky;right:0;background:#fff;z-index:1;border-left:1px solid var(--border);padding:4px 6px;white-space:nowrap">
-        <button class="tbl-action" onclick="openDetail('${j.id}')" style="color:var(--green);font-weight:600">ดู</button>
-        <button class="tbl-action" onclick="openPrint('${j.id}')" style="color:#1A5276;font-weight:600" title="พิมพ์ใบปฏิบัติงาน">🖨</button>
-        ${canEdit?`<button class="tbl-action" onclick="openEditJob('${j.id}')">แก้ไข</button>`:''}
-        ${canStatus?`<button class="tbl-action" onclick="quickStatus('${j.id}')" title="อัปเดตสถานะ" style="color:var(--green-d)">⟲</button>`:''}
-        ${canDelete?`<button class="tbl-action" onclick="confirmDeleteJob('${j.id}')" style="color:var(--red)">ลบ</button>`:''}
-        &nbsp;<input type="checkbox" class="row-cb" data-id="${j.id}" ${isSelected?'checked':''} onchange="onRowCheck(this)" style="vertical-align:middle;cursor:pointer">
+      // checkbox cell ซ้ายสุด (sticky left)
+      const cbCell=`<td class="cb-td-left" style="position:sticky;left:0;background:${isSelected?'#E8F5E9':'#fff'};z-index:1;text-align:center;padding:4px 6px;border-right:1px solid var(--border)">
+        <input type="checkbox" class="row-cb" data-id="${j.id}" ${isSelected?'checked':''} onchange="onRowCheck(this)" data-tip="เลือกใบงานนี้" style="vertical-align:middle;cursor:pointer">
       </td>`;
-      return`<tr class="${isSelected?'row-selected':''}">${cells}${actionCell}</tr>`;
+      // action cell ขวาสุด — icon-only buttons + custom tooltip
+      const actionCell=`<td style="position:sticky;right:0;background:${isSelected?'#E8F5E9':'#fff'};z-index:1;border-left:1px solid var(--border);padding:4px 4px;white-space:nowrap;text-align:center">
+        <button class="tbl-action tbl-icon-btn" onclick="openDetail('${j.id}')" data-tip="ดู" style="color:var(--green)">👁</button>
+        <button class="tbl-action tbl-icon-btn" onclick="openPrint('${j.id}')" data-tip="พิมพ์ใบปฏิบัติงาน" style="color:#1A5276">🖨</button>
+        ${canEdit?`<button class="tbl-action tbl-icon-btn" onclick="openEditJob('${j.id}')" data-tip="แก้ไข" style="color:#E67E22">✏️</button>`:''}
+        ${canStatus?`<button class="tbl-action tbl-icon-btn" onclick="quickStatus('${j.id}')" data-tip="อัปเดตสถานะ" style="color:var(--green-d)">🔄</button>`:''}
+        ${canDelete?`<button class="tbl-action tbl-icon-btn" onclick="confirmDeleteJob('${j.id}')" data-tip="ลบ" style="color:var(--red)">🗑</button>`:''}
+      </td>`;
+      return`<tr class="${isSelected?'row-selected':''}">${cbCell}${cells}${actionCell}</tr>`;
     }).join('');
   }
   document.getElementById('j-pinfo').textContent=total?`แสดง ${Math.min((jPage-1)*PAGE_SZ+1,total)}–${Math.min(jPage*PAGE_SZ,total)} จาก ${total} ใบงาน`:'ไม่พบข้อมูล';
@@ -17956,7 +18002,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.006';
+const APP_VERSION = '2026.04.29.009';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
