@@ -15291,9 +15291,30 @@ function getFiltered(){
   });
 }
 
+// Map column id → required perm (ถ้า user ไม่มี perm นี้ → คอลัมน์จะถูกซ่อน)
+const COL_PERM_MAP = {
+  'customer':   'view_customer',
+  'shipper':    'view_shipper',
+  'carrier':    'view_carrier',
+  'booking':    'view_carrier',
+  'container':  'view_carrier',
+  'weight':     'view_weight',
+  'plate':      'view_plate',
+  'driver':     'view_plate',
+  // origin/dest/returnyard text → ไม่ผูก perm (เห็นได้)
+  // map link ใน cells ผูก view_location (จัดการในส่วน render)
+};
+
 function getCols(){
   const visible=colOrder.filter(id=>!hiddenCols.has(id));
-  return visible.map(id=>ALL_COLS.find(c=>c.id===id)).filter(Boolean);
+  return visible
+    .map(id=>ALL_COLS.find(c=>c.id===id))
+    .filter(Boolean)
+    .filter(c=>{
+      // กรองตาม perms — ถ้ามี COL_PERM_MAP สำหรับ col นี้และ user ไม่มี perm → ซ่อน
+      const reqPerm = COL_PERM_MAP[c.id];
+      return !reqPerm || hasPerm(reqPerm);
+    });
 }
 
 // === Floating bottom scrollbar สำหรับตารางงาน ===
@@ -15445,9 +15466,10 @@ function renderJobs(){
         if(c.id==='status')return`<td>${badge(v)}</td>`;
         if(c.id==='type'){const vn=(v||'').replace(/\'\s+/g,"'").trim();const tc=CTYPE_RED.has(vn)?'ctype-red':'ctype-green';return`<td><span class="${tc}">${v||'—'}</span></td>`;}
         if(c.id==='shipper')return`<td style="color:var(--green-d);font-weight:600">${v||'—'}</td>`;
-        if(c.id==='origin')return`<td>${j.originUrl?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.originUrl}">📍 ${v}</span>`:v||'—'}</td>`;
-        if(c.id==='dest')return`<td>${j.destUrl?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.destUrl}">📍 ${v}</span>`:v||'—'}</td>`;
-        if(c.id==='returnyard')return`<td>${j.returnyardUrl?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.returnyardUrl}">📍 ${v}</span>`:v||'—'}</td>`;
+        // location text แสดงตลอด (ไม่ผูก perm), แต่ map link ผูก view_location
+        if(c.id==='origin'){const showMap=hasPerm('view_location')&&j.originUrl;return`<td>${showMap?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.originUrl}">📍 ${v}</span>`:(v||'—')}</td>`;}
+        if(c.id==='dest'){const showMap=hasPerm('view_location')&&j.destUrl;return`<td>${showMap?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.destUrl}">📍 ${v}</span>`:(v||'—')}</td>`;}
+        if(c.id==='returnyard'){const showMap=hasPerm('view_location')&&j.returnyardUrl;return`<td>${showMap?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.returnyardUrl}">📍 ${v}</span>`:(v||'—')}</td>`;}
         return`<td>${v||'<span style="color:var(--text-3)">—</span>'}</td>`;
       }).join('');
       const isSelected=selectedJobs.has(j.id);
@@ -15772,18 +15794,35 @@ function saveJob(){
 }
 function openDetail(id){
   const j=jobs.find(x=>x.id===id);if(!j)return;
+  // Phase 3: Field-level visibility ตาม view_* perms
+  const pCustomer = hasPerm('view_customer');
+  const pShipper  = hasPerm('view_shipper');
+  const pCarrier  = hasPerm('view_carrier');
+  const pWeight   = hasPerm('view_weight');
+  const pPlate    = hasPerm('view_plate');
+  const pLocation = hasPerm('view_location');
+
   document.getElementById('md-title').textContent='ใบงาน '+j.id;
-  document.getElementById('md-sub').textContent=j.customer+' | '+j.shipper;
-  const locBtn=(url)=>url?` <a href="${url}" target="_blank" class="loc-icon" style="font-size:11px;text-decoration:none">📍 Google Maps</a>`:'';  
+  // Subtitle — แสดงเฉพาะที่มี perm
+  const subParts=[];
+  if(pCustomer && j.customer) subParts.push(j.customer);
+  if(pShipper  && j.shipper)  subParts.push(j.shipper);
+  document.getElementById('md-sub').textContent = subParts.join(' | ') || '—';
+
+  const locBtn=(url)=>(pLocation && url)?` <a href="${url}" target="_blank" class="loc-icon" style="font-size:11px;text-decoration:none">📍 Google Maps</a>`:'';
+  // Helper สำหรับ render field card ตาม perm
+  const fc = (cond, label, value) => cond ? `<div class="dc"><div class="dk">${label}</div><div class="dv">${value}</div></div>` : '';
+  const fcStyled = (cond, label, value, style) => cond ? `<div class="dc"><div class="dk">${label}</div><div class="dv" style="${style||''}">${value}</div></div>` : '';
+
   document.getElementById('md-body').innerHTML=`
     <div class="sec-head">ข้อมูลคู่สัญญา</div>
     <div class="d2">
-      <div class="dc"><div class="dk">ลูกค้า (ตัวแทน)</div><div class="dv">${j.customer}</div></div>
-      <div class="dc"><div class="dk">เบอร์ติดต่อ</div><div class="dv">${j.phone||'—'}</div></div>
-      <div class="dc"><div class="dk">Shipper (เจ้าของสินค้า)</div><div class="dv" style="color:var(--green-d)">${j.shipper}</div></div>
-      <div class="dc"><div class="dk">Carrier / Agent</div><div class="dv">${j.carrier||'—'}</div></div>
-      <div class="dc"><div class="dk">Booking/BL/JOB</div><div class="dv">${j.booking||'—'}</div></div>
-      <div class="dc"><div class="dk">หมายเลขตู้ / ประเภท</div><div class="dv">${j.container||'—'} <span class="b-type">${j.type}</span></div></div>
+      ${fc(pCustomer, 'ลูกค้า (ตัวแทน)', j.customer||'—')}
+      ${fc(pCustomer, 'เบอร์ติดต่อ', j.phone||'—')}
+      ${fcStyled(pShipper, 'Shipper (เจ้าของสินค้า)', j.shipper||'—', 'color:var(--green-d)')}
+      ${fc(pCarrier, 'Carrier / Agent', j.carrier||'—')}
+      ${fc(pCarrier, 'Booking/BL/JOB', j.booking||'—')}
+      ${fc(pCarrier, 'หมายเลขตู้ / ประเภท', (j.container||'—')+' <span class="b-type">'+(j.type||'')+'</span>')}
     </div>
     <div class="sec-head" style="margin-top:12px">วันเวลาปฏิบัติงาน</div>
     <div class="d2">
@@ -15792,16 +15831,16 @@ function openDetail(id){
     </div>
     <div class="sec-head" style="margin-top:12px">เส้นทาง</div>
     <div class="d2">
-      <div class="dc"><div class="dk">ต้นทาง</div><div class="dv">${j.origin}${locBtn(j.originUrl)}</div></div>
-      <div class="dc"><div class="dk">เปิด/บรรจุ</div><div class="dv">${j.dest}${locBtn(j.destUrl)}</div></div>
+      <div class="dc"><div class="dk">ต้นทาง</div><div class="dv">${j.origin||'—'}${locBtn(j.originUrl)}</div></div>
+      <div class="dc"><div class="dk">เปิด/บรรจุ</div><div class="dv">${j.dest||'—'}${locBtn(j.destUrl)}</div></div>
       <div class="dc"><div class="dk">ปลายทาง</div><div class="dv">${j.returnyard||'—'}${locBtn(j.returnyardUrl)}</div></div>
-      <div class="dc"><div class="dk">น้ำหนักสินค้า</div><div class="dv">${j.weight?j.weight+' กก.':'—'}</div></div>
+      ${fc(pWeight, 'น้ำหนักสินค้า', j.weight?j.weight+' กก.':'—')}
     </div>
-    <div class="sec-head" style="margin-top:12px">การขนส่ง</div>
+    ${(pPlate)?`<div class="sec-head" style="margin-top:12px">การขนส่ง</div>
     <div class="d2">
       <div class="dc"><div class="dk">ทะเบียนรถ</div><div class="dv">${j.plate||'ยังไม่กำหนด'}</div></div>
       <div class="dc"><div class="dk">พนักงานขับ</div><div class="dv">${j.driver||'ยังไม่กำหนด'}</div></div>
-    </div>
+    </div>`:''}
     ${j.job_type?`<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg);border-radius:var(--radius);margin-top:12px"><span style="font-size:12px;color:var(--text-2);flex:1;font-weight:600">ประเภทงาน</span><span class="badge ${j.job_type.indexOf('ขาเข้า')>=0?'b-cool':(j.job_type.indexOf('ขาออก')>=0?'b-hot':'')}">${j.job_type}</span></div>`:''}
     <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg);border-radius:var(--radius);margin-top:6px">
       <span style="font-size:12px;color:var(--text-2);flex:1;font-weight:600">สถานะการจัดส่ง</span><span class="badge ${j.delivery_type==='จัดส่งสินค้าช่วงเช้า'?'b-cool':'b-hot'}">${j.delivery_type||'—'}</span>
@@ -18056,7 +18095,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.012';
+const APP_VERSION = '2026.04.29.013';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
