@@ -118,7 +118,7 @@ html,body{height:100%;font-family:var(--font);color:var(--text);font-size:14px;l
 .btn-icon{width:36px;padding:0;display:flex;align-items:center;justify-content:center}
 
 /* ===== TABLE ===== */
-.tbl-wrap{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden;margin-bottom:12px;box-shadow:var(--shadow)}
+.tbl-wrap{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);overflow:clip;margin-bottom:12px;box-shadow:var(--shadow)}
 .tbl-scroll{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{background:#F2F7F4;padding:9px 11px;text-align:left;font-size:11px;font-weight:700;color:var(--text-2);border-bottom:2px solid var(--border);white-space:nowrap;user-select:none;letter-spacing:0.03em}
@@ -305,7 +305,11 @@ tr:hover td{background:#FAFCFB}
 .del-reason-btn.selected{background:var(--red);color:#fff;border-color:var(--red)}
 
 
-.tbl-scroll{overflow-x:auto;position:relative}
+.tbl-scroll{overflow-x:auto;position:relative;scrollbar-width:none}
+.tbl-scroll::-webkit-scrollbar{display:none}
+/* Sticky bottom scrollbar — ติดอยู่ล่างสุดของหน้าจอเสมอขณะ scroll */
+.tbl-sticky-bot-scroll{overflow-x:auto;overflow-y:hidden;height:14px;position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);z-index:5}
+.tbl-sticky-bot-scroll-inner{height:1px}
 table{min-width:max-content}
 
 
@@ -625,7 +629,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <button class="btn btn-yellow" id="btn-add-multi" onclick="openMultiJob()">+ หลายตู้ (BL เดียว)</button>
           <button class="btn btn-blue" onclick="openModal('modal-excel-import')" title="Import งานจากไฟล์ Excel">📊 Import Excel</button>
         </div>
-        <div class="tbl-wrap"><div class="tbl-scroll"><table><thead><tr id="j-thead-row"><th class="cb-th"><input type="checkbox" class="row-cb" id="cb-all-hdr" onchange="toggleSelectAll(this)" title="เลือกทั้งหมดในหน้านี้"></th><th style="width:110px;position:sticky;left:40px;background:#F2F7F4;z-index:2"></th></tr></thead><tbody id="j-tbody"></tbody></table>
+        <div class="tbl-wrap"><div class="tbl-scroll" id="j-tbl-scroll"><table><thead><tr id="j-thead-row"><th class="cb-th"><input type="checkbox" class="row-cb" id="cb-all-hdr" onchange="toggleSelectAll(this)" title="เลือกทั้งหมดในหน้านี้"></th><th style="width:110px;position:sticky;left:40px;background:#F2F7F4;z-index:2"></th></tr></thead><tbody id="j-tbody"></tbody></table>
+        <div class="tbl-sticky-bot-scroll" id="j-bot-scroll" title="เลื่อนซ้าย/ขวาตาราง"><div class="tbl-sticky-bot-scroll-inner" id="j-bot-scroll-inner"></div></div>
         <div id="j-nodata" class="no-data" style="display:none">ไม่พบใบงานในช่วงวันที่ที่เลือก</div>
         </div></div>
         <div class="pager" style="margin-top:10px">
@@ -15148,6 +15153,52 @@ function getCols(){
   return visible.map(id=>ALL_COLS.find(c=>c.id===id)).filter(Boolean);
 }
 
+// === Sticky bottom scrollbar สำหรับตารางงาน ===
+// scrollbar เดียวที่ติดอยู่ล่างจอเสมอ (sync กับตาราง 2 ทาง)
+// + รองรับ Shift+Wheel เลื่อนซ้าย/ขวา
+var _scrollbarSetup = false;
+function setupTableScrollSync(){
+  var bot = document.getElementById('j-bot-scroll');
+  var botInner = document.getElementById('j-bot-scroll-inner');
+  var tbl = document.getElementById('j-tbl-scroll');
+  if(!bot || !tbl || !botInner) return;
+
+  // อัปเดตความกว้างของ ghost element ให้เท่า table จริง
+  var update = function(){
+    var tbl_inner_table = tbl.querySelector('table');
+    if(tbl_inner_table) botInner.style.width = tbl_inner_table.scrollWidth + 'px';
+    // ซ่อน scrollbar ถ้าตารางพอดีจอ (ไม่มี overflow)
+    bot.style.display = (tbl.scrollWidth > tbl.clientWidth) ? '' : 'none';
+  };
+
+  // setup ครั้งแรก — ผูก event sync 2 ทาง + wheel
+  if(!_scrollbarSetup){
+    var syncing = false;
+    bot.addEventListener('scroll', function(){
+      if(syncing) return; syncing = true;
+      tbl.scrollLeft = bot.scrollLeft;
+      requestAnimationFrame(function(){syncing=false;});
+    });
+    tbl.addEventListener('scroll', function(){
+      if(syncing) return; syncing = true;
+      bot.scrollLeft = tbl.scrollLeft;
+      requestAnimationFrame(function(){syncing=false;});
+    });
+    // Shift+Wheel เลื่อนซ้าย/ขวา (ตอน hover บนตาราง)
+    tbl.addEventListener('wheel', function(e){
+      if(e.shiftKey){
+        tbl.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    }, {passive:false});
+    _scrollbarSetup = true;
+  }
+
+  // อัปเดต width ทุกครั้งหลัง render + ตอน resize window
+  update();
+  setTimeout(update, 50);
+}
+
 var selectedJobs = new Set();
 function renderJobs(){
   const data=getFiltered();
@@ -15216,6 +15267,8 @@ function renderJobs(){
   for(let i=1;i<=pages;i++)ph+=`<button class="pb${i===jPage?' active':''}" onclick="gJP(${i})">${i}</button>`;
   ph+=`<button class="pb" onclick="gJP(${jPage+1})" ${jPage===pages?'disabled':''}>›</button>`;
   document.getElementById('j-pbtns').innerHTML=ph;
+  // อัปเดต top scrollbar mirror หลัง render เสร็จ
+  if(typeof setupTableScrollSync === 'function') setupTableScrollSync();
 }
 function gJP(p){jPage=p;renderJobs();}
 function clearDates(){document.getElementById('j-date-from').value='';document.getElementById('j-date-to').value='';jPage=1;renderJobs();}
@@ -18259,6 +18312,11 @@ if(document.readyState === 'loading') {
 } else {
   _initJobsDatePickers();
 }
+
+// อัปเดต top scrollbar mirror ตอน resize window (column widths อาจเปลี่ยน)
+window.addEventListener('resize', function(){
+  if(typeof setupTableScrollSync === 'function') setupTableScrollSync();
+});
 
 // Init date display
 document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
