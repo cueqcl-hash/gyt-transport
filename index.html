@@ -647,7 +647,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="stats-grid">
           <div class="stat-card"><div class="stat-label">ผู้ใช้ทั้งหมด</div><div class="stat-num gray" id="u-total">0</div></div>
           <div class="stat-card"><div class="stat-label">Staff</div><div class="stat-num green" id="u-staff">0</div></div>
-          <div class="stat-card"><div class="stat-label">Driver</div><div class="stat-num green" id="u-driver">0</div></div>
+          <div class="stat-card"><div class="stat-label">Supervisor</div><div class="stat-num green" id="u-driver">0</div></div>
           <div class="stat-card"><div class="stat-label">ใช้งานอยู่</div><div class="stat-num green" id="u-active">0</div></div>
         </div>
         <div class="bulk-bar" id="bulk-bar">
@@ -657,7 +657,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
         <div class="toolbar">
           <input type="text" class="tb-input tb-search" id="u-search" placeholder="ค้นหาชื่อ / username...">
-          <select class="tb-input" id="u-frole"><option value="">Role ทั้งหมด</option><option value="admin">Admin</option><option value="staff">Staff</option><option value="driver">Driver</option></select>
+          <select class="tb-input" id="u-frole"><option value="">Role ทั้งหมด</option><option value="admin">Admin</option><option value="supervisor">Supervisor</option><option value="staff">Staff</option></select>
           <button class="btn btn-green" onclick="openAddUser()">+ เพิ่ม User</button>
         </div>
         <div class="tbl-wrap"><div class="tbl-scroll"><table>
@@ -1301,7 +1301,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="fg"><label class="fl">Role *</label>
         <select class="fi" id="fu-role" onchange="renderPermSection()">
           <option value="staff">Staff (ทีมงาน)</option>
-          <option value="driver">Driver (คนขับ)</option>
           <option value="supervisor">Supervisor (ผู้ดูแลระบบ)</option>
           <option value="admin">Admin (ผู้บริหาร)</option>
         </select>
@@ -1388,11 +1387,10 @@ const ALL_PERMS = [
 ];
 const DEFAULT_PERMS = {
   admin:      ALL_PERMS.map(function(p){return p.id;}),
-  supervisor: ALL_PERMS.map(function(p){return p.id;}),
-  staff:   ['view_jobs','add_jobs','edit_jobs','view_customer','view_shipper','view_carrier',
-             'view_weight','view_plate','view_location','update_status','dashboard',
-             'view_vehicles','view_drivers','view_settings'],
-  driver:  ['view_jobs','view_shipper','view_plate','update_status'],
+  supervisor: ALL_PERMS.map(function(p){return p.id;}).filter(function(id){return id!=='manage_users';}), // supervisor ทำได้ทุกอย่างยกเว้นจัดการ user
+  staff:   ['view_jobs','add_jobs','edit_jobs','delete_jobs','update_status',
+            'view_customer','view_shipper','view_carrier','view_weight','view_plate','view_location',
+            'dashboard','view_vehicles','view_drivers','view_settings'],
 };
 
 let users = [
@@ -3531,7 +3529,12 @@ function doLogout(){
   document.getElementById('screen-login').style.display='block';
   document.getElementById('l-err').textContent='';
 }
-function hasPerm(p){return currentUser&&(currentUser.role==='admin'||currentUser.role==='supervisor'||currentUser.perms.includes(p));}
+// Admin = god mode (เห็น/ทำได้ทุกอย่าง). Role อื่น (supervisor/staff) ตรวจตาม perms ที่กำหนด
+function hasPerm(p){
+  if(!currentUser) return false;
+  if(currentUser.role==='admin') return true;
+  return Array.isArray(currentUser.perms) && currentUser.perms.includes(p);
+}
 
 // ============================
 // INIT
@@ -3542,27 +3545,36 @@ function initApp(){
   av.textContent=currentUser.fname[0]+currentUser.lname[0];
   av.className='sb-av '+r;
   document.getElementById('sb-name').textContent=currentUser.fname+' '+currentUser.lname;
-  document.getElementById('sb-role-label').textContent={admin:'ผู้บริหาร',supervisor:'ผู้ดูแลระบบ',staff:'ทีมงาน',driver:'คนขับรถ'}[r];
+  document.getElementById('sb-role-label').textContent={admin:'ผู้บริหาร',supervisor:'ผู้ดูแลระบบ',staff:'ทีมงาน'}[r]||r;
   document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
-  const navDefs={
-    admin:[{id:'dashboard',icon:'▦',label:'Dashboard'},{id:'jobs',icon:'🚛',label:'ตารางงาน'},{id:'users',icon:'👥',label:'จัดการ User'},{id:'vehicles',icon:'🔧',label:'รายการรถ'},{id:'drivers',icon:'👤',label:'คนขับรถ'},{id:'settings',icon:'⚙',label:'ตั้งค่าข้อมูลลูกค้า'},{id:'ratecalc',icon:'⛽',label:'คำนวณราคาขนส่ง'}],
-    supervisor:[{id:'dashboard',icon:'▦',label:'Dashboard'},{id:'jobs',icon:'🚛',label:'ตารางงาน'},{id:'users',icon:'👥',label:'จัดการสิทธิ์'},{id:'vehicles',icon:'🔧',label:'รายการรถ'},{id:'drivers',icon:'👤',label:'คนขับรถ'},{id:'settings',icon:'⚙',label:'ตั้งค่าข้อมูลลูกค้า'},{id:'ratecalc',icon:'⛽',label:'คำนวณราคาขนส่ง'}],
-    staff:[{id:'jobs',icon:'🚛',label:'ตารางงาน'}],
-    driver:[{id:'jobs',icon:'🚛',label:'งานของฉัน'}],
-  };
-  document.getElementById('sb-nav').innerHTML=(navDefs[r]||[]).map(n=>`
+  // Sidebar menu — กรองตาม perm ของ user (ไม่ hard-code ตาม role อีกแล้ว)
+  // ratecalc ไม่ผูกกับ perm เฉพาะ — admin/supervisor เห็น (มี dashboard)
+  const ALL_NAV=[
+    {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'},
+    {id:'jobs',     icon:'🚛',label:'ตารางงาน',           perm:'view_jobs'},
+    {id:'users',    icon:'👥',label:'จัดการสิทธิ์',       perm:'manage_users'},
+    {id:'vehicles', icon:'🔧',label:'รายการรถ',           perm:'view_vehicles'},
+    {id:'drivers',  icon:'👤',label:'คนขับรถ',            perm:'view_drivers'},
+    {id:'settings', icon:'⚙', label:'ตั้งค่าข้อมูลลูกค้า', perm:'view_settings'},
+    {id:'ratecalc', icon:'⛽',label:'คำนวณราคาขนส่ง',     perm:'dashboard'}, // ใช้ dashboard เป็นเงื่อนไข (admin/supervisor เห็น)
+  ];
+  const visibleNav = ALL_NAV.filter(function(n){return hasPerm(n.perm);});
+  document.getElementById('sb-nav').innerHTML=visibleNav.map(n=>`
     <div class="nav-item" id="nav-${n.id}" onclick="goPage('${n.id}')">
       <span style="font-size:14px">${n.icon}</span><span>${n.label}</span>
     </div>`).join('');
 
   const note=document.getElementById('jobs-note');
-  if(r==='admin'){note.style.display='block';note.textContent='ผู้บริหาร — ดูข้อมูลได้ทั้งหมด ไม่สามารถแก้ไขใบงาน';}
-  else note.style.display='none';
-  const canEdit=(r==='staff'||r==='supervisor');
-  document.getElementById('btn-add-job').style.display=canEdit?'inline-flex':'none';
+  note.style.display='none';
+  // ปุ่มเพิ่มใบงาน — เช็คตาม perm add_jobs (ไม่ใช่ตาม role อีกแล้ว)
+  const canAdd = hasPerm('add_jobs');
+  document.getElementById('btn-add-job').style.display=canAdd?'inline-flex':'none';
   const btnMulti=document.getElementById('btn-add-multi');
-  if(btnMulti)btnMulti.style.display=canEdit?'inline-flex':'none';
+  if(btnMulti)btnMulti.style.display=canAdd?'inline-flex':'none';
+  // ปุ่ม Import Excel — ใช้ add_jobs เหมือนกัน (เพราะคือการสร้างใบงานหลายใบ)
+  const btnImport = document.querySelector('button[onclick*="modal-excel-import"]');
+  if(btnImport) btnImport.style.display=canAdd?'inline-flex':'none';
 
   // Set default date range (today → today)
   const today=new Date();
@@ -3590,7 +3602,7 @@ function goPage(id){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('pg-'+id)?.classList.add('active');
   document.getElementById('nav-'+id)?.classList.add('active');
-  const titles={dashboard:'Dashboard ภาพรวม',jobs:currentUser?.role==='driver'?'งานของฉัน':'ตารางงาน',users:'จัดการ User'};
+  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User'};
   document.getElementById('topbar-title').textContent=titles[id]||'';
   const badge=document.getElementById('topbar-badge');
   if(id==='jobs'){badge.style.display='block';badge.textContent='Green Yello Transport';}
@@ -15126,7 +15138,7 @@ function getFiltered(){
   const st=document.getElementById('j-fstatus').value;
   const df=toISO(document.getElementById('j-date-from').value) || document.getElementById('j-date-from').value;
   const dt=toISO(document.getElementById('j-date-to').value) || document.getElementById('j-date-to').value;
-  let list=currentUser.role==='driver'?jobs.filter(j=>j.driver===currentUser.fname+' '+currentUser.lname):jobs;
+  let list=jobs;
   return list.filter(j=>{
     const mq=!q||[j.id,j.customer,j.shipper,j.carrier,j.booking,j.container,j.driver,j.plate,j.origin,j.dest].some(v=>v&&v.toLowerCase().includes(q));
     const ms=!st||j.status===st;
@@ -15268,7 +15280,10 @@ function renderJobs(){
   if(jPage>pages)jPage=pages;
   const slice=data.slice((jPage-1)*PAGE_SZ,jPage*PAGE_SZ);
   const cols=getCols();
-  const isAdmin=currentUser.role==='admin',isDriver=currentUser.role==='driver',isSupervisor=currentUser.role==='supervisor';
+  // Perm-based — ใช้ hasPerm() แทนการเช็ค role โดยตรง
+  const canEdit = hasPerm('edit_jobs');
+  const canDelete = hasPerm('delete_jobs');
+  const canStatus = hasPerm('update_status');
 
   // Header
   document.getElementById('j-thead-row').innerHTML=cols.map(c=>`<th style="min-width:${c.width}" data-col="${c.id}" class="draggable">${c.label}</th>`).join('')+'<th style="width:160px;text-align:center;position:sticky;right:0;background:#F2F7F4;z-index:2">จัดการ &nbsp;<input type="checkbox" class="row-cb" id="cb-all-hdr" onchange="toggleSelectAll(this)" title="เลือกทั้งหมด" style="vertical-align:middle"></th>';
@@ -15301,14 +15316,13 @@ function renderJobs(){
         if(c.id==='returnyard')return`<td>${j.returnyardUrl?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.returnyardUrl}">📍 ${v}</span>`:v||'—'}</td>`;
         return`<td>${v||'<span style="color:var(--text-3)">—</span>'}</td>`;
       }).join('');
-      const canEdit=(!isAdmin&&!isDriver&&hasPerm('edit_jobs'))||isSupervisor;
       const isSelected=selectedJobs.has(j.id);
       const actionCell=`<td style="position:sticky;right:0;background:#fff;z-index:1;border-left:1px solid var(--border);padding:4px 6px;white-space:nowrap">
         <button class="tbl-action" onclick="openDetail('${j.id}')" style="color:var(--green);font-weight:600">ดู</button>
         <button class="tbl-action" onclick="openPrint('${j.id}')" style="color:#1A5276;font-weight:600" title="พิมพ์ใบปฏิบัติงาน">🖨</button>
         ${canEdit?`<button class="tbl-action" onclick="openEditJob('${j.id}')">แก้ไข</button>`:''}
-        ${isDriver?`<button class="tbl-action" onclick="quickStatus('${j.id}')">อัปเดต</button>`:''}
-        ${canEdit||isAdmin?`<button class="tbl-action" onclick="confirmDeleteJob('${j.id}')" style="color:var(--red)">ลบ</button>`:''}
+        ${canStatus?`<button class="tbl-action" onclick="quickStatus('${j.id}')" title="อัปเดตสถานะ" style="color:var(--green-d)">⟲</button>`:''}
+        ${canDelete?`<button class="tbl-action" onclick="confirmDeleteJob('${j.id}')" style="color:var(--red)">ลบ</button>`:''}
         &nbsp;<input type="checkbox" class="row-cb" data-id="${j.id}" ${isSelected?'checked':''} onchange="onRowCheck(this)" style="vertical-align:middle;cursor:pointer">
       </td>`;
       return`<tr class="${isSelected?'row-selected':''}">${cells}${actionCell}</tr>`;
@@ -15685,13 +15699,54 @@ function quickStatus(id){
 // ============================
 // USERS
 // ============================
+// === IMPERSONATE — admin ทดสอบดูเหมือน user คนอื่นชั่วคราว ===
+var _originalUser = null; // เก็บ admin user เดิมไว้ก่อน impersonate
+function impersonateUser(userId){
+  if(currentUser?.role !== 'admin'){ showToast('⚠ เฉพาะ admin'); return; }
+  if(_originalUser){ showToast('⚠ กำลัง impersonate อยู่แล้ว — กลับเป็นตัวเองก่อน'); return; }
+  var target = users.find(function(u){return u.id===userId;});
+  if(!target){ showToast('ไม่พบ user'); return; }
+  if(!confirm('ทดสอบดูเหมือน '+target.fname+' '+target.lname+' ('+target.role+')?\n\nข้อมูลที่บันทึกในช่วงนี้จะถูกเก็บในชื่อ '+target.fname+' — แนะนำแค่ดู ไม่แก้/บันทึกข้อมูลใดๆ')) return;
+  _originalUser = JSON.parse(JSON.stringify(currentUser));
+  currentUser = JSON.parse(JSON.stringify(target));
+  // re-init UI ด้วย role/perms ใหม่
+  if(typeof initApp === 'function') initApp();
+  else { applySidebarState(); renderJobs(); renderDashboard(); }
+  showImpersonateBanner();
+  showToast('👁 กำลังดูเหมือน: '+target.fname+' '+target.lname);
+}
+function exitImpersonate(){
+  if(!_originalUser){ showToast('ไม่ได้ impersonate'); return; }
+  currentUser = _originalUser;
+  _originalUser = null;
+  hideImpersonateBanner();
+  if(typeof initApp === 'function') initApp();
+  else { applySidebarState(); renderJobs(); renderDashboard(); }
+  showToast('🔙 กลับเป็น admin แล้ว');
+}
+function showImpersonateBanner(){
+  var b = document.getElementById('impersonate-banner');
+  if(b) b.remove();
+  b = document.createElement('div');
+  b.id = 'impersonate-banner';
+  b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#9C27B0;color:#fff;padding:8px 16px;text-align:center;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.2)';
+  b.innerHTML = '👁 กำลังดูเหมือน <strong>'+currentUser.fname+' '+currentUser.lname+'</strong> ('+currentUser.role+') — <button onclick="exitImpersonate()" style="margin-left:12px;padding:4px 12px;background:#fff;color:#9C27B0;border:none;border-radius:4px;font-weight:700;cursor:pointer">🔙 กลับเป็น admin</button>';
+  document.body.appendChild(b);
+  // เพิ่ม padding บน body เพื่อไม่ให้ banner ทับ
+  document.body.style.paddingTop = '40px';
+}
+function hideImpersonateBanner(){
+  var b = document.getElementById('impersonate-banner'); if(b) b.remove();
+  document.body.style.paddingTop = '';
+}
+
 function renderUsers(){
   const q=document.getElementById('u-search').value.toLowerCase();
   const r=document.getElementById('u-frole').value;
   const data=users.filter(u=>(!q||[u.fname,u.lname,u.username].some(v=>v.toLowerCase().includes(q)))&&(!r||u.role===r));
   document.getElementById('u-total').textContent=users.length;
   document.getElementById('u-staff').textContent=users.filter(u=>u.role==='staff').length;
-  document.getElementById('u-driver').textContent=users.filter(u=>u.role==='driver').length;
+  document.getElementById('u-driver').textContent=users.filter(u=>u.role==='supervisor').length;
   document.getElementById('u-active').textContent=users.filter(u=>u.status==='active').length;
   const rp={admin:'rp-admin',supervisor:'rp-supervisor',staff:'rp-staff',driver:'rp-driver'};
   const rl={admin:'Admin',supervisor:'Supervisor',staff:'Staff',driver:'Driver'};
@@ -15704,9 +15759,10 @@ function renderUsers(){
     <td style="font-size:12px">${u.phone}</td>
     <td><span class="role-pill ${rp[u.role]}">${rl[u.role]}</span></td>
     <td><span class="sdot"><span class="dot ${u.status==='active'?'on':'off'}"></span>${u.status==='active'?'ใช้งานอยู่':'ระงับ'}</span></td>
-    <td style="display:flex;gap:5px">
+    <td style="display:flex;gap:5px;flex-wrap:wrap">
       <button class="btn-sm" onclick="openEditUser(${u.id})">แก้ไข</button>
       ${u.role!=='admin'?`<button class="btn-sm" onclick="openPerms(${u.id})" style="color:var(--green);border-color:var(--green-m)">สิทธิ์</button>`:''}
+      ${currentUser?.role==='admin'&&u.id!==currentUser?.id?`<button class="btn-sm" onclick="impersonateUser(${u.id})" style="color:#9C27B0;border-color:#CE93D8" title="ทดสอบดูเหมือน user คนนี้">👁 ดูเป็น</button>`:''}
       <button class="btn-sm ${u.status==='active'?'danger':'ok'}" onclick="toggleUser(${u.id})">${u.status==='active'?'ระงับ':'เปิดใช้'}</button>
       ${u.role!=='admin'&&u.id!==currentUser?.id?`<button class="btn-sm danger" onclick="confirmDeleteUser(${u.id})" title="ลบผู้ใช้นี้">ลบ</button>`:''}
     </td>
@@ -17838,7 +17894,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.002';
+const APP_VERSION = '2026.04.29.003';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
