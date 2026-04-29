@@ -3536,6 +3536,44 @@ function hasPerm(p){
   return Array.isArray(currentUser.perms) && currentUser.perms.includes(p);
 }
 
+// Helper สำหรับซ่อน/แสดง element ตาม perm
+function showIf(el, perm){
+  if(!el) return;
+  el.style.display = hasPerm(perm) ? '' : 'none';
+}
+
+// ใช้ perms เพื่อซ่อน/แสดงปุ่ม action ตามหน้าต่างๆ — เรียกหลัง render หรือเปลี่ยน user
+function applyPermsToUI(){
+  if(!currentUser) return;
+  // ── ตารางงาน ──
+  showIf(document.getElementById('btn-add-job'),     'add_jobs');
+  showIf(document.getElementById('btn-add-multi'),   'add_jobs');
+  // ปุ่ม Import Excel
+  var btnImport = document.querySelector('button[onclick*="modal-excel-import"]');
+  if(btnImport) btnImport.style.display = hasPerm('add_jobs') ? '' : 'none';
+  // ปุ่ม "🗑 ถังขยะ"
+  showIf(document.getElementById('bin-btn'), 'delete_jobs');
+  // ปุ่ม "ลบที่เลือก" (bulk delete) — มี 2 ที่ (jobs + users)
+  document.querySelectorAll('.bulk-delete-btn').forEach(function(b){
+    b.style.display = hasPerm('delete_jobs') ? '' : 'none';
+  });
+
+  // ── หน้าคนขับ — ปุ่ม + เพิ่มคนขับ + โหลด Excel ──
+  document.querySelectorAll('button[onclick*="openAddDriver"], button[onclick*="resetDrivers"]').forEach(function(b){
+    b.style.display = hasPerm('view_drivers') ? '' : 'none';
+  });
+
+  // ── หน้ารถ — ปุ่ม + เพิ่ม + โหลด Excel ──
+  document.querySelectorAll('button[onclick*="openAddVehicle"], button[onclick*="resetVehicles"]').forEach(function(b){
+    b.style.display = hasPerm('view_vehicles') ? '' : 'none';
+  });
+
+  // ── หน้าตั้งค่าข้อมูลลูกค้า — เพิ่มลูกค้า/Shipper/Billing + โหลด Excel ──
+  document.querySelectorAll('button[onclick*="openAddMaster"], button[onclick*="openAddBilling"], button[onclick*="resetPreload"]').forEach(function(b){
+    b.style.display = hasPerm('view_settings') ? '' : 'none';
+  });
+}
+
 // ============================
 // INIT
 // ============================
@@ -3567,14 +3605,8 @@ function initApp(){
 
   const note=document.getElementById('jobs-note');
   note.style.display='none';
-  // ปุ่มเพิ่มใบงาน — เช็คตาม perm add_jobs (ไม่ใช่ตาม role อีกแล้ว)
-  const canAdd = hasPerm('add_jobs');
-  document.getElementById('btn-add-job').style.display=canAdd?'inline-flex':'none';
-  const btnMulti=document.getElementById('btn-add-multi');
-  if(btnMulti)btnMulti.style.display=canAdd?'inline-flex':'none';
-  // ปุ่ม Import Excel — ใช้ add_jobs เหมือนกัน (เพราะคือการสร้างใบงานหลายใบ)
-  const btnImport = document.querySelector('button[onclick*="modal-excel-import"]');
-  if(btnImport) btnImport.style.display=canAdd?'inline-flex':'none';
+  // ซ่อน/แสดงปุ่มทุกหน้าตาม perms (รวม btn-add-job, btn-add-multi, ฯลฯ)
+  if(typeof applyPermsToUI === 'function') applyPermsToUI();
 
   // Set default date range (today → today)
   const today=new Date();
@@ -3610,6 +3642,8 @@ function goPage(id){
   if(id==='dashboard')renderDashboard();
   if(id==='jobs')renderJobs();
   if(id==='users')renderUsers();
+  // อัปเดตการซ่อน/แสดงปุ่มตาม perms (สำหรับหน้าใหม่ที่เพิ่งเปิด)
+  if(typeof applyPermsToUI === 'function') setTimeout(applyPermsToUI, 0);
 }
 
 // ============================
@@ -3626,6 +3660,7 @@ function openModal(id){document.getElementById(id).classList.add('open');}
 // MULTI-CONTAINER
 // ============================
 function openMultiJob(){
+  if(!hasPerm('add_jobs')){showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน');return;}
   ['customer','phone','shipper','carrier','booking','origin','dest','return',
    'origin-url','dest-url','return-url'].forEach(f=>{
     const el=document.getElementById('mc-'+f);if(el)el.value='';
@@ -4160,12 +4195,14 @@ function renderBillingList(){
   }).join('');
 }
 function openAddBilling(){
+  if(!hasPerm('view_settings')){showToast('⚠ ไม่มีสิทธิ์เพิ่ม Billing');return;}
   editBID=null;
   document.getElementById('mb-title').textContent='เพิ่ม Billing Party';
   ['name','addr','taxid','phone','note'].forEach(function(f){var el=document.getElementById('mb-'+f);if(el)el.value='';});
   document.getElementById('modal-billing').classList.add('open');
 }
 function openEditBilling(id){
+  if(!hasPerm('view_settings')){showToast('⚠ ไม่มีสิทธิ์แก้ไข');return;}
   var b=billings.find(function(x){return x.id===id;});if(!b)return;
   editBID=id;
   document.getElementById('mb-title').textContent='แก้ไข: '+b.name;
@@ -4191,6 +4228,7 @@ function saveBilling(){
   showToast((editBID?'อัปเดต':'เพิ่ม')+' Billing Party เรียบร้อย');
 }
 function deleteBilling(id){
+  if(!hasPerm('view_settings')){showToast('⚠ ไม่มีสิทธิ์ลบ');return;}
   if(!confirm('ยืนยันลบข้อมูลนี้?'))return;
   billings=billings.filter(function(x){return x.id!==id;});
   saveMasterDB();
@@ -14968,6 +15006,7 @@ function renderMasterTable(type){
   }
 }
 function openAddMaster(type){
+  if(!hasPerm('view_settings')){showToast('⚠ ไม่มีสิทธิ์เพิ่มข้อมูล');return;}
   masterType=type;editMID=null;
   document.getElementById('mm-title').textContent=type==='customer'?'เพิ่มลูกค้า (ตัวแทนพิธีการ)':'เพิ่ม Shipper (เจ้าของสินค้า)';
   document.getElementById('mm-sub').textContent=type==='customer'?'ข้อมูลสำหรับวางบิลค่าขนส่ง':'ข้อมูลสำหรับออกใบเสร็จค่าคืนตู้เปล่า';
@@ -14976,6 +15015,7 @@ function openAddMaster(type){
   document.getElementById('modal-master').classList.add('open');
 }
 function openEditMaster(type,id){
+  if(!hasPerm('view_settings')){showToast('⚠ ไม่มีสิทธิ์แก้ไข');return;}
   masterType=type;editMID=id;
   const m=(type==='customer'?customers:shippers).find(x=>x.id===id);if(!m)return;
   document.getElementById('mm-title').textContent=type==='customer'?'แก้ไขลูกค้า':'แก้ไข Shipper';
@@ -15007,6 +15047,7 @@ function saveMaster(){
   showToast((editMID?'อัปเดต':'เพิ่ม')+(masterType==='customer'?' ลูกค้า ':' Shipper ')+'เรียบร้อย');
 }
 function deleteMaster(type,id){
+  if(!hasPerm('view_settings')){showToast('⚠ ไม่มีสิทธิ์ลบ');return;}
   if(!confirm('ยืนยันลบข้อมูลนี้?'))return;
   if(type==='customer')customers=customers.filter(x=>x.id!==id);
   else shippers=shippers.filter(x=>x.id!==id);
@@ -15498,6 +15539,7 @@ function openMapUrl(inputId){
 // JOB CRUD
 // ============================
 function openAddJob(){
+  if(!hasPerm('add_jobs')){showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน');return;}
   editJID=null;
   document.getElementById('mj-title').textContent='เพิ่มใบงานใหม่';
   document.getElementById('mj-sub').textContent='';
@@ -15522,6 +15564,7 @@ function openAddJob(){
   }, 50);
 }
 function openEditJob(id){
+  if(!hasPerm('edit_jobs')){showToast('⚠ ไม่มีสิทธิ์แก้ไขใบงาน');return;}
   const j=jobs.find(x=>x.id===id);if(!j)return;
   editJID=id;
   document.getElementById('mj-title').textContent='แก้ไขใบงาน';
@@ -15687,6 +15730,7 @@ function _dummy_for_parser(){
   document.getElementById('modal-detail').classList.add('open');
 }
 function quickStatus(id){
+  if(!hasPerm('update_status')){showToast('⚠ ไม่มีสิทธิ์อัปเดตสถานะ');return;}
   const j=jobs.find(x=>x.id===id);if(!j)return;
   const n={'รอดำเนินการ':'กำลังดำเนินการ','กำลังดำเนินการ':'เสร็จสิ้น','เสร็จสิ้น':'เสร็จสิ้น'};
   j.status=n[j.status];
@@ -15936,6 +15980,7 @@ function savePerms(){
 
 
 function resetPreloadShippers(){
+  if(!hasPerm('view_settings')){showToast('⚠ ไม่มีสิทธิ์');return;}
   if(!confirm('โหลดข้อมูล Shipper '+_PRELOAD_SHIPPERS.length+' รายการจาก Excel ใหม่?'))return;
   var maxId=Math.max.apply(null,_PRELOAD_SHIPPERS.map(function(c){return c.id;}));
   var manual=shippers.filter(function(c){return c.id>maxId;});
@@ -15945,6 +15990,7 @@ function resetPreloadShippers(){
   showToast('โหลดข้อมูล Shipper '+_PRELOAD_SHIPPERS.length+' รายการเรียบร้อย');
 }
 function resetPreloadBillings(){
+  if(!hasPerm('view_settings')){showToast('⚠ ไม่มีสิทธิ์');return;}
   if(!confirm('โหลดข้อมูล Billing Party '+_PRELOAD_BILLINGS.length+' รายการจาก Excel ใหม่?'))return;
   var maxId=Math.max.apply(null,_PRELOAD_BILLINGS.map(function(c){return c.id;}));
   var manual=billings.filter(function(c){return c.id>maxId;});
@@ -15955,6 +16001,7 @@ function resetPreloadBillings(){
 }
 
 function resetPreloadCustomers(){
+  if(!hasPerm('view_settings')){showToast('⚠ ไม่มีสิทธิ์');return;}
   if(!confirm('โหลดข้อมูลลูกค้า 62 รายการจาก Excel ใหม่?\n(ข้อมูลที่เพิ่มเองจะยังอยู่ถ้า ID ไม่ซ้ำ)'))return;
   // Merge: keep manually added (id > preload max), replace preloaded ones
   var maxPreloadId=Math.max.apply(null,_PRELOAD_CUSTOMERS.map(function(c){return c.id;}));
@@ -16582,6 +16629,7 @@ function renderVehicleTable(type){
 }
 
 function openAddVehicle(type){
+  if(!hasPerm('view_vehicles')){showToast('⚠ ไม่มีสิทธิ์เพิ่มรถ');return;}
   editVID=null;editVType=type;
   var t=type==='tractor'?'เพิ่มหัวรถ':'เพิ่มหางรถ';
   document.getElementById('veh-modal-title').textContent=t;
@@ -16592,6 +16640,7 @@ function openAddVehicle(type){
   document.getElementById('modal-vehicle').classList.add('open');
 }
 function openEditVehicle(type,id){
+  if(!hasPerm('view_vehicles')){showToast('⚠ ไม่มีสิทธิ์แก้ไขรถ');return;}
   var list=type==='tractor'?tractors:trailers;
   var v=list.find(function(x){return x.id===id;});if(!v)return;
   editVID=id;editVType=type;
@@ -16628,6 +16677,7 @@ function saveVehicle(){
   showToast((editVID?'อัปเดต':'เพิ่ม')+(editVType==='tractor'?' หัวรถ ':' หางรถ ')+plate+' เรียบร้อย');
 }
 function deleteVehicle(type,id){
+  if(!hasPerm('view_vehicles')){showToast('⚠ ไม่มีสิทธิ์จัดการรถ');return;}
   var list=type==='tractor'?tractors:trailers;
   var v=list.find(function(x){return x.id===id;});
   if(!confirm('ยืนยันลบ: '+(v?v.plate:'')))return;
@@ -16640,6 +16690,7 @@ function deleteVehicle(type,id){
   renderVehicleTable(type);showToast('ลบข้อมูลเรียบร้อย');
 }
 function resetVehicles(type){
+  if(!hasPerm('view_vehicles')){showToast('⚠ ไม่มีสิทธิ์');return;}
   var preload=type==='tractor'?_PRELOAD_TRACTORS:_PRELOAD_TRAILERS;
   if(!confirm('โหลดข้อมูล'+(type==='tractor'?'หัวรถ':'หางรถ')+' '+preload.length+' คันจาก Excel ใหม่?'))return;
   if(type==='tractor'){tractors=preload.map(function(x){return Object.assign({},x);});nextVID_t=tractors.length?Math.max.apply(null,tractors.map(function(x){return x.id;}))+1:1;}
@@ -16817,6 +16868,7 @@ function renderDriverPage(){
 }
 
 function openAddDriver(){
+  if(!hasPerm('view_drivers')){showToast('⚠ ไม่มีสิทธิ์เพิ่มคนขับ');return;}
   editDrvID=null;
   document.getElementById('drv-modal-title').textContent='เพิ่มคนขับใหม่';
   ['name','phone','idcard','dtype','bank','bankno','license_no','license_type','license_exp','note'].forEach(function(f){
@@ -16827,6 +16879,7 @@ function openAddDriver(){
   document.getElementById('modal-driver').classList.add('open');
 }
 function openEditDriver(id){
+  if(!hasPerm('view_drivers')){showToast('⚠ ไม่มีสิทธิ์แก้ไขคนขับ');return;}
   var d=drivers.find(function(x){return x.id===id;});if(!d)return;
   editDrvID=id;
   document.getElementById('drv-modal-title').textContent='แก้ไข: '+d.name;
@@ -16861,6 +16914,7 @@ function saveDriver(){
   showToast((editDrvID?'อัปเดต':'เพิ่ม')+' '+name+' เรียบร้อย');
 }
 function deleteDriver(id){
+  if(!hasPerm('view_drivers')){showToast('⚠ ไม่มีสิทธิ์ลบคนขับ');return;}
   var d=drivers.find(function(x){return x.id===id;});
   if(!confirm('ยืนยันลบคนขับ: '+(d?d.name:'')))return;
   drivers=drivers.filter(function(x){return x.id!==id;});
@@ -16869,6 +16923,7 @@ function deleteDriver(id){
   renderDriverPage();showToast('ลบข้อมูลเรียบร้อย');
 }
 function resetDrivers(){
+  if(!hasPerm('view_drivers')){showToast('⚠ ไม่มีสิทธิ์');return;}
   if(!confirm('โหลดข้อมูลคนขับ '+_PRELOAD_DRIVERS.length+' คนจาก Excel ใหม่?'))return;
   drivers=_PRELOAD_DRIVERS.map(function(x){return Object.assign({},x);});
   nextDrvID=drivers.length?Math.max.apply(null,drivers.map(function(x){return x.id;}))+1:1;
@@ -17098,6 +17153,7 @@ function updateBinBadge(){
 }
 
 function openBin(){
+  if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์เข้าถังขยะ');return;}
   renderBinList();
   document.getElementById('modal-bin').classList.add('open');
 }
@@ -17144,6 +17200,7 @@ function renderBinList(){
 }
 
 function restoreJob(idx){
+  if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์');return;}
   var entry=deletedJobs[idx];
   if(!entry)return;
   jobs.unshift(entry.job);
@@ -17159,6 +17216,7 @@ function restoreJob(idx){
 }
 
 function permanentDeleteJob(idx){
+  if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์');return;}
   var entry=deletedJobs[idx];
   if(!entry)return;
   if(!confirm('ยืนยันลบ '+entry.job.id+' ถาวร? ไม่สามารถกู้คืนได้อีก'))return;
@@ -17169,6 +17227,7 @@ function permanentDeleteJob(idx){
 }
 
 function confirmEmptyBin(){
+  if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์');return;}
   if(!deletedJobs.length){showToast('ถังขยะว่างเปล่าอยู่แล้ว');return;}
   if(!confirm('ยืนยันล้างถังขยะทั้งหมด '+deletedJobs.length+' รายการ? ไม่สามารถกู้คืนได้อีก'))return;
   deletedJobs=[];
@@ -17225,6 +17284,7 @@ function clearSelection(){
   document.getElementById('bulk-bar')?.classList.remove('show');
 }
 function openBulkDelete(){
+  if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์ลบใบงาน');return;}
   var n=selectedJobs.size;
   if(!n){showToast('กรุณาเลือกใบงานก่อน');return;}
   document.getElementById('bulk-del-sub').textContent='จำนวน '+n+' ใบงานที่เลือก';
@@ -17251,6 +17311,7 @@ function onBulkReasonChange(){
   document.getElementById('bulk-reason-other-wrap').style.display=sel==='อื่นๆ'?'block':'none';
 }
 function executeBulkDelete(){
+  if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์ลบ');return;}
   var reason=document.getElementById('bulk-reason-select').value;
   if(!reason){showToast('กรุณาเลือกเหตุผลในการลบ');return;}
   if(reason==='อื่นๆ'){
@@ -17282,6 +17343,7 @@ function executeBulkDelete(){
 // ============================
 var deleteJobID = null;
 function confirmDeleteJob(id){
+  if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์ลบใบงาน');return;}
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   deleteJobID=id;
@@ -17894,7 +17956,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.003';
+const APP_VERSION = '2026.04.29.004';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19250,272 +19312,4 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
     </div>
     <div class="fg" id="del-reason-other-wrap" style="display:none">
       <label class="fl">ระบุเหตุผลเพิ่มเติม</label>
-      <input class="fi" id="del-reason-other" placeholder="กรอกเหตุผลที่ต้องการลบ...">
-    </div>
-    <div style="background:var(--bg);border-radius:var(--radius);padding:9px 12px;font-size:12px;color:var(--text-2);margin-top:4px">
-      <div style="font-weight:600;margin-bottom:4px">รายละเอียดใบงานที่จะลบ:</div>
-      <div id="del-job-detail"></div>
-    </div>
-  </div>
-  <div class="modal-foot">
-    <button class="btn btn-ghost" onclick="closeModal('modal-delete-job')">ยกเลิก</button>
-    <button class="btn" onclick="executeDeleteJob()" style="background:var(--red);color:#fff;border-color:var(--red)">&#128465; ยืนยันลบใบงาน</button>
-  </div>
-</div>
-</div>
-
-
-<!-- MODAL: BULK DELETE -->
-<div class="modal-overlay" id="modal-bulk-delete">
-<div class="modal modal-sm">
-  <div class="modal-head">
-    <div>
-      <div class="modal-title" style="color:var(--red)">&#128465; ลบหลายใบงาน</div>
-      <div class="modal-sub" id="bulk-del-sub"></div>
-    </div>
-    <button class="close-x" onclick="closeModal('modal-bulk-delete')">&#215;</button>
-  </div>
-  <div class="modal-body">
-    <div style="background:var(--red-l);border:1px solid var(--red-m);border-radius:var(--radius);padding:10px 13px;font-size:13px;color:var(--red);margin-bottom:14px;font-weight:500">
-      &#9888; การลบใบงานไม่สามารถกู้คืนได้ กรุณาระบุเหตุผลก่อนดำเนินการ
-    </div>
-    <div id="bulk-del-list" style="background:var(--bg);border-radius:var(--radius);padding:9px 12px;font-size:12px;max-height:160px;overflow-y:auto;margin-bottom:14px;color:var(--text-2)"></div>
-    <div class="fg">
-      <label class="fl">เหตุผลในการลบ *</label>
-      <select class="fi" id="bulk-reason-select" onchange="onBulkReasonChange()">
-        <option value="">-- เลือกเหตุผล --</option>
-        <option value="ยกเลิกงาน">ยกเลิกงาน</option>
-        <option value="ลูกค้ายกเลิก">ลูกค้ายกเลิก</option>
-        <option value="กรอกข้อมูลผิด">กรอกข้อมูลผิด / บันทึกซ้ำ</option>
-        <option value="เปลี่ยนแปลงแผนงาน">เปลี่ยนแปลงแผนงาน</option>
-        <option value="อื่นๆ">อื่นๆ (ระบุเพิ่มเติม)</option>
-      </select>
-    </div>
-    <div class="fg" id="bulk-reason-other-wrap" style="display:none">
-      <label class="fl">ระบุเหตุผลเพิ่มเติม</label>
-      <input class="fi" id="bulk-reason-other" placeholder="กรอกเหตุผลที่ต้องการลบ...">
-    </div>
-  </div>
-  <div class="modal-foot">
-    <button class="btn btn-ghost" onclick="closeModal('modal-bulk-delete')">ยกเลิก</button>
-    <button class="btn" onclick="executeBulkDelete()" style="background:var(--red);color:#fff;border-color:var(--red)">&#128465; ยืนยันลบ <span id="bulk-del-count-btn"></span> ใบงาน</button>
-  </div>
-</div>
-</div>
-
-
-<!-- MODAL: BIN (ถังขยะ) -->
-<div class="modal-overlay" id="modal-bin">
-<div class="modal" style="max-width:700px">
-  <div class="modal-head">
-    <div>
-      <div class="modal-title">🗑 ถังขยะ — งานที่ลบไปแล้ว</div>
-      <div class="modal-sub">กู้คืนใบงานที่ลบผิด หรือล้างถังขยะเพื่อลบถาวร</div>
-    </div>
-    <button class="close-x" onclick="closeModal('modal-bin')">&#215;</button>
-  </div>
-  <div class="modal-body" style="padding:0">
-    <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
-      <span style="font-size:13px;color:var(--text-2);flex:1">รายการในถังขยะ: <strong id="bin-count-label">0</strong> รายการ</span>
-      <button class="bin-del-btn" onclick="confirmEmptyBin()">&#128465; ล้างถังขยะทั้งหมด</button>
-    </div>
-    <div id="bin-list" style="max-height:480px;overflow-y:auto">
-      <div id="bin-empty" class="no-data" style="padding:2.5rem">ถังขยะว่างเปล่า — ยังไม่มีงานที่ลบ</div>
-    </div>
-  </div>
-  <div class="modal-foot">
-    <button class="btn btn-ghost" onclick="closeModal('modal-bin')">ปิด</button>
-  </div>
-</div>
-</div>
-
-
-
-
-<!-- MODAL: COST (กรอกค่าใช้จ่ายก่อนปริ้น) -->
-<div class="modal-overlay" id="modal-cost">
-<div class="modal" style="max-width:500px">
-  <div class="modal-head">
-    <div>
-      <div class="modal-title">💰 กรอกค่าใช้จ่าย ก่อนพิมพ์ใบปฏิบัติงาน</div>
-      <div class="modal-sub" id="cost-job-sub"></div>
-    </div>
-    <button class="close-x" onclick="closeModal('modal-cost')">&#215;</button>
-  </div>
-  <div class="modal-body">
-    <div style="background:var(--green-l);border:1px solid var(--green-m);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--green-d);margin-bottom:12px">
-      กรอกเฉพาะรายการที่มี — ช่องที่เว้นว่างจะแสดงเป็นเส้นประในใบปฏิบัติงาน
-    </div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">ค่าเบี้ยเลี้ยง (บาท)</label><input class="fi" id="cost-trip-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
-      <div class="fg"><label class="fl">ค่ายกตู้ (บาท)</label><input class="fi" id="cost-box-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
-      <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="cost-trip-note" placeholder="หัวลาก / สิบล้อ"></div>
-    </div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">ค่ารับตู้ (บาท)</label><input class="fi" id="cost-recv-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
-      <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="cost-recv-note" placeholder="ลาน / ท่าเรือ"></div>
-    </div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">ค่าคืนตู้ (บาท)</label><input class="fi" id="cost-ret-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
-      <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="cost-ret-note" placeholder="ลาน / ท่าเรือ"></div>
-    </div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">ค่าผ่านท่า (บาท)</label><input class="fi" id="cost-port-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
-      <div class="fg"><label class="fl">ค่าทางด่วน (บาท)</label><input class="fi" id="cost-toll-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
-    </div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">อื่นๆ 1 (ระบุ)</label><input class="fi" id="cost-misc-note" placeholder="ชื่อรายการ"></div>
-      <div class="fg"><label class="fl">จำนวนเงิน (บาท)</label><input class="fi" id="cost-misc-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
-    </div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">อื่นๆ 2 (ระบุ)</label><input class="fi" id="cost-misc2-note" placeholder="ชื่อรายการ"></div>
-      <div class="fg"><label class="fl">จำนวนเงิน (บาท)</label><input class="fi" id="cost-misc2-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
-    </div>
-    <div style="background:var(--bg);border-radius:var(--radius);padding:8px 12px;margin-top:8px;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:13px;color:var(--text-2);font-weight:600">รวมค่าใช้จ่ายทั้งหมด</span>
-      <span style="font-size:18px;font-weight:700;color:var(--red)" id="cost-total-preview">0 บาท</span>
-    </div>
-  </div>
-  <div class="modal-foot">
-    <button class="btn btn-ghost" onclick="closeModal('modal-cost')">ยกเลิก</button>
-    <button class="btn btn-green" onclick="doPrint()">🖨 พิมพ์ใบปฏิบัติงาน</button>
-  </div>
-</div>
-</div>
-
-<!-- MODAL: Add/Edit Rate -->
-<div class="modal-overlay" id="modal-rate">
-<div class="modal">
-  <div class="modal-head">
-    <div>
-      <div class="modal-title" id="rate-modal-title">เพิ่มเส้นทางใหม่</div>
-      <div class="modal-sub">กำหนดราคาค่าขนส่งตามเส้นทางและลูกค้า</div>
-    </div>
-    <button class="close-x" onclick="closeModal('modal-rate')">✕</button>
-  </div>
-  <div class="modal-body">
-    <div class="fi-row">
-      <div class="fg"><label class="fl">ลูกค้า (Shipper) *</label><input class="fi" id="rm-customer" placeholder="TEIJIN FRONTIER"></div>
-      <div class="fg"><label class="fl">มีผลตั้งแต่</label><input class="fi" type="date" id="rm-effective"></div>
-    </div>
-    <div class="fi-row">
-      <div class="fg"><label class="fl">ต้นทาง (ท่าเรือ/ลาน) *</label><input class="fi" id="rm-origin" placeholder="PAT, SCT, UNITHAI..."></div>
-      <div class="fg"><label class="fl">ปลายทาง (โรงงาน) *</label><input class="fi" id="rm-dest" placeholder="แพรกษา, บางปะอิน..."></div>
-    </div>
-    <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="rm-note" placeholder="เช่น รวม/ไม่รวมค่าผ่านท่า"></div>
-
-    <div style="margin:14px 0 10px;font-size:12px;font-weight:700;color:var(--text-2)">วิธีคำนวณราคาตามน้ำมัน</div>
-    <div class="method-toggle">
-      <button class="method-btn active" id="mb-formula" onclick="setMethod('formula')">📐 สูตร (ราคาฐาน + อัตราปรับ)</button>
-      <button class="method-btn" id="mb-table" onclick="setMethod('table')">📊 ตาราง Range น้ำมัน</button>
-    </div>
-
-    <!-- FORMULA METHOD -->
-    <div id="method-formula">
-      <div class="fi-row">
-        <div class="fg"><label class="fl">ราคาฐาน สิบล้อ (บาท) *</label><input class="fi" type="number" id="rm-base-truck" placeholder="4100" style="font-family:var(--mono)"></div>
-        <div class="fg"><label class="fl">ราคาฐาน หัวลาก (บาท) *</label><input class="fi" type="number" id="rm-base-trailer" placeholder="5300" style="font-family:var(--mono)"></div>
-      </div>
-      <div class="fi-row">
-        <div class="fg"><label class="fl">น้ำมันฐาน (บาท/ลิตร) *</label><input class="fi" type="number" step="0.01" id="rm-oil-base" placeholder="29.00" style="font-family:var(--mono)"></div>
-        <div class="fg" style="grid-column:1/-1"><label class="fl">อัตราปรับ สิบล้อ ต่อ 1 บาท/ลิตร *</label><input class="fi" type="number" id="rm-rate-truck" placeholder="80" style="font-family:var(--mono)"></div>
-      </div>
-      <div class="fg"><label class="fl">อัตราปรับ หัวลาก ต่อ 1 บาท/ลิตร *</label><input class="fi" type="number" id="rm-rate-trailer" placeholder="100" style="font-family:var(--mono)"></div>
-    </div>
-
-    <!-- TABLE METHOD -->
-    <div id="method-table" style="display:none">
-      <div style="font-size:12px;color:var(--text-2);margin-bottom:8px">กรอกราคาตาม range น้ำมัน (เหมือน Excel เดิม)</div>
-      <table class="range-table">
-        <thead><tr><th>น้ำมัน (บาท/ลิตร)</th><th>สิบล้อ (บาท)</th><th>หัวลาก (บาท)</th><th></th></tr></thead>
-        <tbody id="range-tbody"></tbody>
-      </table>
-      <button class="btn-add-range" onclick="addRangeRow()">+ เพิ่ม range</button>
-    </div>
-  </div>
-  <div class="modal-foot">
-    <button class="btn btn-ghost" onclick="closeModal('modal-rate')">ยกเลิก</button>
-    <button class="btn btn-green" onclick="saveRate()">บันทึก</button>
-  </div>
-</div>
-</div>
-<!-- MODAL: Import -->
-<div class="modal-overlay" id="modal-import">
-<div class="modal" style="max-width:460px">
-  <div class="modal-head">
-    <div><div class="modal-title">📥 Import Rate Card จาก Excel</div><div class="modal-sub">รูปแบบ CSV: ลูกค้า, ต้นทาง, ปลายทาง, สิบล้อ, หัวลาก, น้ำมันฐาน, อัตราปรับสิบล้อ, อัตราปรับหัวลาก</div></div>
-    <button class="close-x" onclick="closeModal('modal-import')">✕</button>
-  </div>
-  <div class="modal-body">
-    <div class="fg"><label class="fl">วางข้อมูล CSV หรือแนบไฟล์</label><textarea class="fi" id="import-csv" rows="8" style="height:auto;padding-top:8px;font-family:var(--mono);font-size:11px;resize:vertical" placeholder="TEIJIN FRONTIER,PAT,แพรกษา,4100,5300,29,80,100&#10;TEIJIN FRONTIER,สหไทย,แพรกษา,4100,5300,29,80,100"></textarea></div>
-    <div id="import-preview" style="font-size:12px;color:var(--text-2);margin-top:8px"></div>
-  </div>
-  <div class="modal-foot">
-    <button class="btn btn-ghost" onclick="closeModal('modal-import')">ยกเลิก</button>
-    <button class="btn btn-green" onclick="importCSV()">📥 Import</button>
-  </div>
-</div>
-</div>
-
-<!-- MODAL: EXCEL IMPORT -->
-<div class="modal-overlay" id="modal-excel-import">
-<div class="modal">
-  <div class="modal-head">
-    <div><div class="modal-title">📊 Import งานจากไฟล์ Excel</div><div class="modal-sub">เลือกไฟล์ .xlsx ที่มีข้อมูลใบงาน</div></div>
-    <button class="close-x" onclick="closeModal('modal-excel-import')">×</button>
-  </div>
-  <div class="modal-body">
-    <div class="fg"><label class="fl">เลือกไฟล์ Excel (.xlsx)</label>
-      <input type="file" class="fi" id="excel-file" accept=".xlsx,.xls" onchange="previewExcel()">
-    </div>
-    
-    <div id="excel-preview" style="display:none;margin-top:16px">
-      <div class="sec-title">ตัวอย่างข้อมูล (5 แถวแรก)</div>
-      <div style="overflow-x:auto;margin:8px 0">
-        <table id="excel-preview-table" style="font-size:11px;border-collapse:collapse;width:100%">
-          <thead id="excel-thead"></thead>
-          <tbody id="excel-tbody"></tbody>
-        </table>
-      </div>
-      <div class="fg-row" style="margin-top:12px">
-        <div class="fg"><label class="fl">จำนวนแถวที่พบ</label><input class="fi" id="excel-row-count" readonly style="background:#f5f5f5"></div>
-        <div class="fg"><label class="fl">เริ่ม Job ID ที่</label><input class="fi" id="start-job-id" value="" placeholder="เช่น JOB-N064"></div>
-      </div>
-      
-      <div class="note-bar warning" style="margin-top:12px">
-        <strong>⚠️ คำเตือน:</strong> การ Import จะเพิ่มงานใหม่เข้าระบบ ตรวจสอบข้อมูลให้ถูกต้องก่อน Import
-      </div>
-    </div>
-    
-    <div id="excel-import-log" style="display:none;margin-top:16px">
-      <div class="sec-title">ผลการ Import</div>
-      <div id="import-result" style="font-family:var(--mono);font-size:11px;background:#f8f9fa;padding:12px;border-radius:6px;white-space:pre-wrap;max-height:200px;overflow-y:auto;border:1px solid var(--border)"></div>
-    </div>
-  </div>
-  
-  <div class="modal-foot">
-    <button class="btn btn-ghost" onclick="closeModal('modal-excel-import')">ยกเลิก</button>
-    <button class="btn btn-green" id="btn-import-excel" onclick="importExcelData()" style="display:none">📥 Import ข้อมูล</button>
-  </div>
-</div>
-</div>
-
-<!-- DEPLOY MODAL -->
-<div class="deploy-modal-overlay" id="deploy-modal">
-  <div class="deploy-modal">
-    <h3>🚀 Deploy อัพเดทขึ้น Vercel</h3>
-    <p>อัพโหลดไฟล์ HTML ล่าสุดขึ้น Vercel โดยตรง ทีมจะเห็นเวอร์ชันใหม่ทันที</p>
-
-    <div style="margin-bottom:10px">
-      <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px">Vercel Token</label>
-      <input class="deploy-input" type="password" id="deploy-token" placeholder="vcp_xxxx..." 
-        value="">
-    </div>
-
-    <div id="deploy-log" class="deploy-log">
-      <span class="info">▶ พร้อม Deploy — กดปุ่มด้านล่างเพื่อเริ่ม</span>
-    </div>
-
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="document.getElementById('deploy-modal').classList.remove('open')">ปิด</button>
-      <button class="btn btn-green" id="deploy-start-btn" onclick="startDeploy()">🚀 
+      <input class="fi" 
