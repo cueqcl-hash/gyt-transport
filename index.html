@@ -17956,7 +17956,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.004';
+const APP_VERSION = '2026.04.29.005';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -18151,6 +18151,15 @@ async function loadFromSupabase() {
     }
     if(sbUsers !== null && sbUsers.length > 0) {
       users = sbUsers.map(function(u){ return Object.assign({},u,{perms:u.perms||[]}); });
+      // Sync currentUser ให้ตรงกับข้อมูลล่าสุดของ user คนนั้น (admin เปลี่ยน role/perms ของ user แล้วต้อง reflect ทันที)
+      if(currentUser && currentUser.id){
+        var fresh = users.find(function(u){return u.id===currentUser.id;});
+        if(fresh){
+          ['role','perms','fname','lname','username','phone','status'].forEach(function(k){
+            if(fresh[k] !== undefined) currentUser[k] = fresh[k];
+          });
+        }
+      }
     }
 
     _onlineMode = true;
