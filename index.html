@@ -118,7 +118,7 @@ html,body{height:100%;font-family:var(--font);color:var(--text);font-size:14px;l
 .btn-icon{width:36px;padding:0;display:flex;align-items:center;justify-content:center}
 
 /* ===== TABLE ===== */
-.tbl-wrap{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);overflow:clip;margin-bottom:12px;box-shadow:var(--shadow)}
+.tbl-wrap{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden;margin-bottom:12px;box-shadow:var(--shadow)}
 .tbl-scroll{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{background:#F2F7F4;padding:9px 11px;text-align:left;font-size:11px;font-weight:700;color:var(--text-2);border-bottom:2px solid var(--border);white-space:nowrap;user-select:none;letter-spacing:0.03em}
@@ -307,8 +307,8 @@ tr:hover td{background:#FAFCFB}
 
 .tbl-scroll{overflow-x:auto;position:relative;scrollbar-width:none}
 .tbl-scroll::-webkit-scrollbar{display:none}
-/* Sticky bottom scrollbar — ติดอยู่ล่างสุดของหน้าจอเสมอขณะ scroll */
-.tbl-sticky-bot-scroll{overflow-x:auto;overflow-y:hidden;height:14px;position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);z-index:5}
+/* Floating bottom scrollbar — ติดอยู่ล่างสุดของหน้าจอเสมอ (JS-positioned via fixed) */
+.tbl-sticky-bot-scroll{overflow-x:auto;overflow-y:hidden;height:14px;background:var(--surface);border-top:1px solid var(--border);z-index:1000;display:none;box-shadow:0 -2px 8px rgba(0,0,0,0.06)}
 .tbl-sticky-bot-scroll-inner{height:1px}
 table{min-width:max-content}
 
@@ -15153,50 +15153,95 @@ function getCols(){
   return visible.map(id=>ALL_COLS.find(c=>c.id===id)).filter(Boolean);
 }
 
-// === Sticky bottom scrollbar สำหรับตารางงาน ===
-// scrollbar เดียวที่ติดอยู่ล่างจอเสมอ (sync กับตาราง 2 ทาง)
+// === Floating bottom scrollbar สำหรับตารางงาน ===
+// ใช้ position:fixed + JS คำนวณตำแหน่งให้อยู่ล่างจอเสมอ (ไม่ว่า scroll page ตรงไหน)
+// + sync 2 ทาง กับ table scroll
 // + รองรับ Shift+Wheel เลื่อนซ้าย/ขวา
 var _scrollbarSetup = false;
+var _syncingScroll = false;
+
 function setupTableScrollSync(){
   var bot = document.getElementById('j-bot-scroll');
   var botInner = document.getElementById('j-bot-scroll-inner');
   var tbl = document.getElementById('j-tbl-scroll');
   if(!bot || !tbl || !botInner) return;
 
-  // อัปเดตความกว้างของ ghost element ให้เท่า table จริง
-  var update = function(){
-    var tbl_inner_table = tbl.querySelector('table');
-    if(tbl_inner_table) botInner.style.width = tbl_inner_table.scrollWidth + 'px';
-    // ซ่อน scrollbar ถ้าตารางพอดีจอ (ไม่มี overflow)
-    bot.style.display = (tbl.scrollWidth > tbl.clientWidth) ? '' : 'none';
+  // คำนวณ + วาง position ของ floating scrollbar
+  var updatePosition = function(){
+    var tblInnerTable = tbl.querySelector('table');
+    if(!tblInnerTable){ bot.style.display='none'; return; }
+
+    var tblScrollW = tblInnerTable.scrollWidth;
+    var tblClientW = tbl.clientWidth;
+
+    // ถ้าตารางพอดีจอ (ไม่มี horizontal overflow) → ซ่อน
+    if(tblScrollW <= tblClientW + 1){
+      bot.style.display = 'none';
+      return;
+    }
+
+    // อัปเดต ghost width
+    botInner.style.width = tblScrollW + 'px';
+
+    // เช็คว่าตารางอยู่ใน viewport ไหม
+    var rect = tbl.getBoundingClientRect();
+    var winH = window.innerHeight;
+
+    if(rect.bottom < 50 || rect.top > winH - 20){
+      // ตารางอยู่นอกจอ — ซ่อน
+      bot.style.display = 'none';
+    } else {
+      // วาง scrollbar ที่ล่างจอ ตรงกับ table แนวนอน
+      bot.style.display = 'block';
+      bot.style.position = 'fixed';
+      bot.style.bottom = '0';
+      bot.style.left = rect.left + 'px';
+      bot.style.width = rect.width + 'px';
+    }
   };
 
-  // setup ครั้งแรก — ผูก event sync 2 ทาง + wheel
+  // sync ใช้ rAF — กันกระตุก
+  var syncScroll = function(srcEl, tgtEl){
+    if(_syncingScroll) return;
+    _syncingScroll = true;
+    requestAnimationFrame(function(){
+      tgtEl.scrollLeft = srcEl.scrollLeft;
+      _syncingScroll = false;
+    });
+  };
+
+  // setup ครั้งแรก — ผูก event sync 2 ทาง + wheel + window scroll/resize
   if(!_scrollbarSetup){
-    var syncing = false;
-    bot.addEventListener('scroll', function(){
-      if(syncing) return; syncing = true;
-      tbl.scrollLeft = bot.scrollLeft;
-      requestAnimationFrame(function(){syncing=false;});
-    });
-    tbl.addEventListener('scroll', function(){
-      if(syncing) return; syncing = true;
-      bot.scrollLeft = tbl.scrollLeft;
-      requestAnimationFrame(function(){syncing=false;});
-    });
-    // Shift+Wheel เลื่อนซ้าย/ขวา (ตอน hover บนตาราง)
+    bot.addEventListener('scroll', function(){ syncScroll(bot, tbl); }, {passive:true});
+    tbl.addEventListener('scroll', function(){ syncScroll(tbl, bot); }, {passive:true});
+
+    // Shift+Wheel เลื่อนซ้าย/ขวา
     tbl.addEventListener('wheel', function(e){
       if(e.shiftKey){
         tbl.scrollLeft += e.deltaY;
         e.preventDefault();
       }
     }, {passive:false});
+
+    // อัปเดต position ตอน scroll page หรือ resize (throttle ผ่าน rAF)
+    var posRaf = null;
+    var schedulePos = function(){
+      if(posRaf) return;
+      posRaf = requestAnimationFrame(function(){
+        updatePosition();
+        posRaf = null;
+      });
+    };
+    window.addEventListener('scroll', schedulePos, {passive:true});
+    window.addEventListener('resize', schedulePos, {passive:true});
+
     _scrollbarSetup = true;
   }
 
-  // อัปเดต width ทุกครั้งหลัง render + ตอน resize window
-  update();
-  setTimeout(update, 50);
+  // อัปเดต position ทุกครั้งหลัง render
+  updatePosition();
+  setTimeout(updatePosition, 50);
+  setTimeout(updatePosition, 200);
 }
 
 var selectedJobs = new Set();
