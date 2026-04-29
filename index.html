@@ -15132,8 +15132,14 @@ function getFiltered(){
     }
     return mq&&ms&&md;
   }).sort((a,b)=>{
+    // 1) เรียงตามวันเวลาเริ่มงานก่อน (startdate)
     const ta=a.startdate||'',tb=b.startdate||'';
-    return ta<tb?-1:ta>tb?1:0;
+    if(ta!==tb) return ta<tb?-1:1;
+    // 2) ถ้าวันเวลาเดียวกัน → จัดกลุ่ม Shipper ให้อยู่ติดกัน
+    const sa=(a.shipper||'').toLowerCase(), sb=(b.shipper||'').toLowerCase();
+    if(sa!==sb) return sa<sb?-1:1;
+    // 3) tie-break ด้วย JOB ID เพื่อความเสถียร (เลขใบงานน้อยอยู่ก่อน)
+    return (a.id||'').localeCompare(b.id||'');
   });
 }
 
