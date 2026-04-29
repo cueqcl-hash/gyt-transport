@@ -292,7 +292,8 @@ tr:hover td{background:#FAFCFB}
 .sd-list{position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1.5px solid var(--green-m);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:200;max-height:200px;overflow-y:auto;display:none}
 .sd-list.open{display:block}
 .sd-item{padding:9px 12px;font-size:13px;cursor:pointer;color:var(--text);transition:background 0.1s}
-.sd-item:hover,.sd-item.active{background:var(--green-l);color:var(--green-d)}
+.sd-item:hover,.sd-item.active,.sd-item.highlighted{background:var(--green-l);color:var(--green-d)}
+.sd-item.highlighted{box-shadow:inset 3px 0 0 var(--green-d)}
 .sd-item.no-result{color:var(--text-3);cursor:default;font-style:italic}
 .sd-item.no-result:hover{background:transparent;color:var(--text-3)}
 
@@ -3905,9 +3906,14 @@ const SD_DATA = {
 };
 let sdTimers={};
 
+// === Keyboard navigation state ===
+// เก็บ index ของ item ที่ highlight อยู่ (ตาม id)
+let sdHighlight = {};
+
 function sdOpen(id){
   const list=document.getElementById(id+'-list');
   if(!list)return;
+  sdHighlight[id] = -1;  // reset highlight
   sdRenderList(id,'');
   list.classList.add('open');
 }
@@ -3915,6 +3921,7 @@ function sdBlur(id){
   sdTimers[id]=setTimeout(()=>{
     const list=document.getElementById(id+'-list');
     if(list)list.classList.remove('open');
+    sdHighlight[id] = -1;
     // validate – if typed value not in list, clear
     const inp=document.getElementById(id);
     const hidden=document.getElementById(id+'-val');
@@ -3926,6 +3933,7 @@ function sdBlur(id){
 }
 function sdFilter(id){
   clearTimeout(sdTimers[id]);
+  sdHighlight[id] = -1;  // reset highlight when typing
   sdRenderList(id, document.getElementById(id)?.value||'');
   document.getElementById(id+'-list')?.classList.add('open');
 }
@@ -3937,11 +3945,66 @@ function sdRenderList(id,q){
     list.innerHTML=`<div class="sd-item no-result">${data.length?'ไม่พบ "'+q+'"':'ยังไม่มีข้อมูล — เพิ่มใน Master Data ก่อน'}</div>`;
     return;
   }
-  list.innerHTML=fl.map(d=>`<div class="sd-item" onmousedown="sdSelect('${id}','${d.label.replace(/'/g,"\'")}','${(d.phone||'').replace(/'/g,"\'")}')">
-    <div style="font-weight:500">${d.label}</div>
-    ${d.sub?`<div style="font-size:11px;color:var(--text-3)">${d.sub}</div>`:''}
-  </div>`).join('');
+  const hi = sdHighlight[id] !== undefined ? sdHighlight[id] : -1;
+  list.innerHTML=fl.map(function(d,i){
+    return `<div class="sd-item${i===hi?' highlighted':''}" data-idx="${i}" onmousedown="sdSelect('${id}','${d.label.replace(/'/g,"\\'")}','${(d.phone||'').replace(/'/g,"\\'")}')" onmouseenter="sdSetHighlight('${id}',${i})">
+      <div style="font-weight:500">${d.label}</div>
+      ${d.sub?`<div style="font-size:11px;color:var(--text-3)">${d.sub}</div>`:''}
+    </div>`;
+  }).join('');
 }
+
+// Highlight item ที่ index นี้ + scroll into view
+function sdSetHighlight(id, idx){
+  const list = document.getElementById(id+'-list');
+  if(!list) return;
+  sdHighlight[id] = idx;
+  // อัปเดต CSS class
+  list.querySelectorAll('.sd-item').forEach(function(el, i){
+    el.classList.toggle('highlighted', i === idx);
+  });
+  // scroll เข้าตำแหน่ง
+  const target = list.querySelector('.sd-item.highlighted');
+  if(target) target.scrollIntoView({block:'nearest', behavior:'auto'});
+}
+
+// Keyboard navigation: ArrowUp/Down/Enter/Escape
+function sdKeyDown(e, id){
+  const list = document.getElementById(id+'-list');
+  if(!list || !list.classList.contains('open')) return;
+  const items = list.querySelectorAll('.sd-item:not(.no-result)');
+  if(!items.length) return;
+  const cur = sdHighlight[id] !== undefined ? sdHighlight[id] : -1;
+
+  if(e.key === 'ArrowDown'){
+    e.preventDefault();
+    const next = cur < items.length - 1 ? cur + 1 : 0;  // wrap to top
+    sdSetHighlight(id, next);
+  } else if(e.key === 'ArrowUp'){
+    e.preventDefault();
+    const next = cur > 0 ? cur - 1 : items.length - 1;  // wrap to bottom
+    sdSetHighlight(id, next);
+  } else if(e.key === 'Enter'){
+    if(cur >= 0 && cur < items.length){
+      e.preventDefault();
+      // จำลอง mousedown ของ item ที่ highlight
+      const event = new MouseEvent('mousedown', {bubbles:true});
+      items[cur].dispatchEvent(event);
+    }
+  } else if(e.key === 'Escape'){
+    e.preventDefault();
+    list.classList.remove('open');
+    sdHighlight[id] = -1;
+  }
+}
+
+// Global listener — ใช้กับ .sd-input ทุกตัว (ไม่ต้องเพิ่ม onkeydown ในแต่ละ input)
+document.addEventListener('keydown', function(e){
+  const t = e.target;
+  if(!t || !t.classList || !t.classList.contains('sd-input')) return;
+  if(!t.id) return;
+  sdKeyDown(e, t.id);
+});
 function sdSelect(id,value,phone){
   const inp=document.getElementById(id);
   const hidden=document.getElementById(id+'-val');
@@ -18095,7 +18158,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.014';
+const APP_VERSION = '2026.04.29.015';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
