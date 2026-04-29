@@ -3531,9 +3531,58 @@ const ALL_COLS = [
   }
 })();
 
-let colOrder = JSON.parse(localStorage.getItem('gyt_colOrder')||JSON.stringify(['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','customer','carrier','booking','status','id']));
+const _DEFAULT_COL_ORDER = ['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','customer','carrier','booking','status','id'];
+let colOrder = JSON.parse(localStorage.getItem('gyt_colOrder')||JSON.stringify(_DEFAULT_COL_ORDER));
 let hiddenCols = new Set(JSON.parse(localStorage.getItem('gyt_hiddenCols')||JSON.stringify([])));
 let tempColOrder = [], tempHidden = new Set();
+
+// === Per-user column preferences ===
+// แต่ละ user เก็บ col order/hidden ของตัวเอง (localStorage แยกตาม userId)
+function _colKey(base){ return currentUser?.id ? base+'_u'+currentUser.id : base; }
+
+function loadColPrefsForUser(){
+  if(!currentUser?.id) return;
+  // ลำดับ: 1) cloud (currentUser.prefs) → 2) localStorage → 3) default
+  var src = 'default';
+  if(currentUser.prefs && currentUser.prefs.colOrder){
+    colOrder = currentUser.prefs.colOrder.slice();
+    hiddenCols = new Set(currentUser.prefs.colHidden || []);
+    src = 'cloud';
+  } else {
+    var savedOrder = localStorage.getItem('gyt_colOrder_u'+currentUser.id);
+    var savedHidden = localStorage.getItem('gyt_hiddenCols_u'+currentUser.id);
+    if(savedOrder){
+      colOrder = JSON.parse(savedOrder);
+      hiddenCols = new Set(savedHidden ? JSON.parse(savedHidden) : []);
+      src = 'localStorage';
+    } else {
+      colOrder = [..._DEFAULT_COL_ORDER];
+      hiddenCols = new Set([]);
+    }
+  }
+  // validate — ตัด col ที่ไม่มีอยู่จริง + เพิ่ม col ใหม่ที่ default มี
+  colOrder = colOrder.filter(function(id){return _DEFAULT_COL_ORDER.indexOf(id)>=0;});
+  _DEFAULT_COL_ORDER.forEach(function(id){if(colOrder.indexOf(id)<0)colOrder.push(id);});
+  console.log('[ColPrefs] loaded from:', src);
+}
+
+function saveColPrefsForUser(){
+  if(!currentUser?.id) return;
+  // 1. localStorage (เร็ว, ใช้งานได้แม้ออฟไลน์)
+  localStorage.setItem('gyt_colOrder_u'+currentUser.id, JSON.stringify(colOrder));
+  localStorage.setItem('gyt_hiddenCols_u'+currentUser.id, JSON.stringify([...hiddenCols]));
+  // 2. Cloud sync (ข้ามเครื่อง — ต้องมี column 'prefs' ใน gyt_users)
+  if(typeof _onlineMode !== 'undefined' && _onlineMode){
+    if(!currentUser.prefs) currentUser.prefs = {};
+    currentUser.prefs.colOrder = colOrder.slice();
+    currentUser.prefs.colHidden = [...hiddenCols];
+    var u = users.find(function(x){return x.id===currentUser.id;});
+    if(u){ u.prefs = currentUser.prefs; }
+    if(typeof syncUserSave === 'function'){
+      try{ syncUserSave(u || currentUser); }catch(e){ console.warn('cloud sync col prefs error:', e); }
+    }
+  }
+}
 
 let currentUser = null;
 let locCache = {origin:null,dest:null,return:null};
@@ -3616,6 +3665,8 @@ function applyPermsToUI(){
 // INIT
 // ============================
 function initApp(){
+  // โหลด column preferences ของ user คนนี้ (per-user, per-browser)
+  if(typeof loadColPrefsForUser === 'function') loadColPrefsForUser();
   const r=currentUser.role;
   const av=document.getElementById('sb-av');
   av.textContent=currentUser.fname[0]+currentUser.lname[0];
@@ -15461,17 +15512,20 @@ function applyCols(){
   tempColOrder=[...items].map(el=>el.dataset.id);
   colOrder=[...tempColOrder];
   hiddenCols=new Set(tempHidden);
-  localStorage.setItem('gyt_colOrder',JSON.stringify(colOrder));
-  localStorage.setItem('gyt_hiddenCols',JSON.stringify([...hiddenCols]));
+  // บันทึกแบบ per-user (แต่ละคนมี column ของตัวเอง บนเครื่องตัวเอง)
+  if(typeof saveColPrefsForUser === 'function') saveColPrefsForUser();
   closeModal('modal-cols');
   renderJobs();
-  showToast('บันทึกการจัดเรียง Column แล้ว');
+  showToast('บันทึกการจัดเรียง Column ของคุณแล้ว');
 }
 function resetCols(){
-  tempColOrder=['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','customer','carrier','booking','status','id'];
+  tempColOrder=[..._DEFAULT_COL_ORDER];
   tempHidden=new Set([]);
-  localStorage.removeItem('gyt_colOrder');
-  localStorage.removeItem('gyt_hiddenCols');
+  // ลบ key per-user ของ user ปัจจุบัน
+  if(currentUser?.id){
+    localStorage.removeItem('gyt_colOrder_u'+currentUser.id);
+    localStorage.removeItem('gyt_hiddenCols_u'+currentUser.id);
+  }
   renderColList();
 }
 
@@ -18002,7 +18056,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.009';
+const APP_VERSION = '2026.04.29.012';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -18202,7 +18256,7 @@ async function loadFromSupabase() {
         var fresh = users.find(function(u){return u.id===currentUser.id;});
         if(fresh){
           var roleChanged = currentUser.role !== fresh.role || JSON.stringify(currentUser.perms) !== JSON.stringify(fresh.perms);
-          ['role','perms','fname','lname','username','phone','status'].forEach(function(k){
+          ['role','perms','fname','lname','username','phone','status','prefs'].forEach(function(k){
             if(fresh[k] !== undefined) currentUser[k] = fresh[k];
           });
           // ถ้า role/perms เปลี่ยน → re-render sidebar + UI ให้ตรง
@@ -18330,6 +18384,22 @@ async function syncMasterData() {
   }
 }
 
+// ตรวจอัตโนมัติว่า cloud มี column 'prefs' หรือยัง (ครั้งเดียว cache ไว้)
+var _cloudPrefsSupported = null;
+async function checkCloudPrefsSupport(){
+  if(_cloudPrefsSupported !== null) return _cloudPrefsSupported;
+  if(!_onlineMode){ return false; }
+  try {
+    var test = await sbFetch('gyt_users','GET',null,'?select=prefs&limit=1');
+    _cloudPrefsSupported = (test !== null);
+    console.log('[Prefs] cloud sync supported:', _cloudPrefsSupported);
+  } catch(e){
+    _cloudPrefsSupported = false;
+    console.warn('[Prefs] cloud check failed:', e.message);
+  }
+  return _cloudPrefsSupported;
+}
+
 async function syncUserSave(user) {
   if(!_onlineMode) return;
   try {
@@ -18344,6 +18414,9 @@ async function syncUserSave(user) {
       status: user.status || 'active',
       perms: user.perms || []
     };
+    // ใส่ prefs เฉพาะถ้า cloud รองรับ (กัน error ถ้ายังไม่ได้รัน ALTER TABLE)
+    var supported = await checkCloudPrefsSupport();
+    if(supported) row.prefs = user.prefs || {};
     await sbFetch('gyt_users','POST',[row],'?on_conflict=id');
   } catch(e) {
     console.warn('syncUserSave error:', e.message);
