@@ -18095,7 +18095,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.013';
+const APP_VERSION = '2026.04.29.014';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19354,134 +19354,223 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
       <div class="fg"><label class="fl">วันต่อทะเบียน</label><input class="fi" id="veh-date_tax" placeholder="30/09/2569"></div>
       <div class="fg"><label class="fl">วันต่อประกันภัย</label><input class="fi" id="veh-date_ins" placeholder="30/09/2569"></div>
     </div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">วันต่อประกันสินค้า</label><input class="fi" id="veh-date_cargo_ins" placeholder="30/09/2569"></div>
-      <div class="fg"><label class="fl">เลขแซสชี</label><input class="fi" id="veh-chassis" placeholder="XXXX000000"></div>
-    </div>
-    <div id="veh-tractor-only">
-      <div class="fg-row">
-        <div class="fg"><label class="fl">เลขไมล์ปัจจุบัน</label><input class="fi" id="veh-mileage" placeholder="0"></div>
-        <div class="fg"><label class="fl">ประเภทเชื้อเพลิง</label><input class="fi" id="veh-fuel" placeholder="น้ำมัน/Oil"></div>
-      </div>
-    </div>
-    <div class="fg"><label class="fl">หมายเหตุ (เช่น ข้อมูลประกันภัย)</label><textarea class="fi" id="veh-note" rows="2" style="height:auto;padding-top:8px;resize:vertical" placeholder="ทิพยประกันภัย โทร 022392200 เลขที่กรมธรรม์..."></textarea></div>
-  </div>
-  <div class="modal-foot">
-    <button class="btn btn-ghost" onclick="closeModal('modal-vehicle')">ยกเลิก</button>
-    <button class="btn btn-green" onclick="saveVehicle()">บันทึก</button>
-  </div>
-</div>
-</div>
 
 
-<!-- MODAL: DRIVER -->
-<div class="modal-overlay" id="modal-driver">
-<div class="modal" style="max-width:540px">
-  <div class="modal-head">
-    <div><div class="modal-title" id="drv-modal-title">เพิ่มคนขับ</div></div>
-    <button class="close-x" onclick="closeModal('modal-driver')">&#215;</button>
-  </div>
-  <div class="modal-body">
-    <div class="fg-row">
-      <div class="fg"><label class="fl">ชื่อ-นามสกุล *</label><input class="fi" id="drv-name" placeholder="ชื่อ นามสกุล"></div>
-      <div class="fg"><label class="fl">เบอร์โทรศัพท์</label><input class="fi" id="drv-phone" placeholder="08X-XXX-XXXX"></div>
-    </div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">ประเภท</label>
-        <select class="fi" id="drv-dtype"><option value="company">คนขับประจำบริษัท</option><option value="outsource_person">Outsource (บุคคล)</option><option value="outsource_biz">Outsource (บริษัท/ทีม)</option></select>
-      </div>
-      <div class="fg"><label class="fl">เลขบัตรประชาชน</label><input class="fi" id="drv-idcard" placeholder="X-XXXX-XXXXX-XX-X"></div>
-    </div>
-    <div class="fg-row3">
-      <div class="fg"><label class="fl">เลขที่ใบขับขี่</label><input class="fi" id="drv-license_no" placeholder="00000/00"></div>
-      <div class="fg"><label class="fl">ประเภทใบขับขี่</label><input class="fi" id="drv-license_type" placeholder="ท.2 / ท.3 / ท.4"></div>
-      <div class="fg"><label class="fl">วันหมดอายุ</label><input class="fi" id="drv-license_exp" placeholder="DD/MM/YYYY"></div>
-    </div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">ธนาคาร</label><input class="fi" id="drv-bank" placeholder="กสิกร / กรุงไทย..."></div>
-      <div class="fg"><label class="fl">เลขบัญชี</label><input class="fi" id="drv-bankno" placeholder="XXX-X-XXXXX-X"></div>
-    </div>
-    <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="drv-note" placeholder="หมายเหตุเพิ่มเติม"></div>
-    <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
-      <input type="checkbox" id="drv-leave" style="width:16px;height:16px;accent-color:var(--yellow);cursor:pointer">
-      <label for="drv-leave" style="font-size:13px;font-weight:500;cursor:pointer">ลางาน (ไม่แสดงในรายการเลือกคนขับ)</label>
-    </div>
-  </div>
-  <div class="modal-foot">
-    <button class="btn btn-ghost" onclick="closeModal('modal-driver')">ยกเลิก</button>
-    <button class="btn btn-green" onclick="saveDriver()">บันทึก</button>
-  </div>
-</div>
-</div>
-
-<!-- MODAL: PAIR -->
-<div class="modal-overlay" id="modal-pair">
-<div class="modal" style="max-width:440px">
-  <div class="modal-head">
-    <div><div class="modal-title" id="pair-modal-title">จับคู่ทะเบียน ↔ คนขับ</div>
-    <div class="modal-sub">กำหนดคนขับประจำของรถ</div></div>
-    <button class="close-x" onclick="closeModal('modal-pair')">&#215;</button>
-  </div>
-  <div class="modal-body">
-    <div class="fg">
-      <label class="fl">ทะเบียนรถ *</label>
-      <div class="sd-wrap">
-        <input class="sd-input" id="pair-plate-input" placeholder="พิมพ์หรือเลือกทะเบียน..." autocomplete="off"
-          oninput="buildPairPlateList(this.value)" onfocus="buildPairPlateList(this.value)"
-          onblur="setTimeout(function(){document.getElementById('pair-plate-list').classList.remove('open');onPlatePairInput();},180)">
-        <span class="sd-arrow">&#9662;</span>
-        <div class="sd-list" id="pair-plate-list"></div>
-      </div>
-      <div id="pair-plate-info" style="font-size:11px;margin-top:3px"></div>
-    </div>
-    <div class="fg" style="margin-top:10px">
-      <label class="fl">คนขับประจำ *</label>
-      <div class="sd-wrap">
-        <input class="sd-input" id="pair-driver-input" placeholder="พิมพ์ชื่อหรือเบอร์โทร..." autocomplete="off"
-          oninput="buildPairDriverList(this.value)"
-          onfocus="buildPairDriverList(this.value)"
-          onblur="setTimeout(function(){document.getElementById('pair-driver-list').classList.remove('open');},180)">
-        <span class="sd-arrow">&#9662;</span>
-        <div class="sd-list" id="pair-driver-list"></div>
-      </div>
-      <input type="hidden" id="pair-driver-val">
-      <div id="pair-driver-info" style="font-size:11px;margin-top:3px"></div>
-    </div>
-  </div>
-  <div class="modal-foot">
-    <button class="btn btn-ghost" onclick="closeModal('modal-pair')">ยกเลิก</button>
-    <button class="btn btn-green" onclick="savePair()">บันทึกการจับคู่</button>
-  </div>
-</div>
-</div>
-
-
-
-<!-- MODAL: DELETE JOB -->
-<div class="modal-overlay" id="modal-delete-job">
-<div class="modal modal-sm">
+<!-- MODAL: BIN (ถังขยะ) -->
+<div class="modal-overlay" id="modal-bin">
+<div class="modal" style="max-width:700px">
   <div class="modal-head">
     <div>
-      <div class="modal-title" style="color:var(--red)">&#128465; ลบใบงาน</div>
-      <div class="modal-sub" id="del-job-sub"></div>
+      <div class="modal-title">🗑 ถังขยะ — งานที่ลบไปแล้ว</div>
+      <div class="modal-sub">กู้คืนใบงานที่ลบผิด หรือล้างถังขยะเพื่อลบถาวร</div>
     </div>
-    <button class="close-x" onclick="closeModal('modal-delete-job')">&#215;</button>
+    <button class="close-x" onclick="closeModal('modal-bin')">&#215;</button>
+  </div>
+  <div class="modal-body" style="padding:0">
+    <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+      <span style="font-size:13px;color:var(--text-2);flex:1">รายการในถังขยะ: <strong id="bin-count-label">0</strong> รายการ</span>
+      <button class="bin-del-btn" onclick="confirmEmptyBin()">&#128465; ล้างถังขยะทั้งหมด</button>
+    </div>
+    <div id="bin-list" style="max-height:480px;overflow-y:auto">
+      <div id="bin-empty" class="no-data" style="padding:2.5rem">ถังขยะว่างเปล่า — ยังไม่มีงานที่ลบ</div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-bin')">ปิด</button>
+  </div>
+</div>
+</div>
+
+
+
+
+<!-- MODAL: COST (กรอกค่าใช้จ่ายก่อนปริ้น) -->
+<div class="modal-overlay" id="modal-cost">
+<div class="modal" style="max-width:500px">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title">💰 กรอกค่าใช้จ่าย ก่อนพิมพ์ใบปฏิบัติงาน</div>
+      <div class="modal-sub" id="cost-job-sub"></div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-cost')">&#215;</button>
   </div>
   <div class="modal-body">
-    <div style="background:var(--red-l);border:1px solid var(--red-m);border-radius:var(--radius);padding:10px 13px;font-size:13px;color:var(--red);margin-bottom:14px;font-weight:500">
-      &#9888; การลบใบงานไม่สามารถกู้คืนได้ กรุณาระบุเหตุผลก่อนดำเนินการ
+    <div style="background:var(--green-l);border:1px solid var(--green-m);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--green-d);margin-bottom:12px">
+      กรอกเฉพาะรายการที่มี — ช่องที่เว้นว่างจะแสดงเป็นเส้นประในใบปฏิบัติงาน
     </div>
-    <div class="fg">
-      <label class="fl">เหตุผลในการลบใบงาน *</label>
-      <select class="fi" id="del-reason-select" onchange="onDelReasonChange()">
-        <option value="">-- เลือกเหตุผล --</option>
-        <option value="ยกเลิกงาน">ยกเลิกงาน</option>
-        <option value="กรอกข้อมูลผิด">กรอกข้อมูลผิด / บันทึกซ้ำ</option>
-        <option value="ลูกค้ายกเลิก">ลูกค้ายกเลิก</option>
-        <option value="เปลี่ยนแปลงแผนงาน">เปลี่ยนแปลงแผนงาน</option>
-        <option value="อื่นๆ">อื่นๆ (ระบุเพิ่มเติม)</option>
-      </select>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่าเบี้ยเลี้ยง (บาท)</label><input class="fi" id="cost-trip-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
+      <div class="fg"><label class="fl">ค่ายกตู้ (บาท)</label><input class="fi" id="cost-box-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
+      <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="cost-trip-note" placeholder="หัวลาก / สิบล้อ"></div>
     </div>
-    <div class="fg" id="del-reason-other-wrap" style="display:none">
-      <label class="fl">ระบุเหตุผลเพิ่มเติม</label>
-      <input class="fi" 
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่ารับตู้ (บาท)</label><input class="fi" id="cost-recv-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
+      <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="cost-recv-note" placeholder="ลาน / ท่าเรือ"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่าคืนตู้ (บาท)</label><input class="fi" id="cost-ret-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
+      <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="cost-ret-note" placeholder="ลาน / ท่าเรือ"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่าผ่านท่า (บาท)</label><input class="fi" id="cost-port-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
+      <div class="fg"><label class="fl">ค่าทางด่วน (บาท)</label><input class="fi" id="cost-toll-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">อื่นๆ 1 (ระบุ)</label><input class="fi" id="cost-misc-note" placeholder="ชื่อรายการ"></div>
+      <div class="fg"><label class="fl">จำนวนเงิน (บาท)</label><input class="fi" id="cost-misc-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">อื่นๆ 2 (ระบุ)</label><input class="fi" id="cost-misc2-note" placeholder="ชื่อรายการ"></div>
+      <div class="fg"><label class="fl">จำนวนเงิน (บาท)</label><input class="fi" id="cost-misc2-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
+    </div>
+    <div style="background:var(--bg);border-radius:var(--radius);padding:8px 12px;margin-top:8px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;color:var(--text-2);font-weight:600">รวมค่าใช้จ่ายทั้งหมด</span>
+      <span style="font-size:18px;font-weight:700;color:var(--red)" id="cost-total-preview">0 บาท</span>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-cost')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="doPrint()">🖨 พิมพ์ใบปฏิบัติงาน</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: Add/Edit Rate -->
+<div class="modal-overlay" id="modal-rate">
+<div class="modal">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title" id="rate-modal-title">เพิ่มเส้นทางใหม่</div>
+      <div class="modal-sub">กำหนดราคาค่าขนส่งตามเส้นทางและลูกค้า</div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-rate')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="fi-row">
+      <div class="fg"><label class="fl">ลูกค้า (Shipper) *</label><input class="fi" id="rm-customer" placeholder="TEIJIN FRONTIER"></div>
+      <div class="fg"><label class="fl">มีผลตั้งแต่</label><input class="fi" type="date" id="rm-effective"></div>
+    </div>
+    <div class="fi-row">
+      <div class="fg"><label class="fl">ต้นทาง (ท่าเรือ/ลาน) *</label><input class="fi" id="rm-origin" placeholder="PAT, SCT, UNITHAI..."></div>
+      <div class="fg"><label class="fl">ปลายทาง (โรงงาน) *</label><input class="fi" id="rm-dest" placeholder="แพรกษา, บางปะอิน..."></div>
+    </div>
+    <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="rm-note" placeholder="เช่น รวม/ไม่รวมค่าผ่านท่า"></div>
+
+    <div style="margin:14px 0 10px;font-size:12px;font-weight:700;color:var(--text-2)">วิธีคำนวณราคาตามน้ำมัน</div>
+    <div class="method-toggle">
+      <button class="method-btn active" id="mb-formula" onclick="setMethod('formula')">📐 สูตร (ราคาฐาน + อัตราปรับ)</button>
+      <button class="method-btn" id="mb-table" onclick="setMethod('table')">📊 ตาราง Range น้ำมัน</button>
+    </div>
+
+    <!-- FORMULA METHOD -->
+    <div id="method-formula">
+      <div class="fi-row">
+        <div class="fg"><label class="fl">ราคาฐาน สิบล้อ (บาท) *</label><input class="fi" type="number" id="rm-base-truck" placeholder="4100" style="font-family:var(--mono)"></div>
+        <div class="fg"><label class="fl">ราคาฐาน หัวลาก (บาท) *</label><input class="fi" type="number" id="rm-base-trailer" placeholder="5300" style="font-family:var(--mono)"></div>
+      </div>
+      <div class="fi-row">
+        <div class="fg"><label class="fl">น้ำมันฐาน (บาท/ลิตร) *</label><input class="fi" type="number" step="0.01" id="rm-oil-base" placeholder="29.00" style="font-family:var(--mono)"></div>
+        <div class="fg" style="grid-column:1/-1"><label class="fl">อัตราปรับ สิบล้อ ต่อ 1 บาท/ลิตร *</label><input class="fi" type="number" id="rm-rate-truck" placeholder="80" style="font-family:var(--mono)"></div>
+      </div>
+      <div class="fg"><label class="fl">อัตราปรับ หัวลาก ต่อ 1 บาท/ลิตร *</label><input class="fi" type="number" id="rm-rate-trailer" placeholder="100" style="font-family:var(--mono)"></div>
+    </div>
+
+    <!-- TABLE METHOD -->
+    <div id="method-table" style="display:none">
+      <div style="font-size:12px;color:var(--text-2);margin-bottom:8px">กรอกราคาตาม range น้ำมัน (เหมือน Excel เดิม)</div>
+      <table class="range-table">
+        <thead><tr><th>น้ำมัน (บาท/ลิตร)</th><th>สิบล้อ (บาท)</th><th>หัวลาก (บาท)</th><th></th></tr></thead>
+        <tbody id="range-tbody"></tbody>
+      </table>
+      <button class="btn-add-range" onclick="addRangeRow()">+ เพิ่ม range</button>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-rate')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="saveRate()">บันทึก</button>
+  </div>
+</div>
+</div>
+<!-- MODAL: Import -->
+<div class="modal-overlay" id="modal-import">
+<div class="modal" style="max-width:460px">
+  <div class="modal-head">
+    <div><div class="modal-title">📥 Import Rate Card จาก Excel</div><div class="modal-sub">รูปแบบ CSV: ลูกค้า, ต้นทาง, ปลายทาง, สิบล้อ, หัวลาก, น้ำมันฐาน, อัตราปรับสิบล้อ, อัตราปรับหัวลาก</div></div>
+    <button class="close-x" onclick="closeModal('modal-import')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg"><label class="fl">วางข้อมูล CSV หรือแนบไฟล์</label><textarea class="fi" id="import-csv" rows="8" style="height:auto;padding-top:8px;font-family:var(--mono);font-size:11px;resize:vertical" placeholder="TEIJIN FRONTIER,PAT,แพรกษา,4100,5300,29,80,100&#10;TEIJIN FRONTIER,สหไทย,แพรกษา,4100,5300,29,80,100"></textarea></div>
+    <div id="import-preview" style="font-size:12px;color:var(--text-2);margin-top:8px"></div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-import')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="importCSV()">📥 Import</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: EXCEL IMPORT -->
+<div class="modal-overlay" id="modal-excel-import">
+<div class="modal">
+  <div class="modal-head">
+    <div><div class="modal-title">📊 Import งานจากไฟล์ Excel</div><div class="modal-sub">เลือกไฟล์ .xlsx ที่มีข้อมูลใบงาน</div></div>
+    <button class="close-x" onclick="closeModal('modal-excel-import')">×</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg"><label class="fl">เลือกไฟล์ Excel (.xlsx)</label>
+      <input type="file" class="fi" id="excel-file" accept=".xlsx,.xls" onchange="previewExcel()">
+    </div>
+    
+    <div id="excel-preview" style="display:none;margin-top:16px">
+      <div class="sec-title">ตัวอย่างข้อมูล (5 แถวแรก)</div>
+      <div style="overflow-x:auto;margin:8px 0">
+        <table id="excel-preview-table" style="font-size:11px;border-collapse:collapse;width:100%">
+          <thead id="excel-thead"></thead>
+          <tbody id="excel-tbody"></tbody>
+        </table>
+      </div>
+      <div class="fg-row" style="margin-top:12px">
+        <div class="fg"><label class="fl">จำนวนแถวที่พบ</label><input class="fi" id="excel-row-count" readonly style="background:#f5f5f5"></div>
+        <div class="fg"><label class="fl">เริ่ม Job ID ที่</label><input class="fi" id="start-job-id" value="" placeholder="เช่น JOB-N064"></div>
+      </div>
+      
+      <div class="note-bar warning" style="margin-top:12px">
+        <strong>⚠️ คำเตือน:</strong> การ Import จะเพิ่มงานใหม่เข้าระบบ ตรวจสอบข้อมูลให้ถูกต้องก่อน Import
+      </div>
+    </div>
+    
+    <div id="excel-import-log" style="display:none;margin-top:16px">
+      <div class="sec-title">ผลการ Import</div>
+      <div id="import-result" style="font-family:var(--mono);font-size:11px;background:#f8f9fa;padding:12px;border-radius:6px;white-space:pre-wrap;max-height:200px;overflow-y:auto;border:1px solid var(--border)"></div>
+    </div>
+  </div>
+  
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-excel-import')">ยกเลิก</button>
+    <button class="btn btn-green" id="btn-import-excel" onclick="importExcelData()" style="display:none">📥 Import ข้อมูล</button>
+  </div>
+</div>
+</div>
+
+<!-- DEPLOY MODAL -->
+<div class="deploy-modal-overlay" id="deploy-modal">
+  <div class="deploy-modal">
+    <h3>🚀 Deploy อัพเดทขึ้น Vercel</h3>
+    <p>อัพโหลดไฟล์ HTML ล่าสุดขึ้น Vercel โดยตรง ทีมจะเห็นเวอร์ชันใหม่ทันที</p>
+
+    <div style="margin-bottom:10px">
+      <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px">Vercel Token</label>
+      <input class="deploy-input" type="password" id="deploy-token" placeholder="vcp_xxxx..." 
+        value="">
+    </div>
+
+    <div id="deploy-log" class="deploy-log">
+      <span class="info">▶ พร้อม Deploy — กดปุ่มด้านล่างเพื่อเริ่ม</span>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="document.getElementById('deploy-modal').classList.remove('open')">ปิด</button>
+      <button class="btn btn-green" id="deploy-start-btn" onclick="startDeploy()">🚀 
+
+</body>
+</html>
