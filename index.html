@@ -15514,9 +15514,16 @@ function openEditJob(id){
   document.getElementById('fj-dest-url').value=j.destUrl||'';
   document.getElementById('fj-return-url').value=j.returnyardUrl||'';
   document.getElementById('fj-delivery-type').value=j.delivery_type||'จัดส่งสินค้าภายในวัน';
-  document.getElementById('fj-customer').value=j.customer||'';
+  // fj-customer / fj-shipper เป็น searchable dropdown — ต้อง set ทั้ง visible + hidden val
+  // (กันบั๊กที่ค่า hidden ค้างจากใบงานก่อนหน้า แล้ว save ทับ shipper ผิด)
+  if(typeof sdSetValue === 'function'){
+    sdSetValue('fj-customer', j.customer||'');
+    sdSetValue('fj-shipper', j.shipper||'');
+  } else {
+    document.getElementById('fj-customer').value=j.customer||'';
+    document.getElementById('fj-shipper').value=j.shipper||'';
+  }
   document.getElementById('fj-phone').value=j.phone||'';
-  document.getElementById('fj-shipper').value=j.shipper||'';
   document.getElementById('fj-carrier').value=j.carrier||'';
   document.getElementById('fj-booking').value=j.booking||'';
   document.getElementById('fj-container').value=j.container||'';
