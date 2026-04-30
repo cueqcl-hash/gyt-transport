@@ -18209,7 +18209,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.016';
+const APP_VERSION = '2026.04.29.017';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19685,6 +19685,172 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="document.getElementById('deploy-modal').classList.remove('open')">ปิด</button>
       <button class="btn btn-green" id="deploy-start-btn" onclick="startDeploy()">🚀 
+
+
+
+<!-- MODAL: DRIVER -->
+<div class="modal-overlay" id="modal-driver">
+<div class="modal" style="max-width:540px">
+  <div class="modal-head">
+    <div><div class="modal-title" id="drv-modal-title">เพิ่มคนขับ</div></div>
+    <button class="close-x" onclick="closeModal('modal-driver')">&#215;</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ชื่อ-นามสกุล *</label><input class="fi" id="drv-name" placeholder="ชื่อ นามสกุล"></div>
+      <div class="fg"><label class="fl">เบอร์โทรศัพท์</label><input class="fi" id="drv-phone" placeholder="08X-XXX-XXXX"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ประเภท</label>
+        <select class="fi" id="drv-dtype"><option value="company">คนขับประจำบริษัท</option><option value="outsource_person">Outsource (บุคคล)</option><option value="outsource_biz">Outsource (บริษัท/ทีม)</option></select>
+      </div>
+      <div class="fg"><label class="fl">เลขบัตรประชาชน</label><input class="fi" id="drv-idcard" placeholder="X-XXXX-XXXXX-XX-X"></div>
+    </div>
+    <div class="fg-row3">
+      <div class="fg"><label class="fl">เลขที่ใบขับขี่</label><input class="fi" id="drv-license_no" placeholder="00000/00"></div>
+      <div class="fg"><label class="fl">ประเภทใบขับขี่</label><input class="fi" id="drv-license_type" placeholder="ท.2 / ท.3 / ท.4"></div>
+      <div class="fg"><label class="fl">วันหมดอายุ</label><input class="fi" id="drv-license_exp" placeholder="DD/MM/YYYY"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ธนาคาร</label><input class="fi" id="drv-bank" placeholder="กสิกร / กรุงไทย..."></div>
+      <div class="fg"><label class="fl">เลขบัญชี</label><input class="fi" id="drv-bankno" placeholder="XXX-X-XXXXX-X"></div>
+    </div>
+    <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="drv-note" placeholder="หมายเหตุเพิ่มเติม"></div>
+    <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="drv-leave" style="width:16px;height:16px;accent-color:var(--yellow);cursor:pointer">
+      <label for="drv-leave" style="font-size:13px;font-weight:500;cursor:pointer">ลางาน (ไม่แสดงในรายการเลือกคนขับ)</label>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-driver')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="saveDriver()">บันทึก</button>
+  </div>
+</div>
+</div>
+
+
+<!-- MODAL: PAIR -->
+<div class="modal-overlay" id="modal-pair">
+<div class="modal" style="max-width:440px">
+  <div class="modal-head">
+    <div><div class="modal-title" id="pair-modal-title">จับคู่ทะเบียน ↔ คนขับ</div>
+    <div class="modal-sub">กำหนดคนขับประจำของรถ</div></div>
+    <button class="close-x" onclick="closeModal('modal-pair')">&#215;</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg">
+      <label class="fl">ทะเบียนรถ *</label>
+      <div class="sd-wrap">
+        <input class="sd-input" id="pair-plate-input" placeholder="พิมพ์หรือเลือกทะเบียน..." autocomplete="off"
+          oninput="buildPairPlateList(this.value)" onfocus="buildPairPlateList(this.value)"
+          onblur="setTimeout(function(){document.getElementById('pair-plate-list').classList.remove('open');onPlatePairInput();},180)">
+        <span class="sd-arrow">&#9662;</span>
+        <div class="sd-list" id="pair-plate-list"></div>
+      </div>
+      <div id="pair-plate-info" style="font-size:11px;margin-top:3px"></div>
+    </div>
+    <div class="fg" style="margin-top:10px">
+      <label class="fl">คนขับประจำ *</label>
+      <div class="sd-wrap">
+        <input class="sd-input" id="pair-driver-input" placeholder="พิมพ์ชื่อหรือเบอร์โทร..." autocomplete="off"
+          oninput="buildPairDriverList(this.value)"
+          onfocus="buildPairDriverList(this.value)"
+          onblur="setTimeout(function(){document.getElementById('pair-driver-list').classList.remove('open');},180)">
+        <span class="sd-arrow">&#9662;</span>
+        <div class="sd-list" id="pair-driver-list"></div>
+      </div>
+      <input type="hidden" id="pair-driver-val">
+      <div id="pair-driver-info" style="font-size:11px;margin-top:3px"></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-pair')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="savePair()">บันทึกการจับคู่</button>
+  </div>
+</div>
+</div>
+
+
+<!-- MODAL: DELETE JOB -->
+<div class="modal-overlay" id="modal-delete-job">
+<div class="modal modal-sm">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title" style="color:var(--red)">&#128465; ลบใบงาน</div>
+      <div class="modal-sub" id="del-job-sub"></div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-delete-job')">&#215;</button>
+  </div>
+  <div class="modal-body">
+    <div style="background:var(--red-l);border:1px solid var(--red-m);border-radius:var(--radius);padding:10px 13px;font-size:13px;color:var(--red);margin-bottom:14px;font-weight:500">
+      &#9888; การลบใบงานไม่สามารถกู้คืนได้ กรุณาระบุเหตุผลก่อนดำเนินการ
+    </div>
+    <div class="fg">
+      <label class="fl">เหตุผลในการลบใบงาน *</label>
+      <select class="fi" id="del-reason-select" onchange="onDelReasonChange()">
+        <option value="">-- เลือกเหตุผล --</option>
+        <option value="ยกเลิกงาน">ยกเลิกงาน</option>
+        <option value="กรอกข้อมูลผิด">กรอกข้อมูลผิด / บันทึกซ้ำ</option>
+        <option value="ลูกค้ายกเลิก">ลูกค้ายกเลิก</option>
+        <option value="เปลี่ยนแปลงแผนงาน">เปลี่ยนแปลงแผนงาน</option>
+        <option value="อื่นๆ">อื่นๆ (ระบุเพิ่มเติม)</option>
+      </select>
+    </div>
+    <div class="fg" id="del-reason-other-wrap" style="display:none">
+      <label class="fl">ระบุเหตุผลเพิ่มเติม</label>
+      <input class="fi" id="del-reason-other" placeholder="กรอกเหตุผลที่ต้องการลบ...">
+    </div>
+    <div style="background:var(--bg);border-radius:var(--radius);padding:9px 12px;font-size:12px;color:var(--text-2);margin-top:4px">
+      <div style="font-weight:600;margin-bottom:4px">รายละเอียดใบงานที่จะลบ:</div>
+      <div id="del-job-detail"></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-delete-job')">ยกเลิก</button>
+    <button class="btn" onclick="executeDeleteJob()" style="background:var(--red);color:#fff;border-color:var(--red)">&#128465; ยืนยันลบใบงาน</button>
+  </div>
+</div>
+</div>
+
+
+<!-- MODAL: BULK DELETE -->
+<div class="modal-overlay" id="modal-bulk-delete">
+<div class="modal modal-sm">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title" style="color:var(--red)">&#128465; ลบหลายใบงาน</div>
+      <div class="modal-sub" id="bulk-del-sub"></div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-bulk-delete')">&#215;</button>
+  </div>
+  <div class="modal-body">
+    <div style="background:var(--red-l);border:1px solid var(--red-m);border-radius:var(--radius);padding:10px 13px;font-size:13px;color:var(--red);margin-bottom:14px;font-weight:500">
+      &#9888; การลบใบงานไม่สามารถกู้คืนได้ กรุณาระบุเหตุผลก่อนดำเนินการ
+    </div>
+    <div id="bulk-del-list" style="background:var(--bg);border-radius:var(--radius);padding:9px 12px;font-size:12px;max-height:160px;overflow-y:auto;margin-bottom:14px;color:var(--text-2)"></div>
+    <div class="fg">
+      <label class="fl">เหตุผลในการลบ *</label>
+      <select class="fi" id="bulk-reason-select" onchange="onBulkReasonChange()">
+        <option value="">-- เลือกเหตุผล --</option>
+        <option value="ยกเลิกงาน">ยกเลิกงาน</option>
+        <option value="ลูกค้ายกเลิก">ลูกค้ายกเลิก</option>
+        <option value="กรอกข้อมูลผิด">กรอกข้อมูลผิด / บันทึกซ้ำ</option>
+        <option value="เปลี่ยนแปลงแผนงาน">เปลี่ยนแปลงแผนงาน</option>
+        <option value="อื่นๆ">อื่นๆ (ระบุเพิ่มเติม)</option>
+      </select>
+    </div>
+    <div class="fg" id="bulk-reason-other-wrap" style="display:none">
+      <label class="fl">ระบุเหตุผลเพิ่มเติม</label>
+      <input class="fi" id="bulk-reason-other" placeholder="กรอกเหตุผลที่ต้องการลบ...">
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-bulk-delete')">ยกเลิก</button>
+    <button class="btn" onclick="executeBulkDelete()" style="background:var(--red);color:#fff;border-color:var(--red)">&#128465; ยืนยันลบ <span id="bulk-del-count-btn"></span> ใบงาน</button>
+  </div>
+</div>
+</div>
+
 
 </body>
 </html>
