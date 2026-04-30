@@ -18209,7 +18209,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.017';
+const APP_VERSION = '2026.04.29.018';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19688,8 +19688,7 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
 
 
 
-<!-- MODAL: DRIVER -->
-<div class="modal-overlay" id="modal-driver">
+id="modal-driver">
 <div class="modal" style="max-width:540px">
   <div class="modal-head">
     <div><div class="modal-title" id="drv-modal-title">เพิ่มคนขับ</div></div>
@@ -19729,8 +19728,7 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
 </div>
 
 
-<!-- MODAL: PAIR -->
-<div class="modal-overlay" id="modal-pair">
+id="modal-pair">
 <div class="modal" style="max-width:440px">
   <div class="modal-head">
     <div><div class="modal-title" id="pair-modal-title">จับคู่ทะเบียน ↔ คนขับ</div>
@@ -19769,6 +19767,22 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
   </div>
 </div>
 </div>
+
+
+
+
+
+
+
+
+
+
+<!-- MODAL: DRIVER -->
+<div class="modal-overlay" 
+
+
+<!-- MODAL: PAIR -->
+<div class="modal-overlay" 
 
 
 <!-- MODAL: DELETE JOB -->
@@ -19850,7 +19864,6 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
   </div>
 </div>
 </div>
-
 
 </body>
 </html>
