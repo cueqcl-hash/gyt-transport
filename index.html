@@ -486,6 +486,34 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 #pg-maintenance .mt-interval-row label{font-size:13px;font-weight:600;color:var(--text)}
 #pg-maintenance .mt-interval-row input{height:32px;padding:0 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:13px;text-align:right}
 #pg-maintenance .mt-help{background:var(--green-l);color:var(--green-d);padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;line-height:1.6}
+#pg-maintenance .alert-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;border-left:4px solid var(--green)}
+#pg-maintenance .alert-card.overdue{border-left-color:var(--red);background:#FEF2F2}
+#pg-maintenance .alert-card.soon{border-left-color:#E8B800;background:#FFFBEB}
+#pg-maintenance .alert-card.unknown{border-left-color:#9CA3AF;background:#F9FAFB}
+#pg-maintenance .alert-vehicle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+#pg-maintenance .alert-vehicle-name{font-size:15px;font-weight:700;color:var(--text)}
+#pg-maintenance .alert-vehicle-meta{font-size:11px;color:var(--text-3)}
+#pg-maintenance .alert-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+#pg-maintenance .alert-item{padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer;transition:.15s}
+#pg-maintenance .alert-item:hover{border-color:var(--green);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+#pg-maintenance .alert-item.overdue{border-color:var(--red);background:#FEE2E2}
+#pg-maintenance .alert-item.soon{border-color:#E8B800;background:#FEF3C7}
+#pg-maintenance .alert-item.unknown{background:#F3F4F6;color:#6B7280}
+#pg-maintenance .alert-item-name{font-size:12px;font-weight:600;margin-bottom:4px}
+#pg-maintenance .alert-item-detail{font-size:10px;color:var(--text-2);font-family:var(--mono)}
+#pg-maintenance .alert-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+#pg-maintenance .alert-stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+#pg-maintenance .alert-stat-num{font-size:28px;font-weight:800;font-family:var(--mono);line-height:1.1}
+#pg-maintenance .alert-stat-label{font-size:11px;color:var(--text-2);margin-top:4px}
+#pg-maintenance .alert-stat.overdue{border-color:var(--red);background:#FEF2F2}
+#pg-maintenance .alert-stat.overdue .alert-stat-num{color:var(--red)}
+#pg-maintenance .alert-stat.soon{border-color:#E8B800;background:#FFFBEB}
+#pg-maintenance .alert-stat.soon .alert-stat-num{color:#92400E}
+#pg-maintenance .alert-stat.ok{border-color:var(--green);background:var(--green-l)}
+#pg-maintenance .alert-stat.ok .alert-stat-num{color:var(--green-d)}
+.nav-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:10px;margin-left:auto;font-family:var(--mono)}
+.nav-badge.warn{background:#E8B800;color:#3E2723}
+
 
 #pg-ratecalc /* ── Range table in modal ── */
 .range-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}#pg-ratecalc .range-table th{padding:6px 8px;background:var(--bg);border:1px solid var(--border);font-weight:700;color:var(--text-2)}#pg-ratecalc .range-table td{padding:5px 8px;border:1px solid var(--border)}#pg-ratecalc .range-table input{width:80px;height:28px;padding:0 6px;border-radius:4px;border:1px solid var(--border);font-family:var(--mono);font-size:12px;text-align:right}#pg-ratecalc .btn-add-range{height:28px;padding:0 12px;border-radius:4px;border:1.5px solid var(--green-m);background:var(--green-l);color:var(--green-d);font-size:11px;cursor:pointer;font-family:var(--font);font-weight:600;margin-top:8px}#pg-ratecalc /* ── Pager ── */
@@ -1136,13 +1164,45 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           </div>
         </div>
 
-        <!-- TAB: แจ้งเตือน (Phase 3 — placeholder) -->
+        <!-- TAB: แจ้งเตือน (Phase 3 — Active) -->
         <div id="mt-pg-alerts" class="mt-page" style="display:none">
+          <div class="mt-help">
+            🚨 <strong>แจ้งเตือนรอบซ่อม</strong> — แสดงรายการรถที่ใกล้/เกินกำหนดซ่อม
+            <br>🔴 <strong>เกินกำหนด</strong> &nbsp;|&nbsp; 🟡 <strong>ใกล้ครบ</strong> (≤ 1,000 km หรือ ≤ 30 วัน) &nbsp;|&nbsp; ⚪ <strong>ไม่มีข้อมูล</strong> (ยังไม่เคยซ่อม)
+            <br>💡 คลิกที่รายการ → เปิดบันทึกซ่อมใหม่ พร้อมเลือกรถ + รายการอัตโนมัติ
+          </div>
+
+          <!-- Summary stats -->
+          <div class="alert-summary">
+            <div class="alert-stat overdue">
+              <div class="alert-stat-num" id="alert-stat-overdue">0</div>
+              <div class="alert-stat-label">🔴 เกินกำหนด</div>
+            </div>
+            <div class="alert-stat soon">
+              <div class="alert-stat-num" id="alert-stat-soon">0</div>
+              <div class="alert-stat-label">🟡 ใกล้ครบ</div>
+            </div>
+            <div class="alert-stat ok">
+              <div class="alert-stat-num" id="alert-stat-ok">0</div>
+              <div class="alert-stat-label">🟢 ปกติ</div>
+            </div>
+          </div>
+
           <div class="mt-card">
-            <div class="mt-empty">
-              <div style="font-size:36px;margin-bottom:10px">🚨</div>
-              <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">แจ้งเตือนรอบซ่อม — Phase 3</div>
-              <div>ระบบแจ้งเตือนรถที่ใกล้ครบรอบ/เกินกำหนดซ่อม</div>
+            <div class="mt-card-header">
+              <div class="mt-card-title">🚨 รายการแจ้งเตือนรายคัน</div>
+              <select class="fi" id="alert-filter" onchange="renderAlerts()" style="width:180px">
+                <option value="all">แสดงทุกสถานะ</option>
+                <option value="overdue">🔴 เกินกำหนดเท่านั้น</option>
+                <option value="soon">🟡 ใกล้ครบเท่านั้น</option>
+                <option value="needs_action">🔴🟡 ต้องดำเนินการ</option>
+              </select>
+            </div>
+            <div id="alerts-list">
+              <!-- Rendered by JS -->
+            </div>
+            <div class="mt-empty" id="alerts-empty" style="display:none">
+              🎉 ไม่มีรถที่ต้องแจ้งเตือน — รถทุกคันอยู่ในกำหนดซ่อมปกติ
             </div>
           </div>
         </div>
@@ -3946,6 +4006,8 @@ function initApp(){
     <a class="nav-item" id="nav-${n.id}" href="?page=${n.id}" onclick="return navClick(event,'${n.id}')">
       <span style="font-size:14px">${n.icon}</span><span>${n.label}</span>
     </a>`).join('');
+  // Phase 3: Update maintenance alert badge (delay so all data is loaded)
+  setTimeout(function(){ if(typeof updateMaintenanceBadge==='function') updateMaintenanceBadge(); }, 100);
 
   const note=document.getElementById('jobs-note');
   note.style.display='none';
@@ -18552,7 +18614,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.030';
+const APP_VERSION = '2026.04.29.031';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19639,11 +19701,239 @@ async function deleteMaintenance(){
   } catch(e){ console.warn('deleteMaintenance sync error:', e); }
 }
 
-// Hook into mtSwitchTab for records tab
+// ════════════════════════════════════════════════════════════════════════
+// MAINTENANCE ALERTS — Phase 3 (แจ้งเตือนรอบซ่อม + Badge)
+// ════════════════════════════════════════════════════════════════════════
+
+// Calculate alert status for one service type per vehicle
+function _calcServiceStatus(vehicle, serviceType, currentKm, todayDate){
+  // Find interval (global vehicle_id=0)
+  var interval = (maintenanceIntervals||[]).find(function(x){
+    return x.vehicle_id===0 && x.service_type===serviceType;
+  });
+  if(!interval){
+    interval = DEFAULT_INTERVALS.find(function(x){return x.service_type===serviceType;});
+  }
+  if(!interval) return null;
+
+  // Find latest maintenance with this service type
+  var records = (maintenanceRecords||[]).filter(function(r){
+    return r.vehicle_id===vehicle.id && r.vehicle_type===vehicle.vehicle_type
+      && (r.service_types||[]).indexOf(serviceType) >= 0;
+  });
+  records.sort(function(a,b){return (b.service_date||'').localeCompare(a.service_date||'');});
+  var lastSvc = records[0];
+
+  if(!lastSvc){
+    return {
+      service_type: serviceType,
+      status: 'unknown',
+      message: 'ไม่เคยซ่อม',
+      detail: interval.interval_km ? ('รอบ ' + interval.interval_km.toLocaleString() + ' km') : ('รอบ ' + interval.interval_months + ' เดือน')
+    };
+  }
+
+  var dueKm = lastSvc.mileage + (interval.interval_km||0);
+  var dueDateStr = null;
+  if(interval.interval_months){
+    var d = new Date(lastSvc.service_date);
+    d.setMonth(d.getMonth() + interval.interval_months);
+    dueDateStr = d.toISOString().slice(0,10);
+  }
+
+  var kmRemain = (currentKm && interval.interval_km) ? (dueKm - currentKm) : null;
+  var daysRemain = dueDateStr ? Math.floor((new Date(dueDateStr) - new Date(todayDate)) / (1000*60*60*24)) : null;
+
+  var status = 'ok';
+  if((kmRemain !== null && kmRemain < 0) || (daysRemain !== null && daysRemain < 0)){
+    status = 'overdue';
+  } else if((kmRemain !== null && kmRemain <= 1000) || (daysRemain !== null && daysRemain <= 30)){
+    status = 'soon';
+  }
+
+  // Build detail text
+  var detail = '';
+  if(kmRemain !== null){
+    detail = (kmRemain < 0 ? 'เกิน ' : 'อีก ') + Math.abs(kmRemain).toLocaleString() + ' km';
+  }
+  if(daysRemain !== null){
+    if(detail) detail += ' / ';
+    detail += (daysRemain < 0 ? 'เกิน ' : 'อีก ') + Math.abs(daysRemain) + ' วัน';
+  }
+
+  return {
+    service_type: serviceType,
+    status: status,
+    last_km: lastSvc.mileage,
+    last_date: lastSvc.service_date,
+    due_km: dueKm,
+    due_date: dueDateStr,
+    km_remain: kmRemain,
+    days_remain: daysRemain,
+    detail: detail
+  };
+}
+
+// Calculate all alerts (per vehicle, per service type)
+function calculateAlerts(){
+  var allVehicles = (typeof getAllVehicles === 'function') ? getAllVehicles() : [];
+  var todayDate = new Date().toISOString().slice(0,10);
+  var serviceTypes = (DEFAULT_INTERVALS||[]).map(function(x){return x.service_type;});
+
+  var result = [];
+  allVehicles.forEach(function(v){
+    // Get current km from latest maintenance record (any service)
+    var allRecs = (maintenanceRecords||[]).filter(function(r){
+      return r.vehicle_id===v.id && r.vehicle_type===v.vehicle_type;
+    });
+    var currentKm = allRecs.length ? Math.max.apply(null, allRecs.map(function(r){return r.mileage||0;})) : null;
+
+    var services = serviceTypes.map(function(st){
+      return _calcServiceStatus(v, st, currentKm, todayDate);
+    }).filter(function(x){return x;});
+
+    var hasOverdue = services.some(function(s){return s.status==='overdue';});
+    var hasSoon = services.some(function(s){return s.status==='soon';});
+
+    result.push({
+      vehicle: v,
+      currentKm: currentKm,
+      services: services,
+      hasOverdue: hasOverdue,
+      hasSoon: hasSoon,
+      worstStatus: hasOverdue ? 'overdue' : (hasSoon ? 'soon' : 'ok')
+    });
+  });
+  return result;
+}
+
+// Render alerts page
+function renderAlerts(){
+  var alerts = calculateAlerts();
+  var filter = (document.getElementById('alert-filter')||{}).value || 'all';
+
+  // Compute stats
+  var stats = {overdue:0, soon:0, ok:0};
+  alerts.forEach(function(a){
+    if(a.hasOverdue) stats.overdue++;
+    else if(a.hasSoon) stats.soon++;
+    else stats.ok++;
+  });
+  var overdueEl = document.getElementById('alert-stat-overdue');
+  var soonEl = document.getElementById('alert-stat-soon');
+  var okEl = document.getElementById('alert-stat-ok');
+  if(overdueEl) overdueEl.textContent = stats.overdue;
+  if(soonEl) soonEl.textContent = stats.soon;
+  if(okEl) okEl.textContent = stats.ok;
+
+  // Filter vehicles
+  var filtered = alerts.filter(function(a){
+    if(filter==='overdue') return a.hasOverdue;
+    if(filter==='soon') return a.hasSoon && !a.hasOverdue;
+    if(filter==='needs_action') return a.hasOverdue || a.hasSoon;
+    return true;
+  });
+
+  var listEl = document.getElementById('alerts-list');
+  var emptyEl = document.getElementById('alerts-empty');
+  if(!listEl) return;
+  if(!filtered.length){
+    listEl.innerHTML = '';
+    if(emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+  if(emptyEl) emptyEl.style.display = 'none';
+
+  // Sort: overdue first, then soon, then ok
+  filtered.sort(function(a,b){
+    var order = {overdue:0, soon:1, ok:2};
+    return (order[a.worstStatus]||3) - (order[b.worstStatus]||3);
+  });
+
+  listEl.innerHTML = filtered.map(function(a){
+    var v = a.vehicle;
+    var typeIcon = v.vehicle_type==='truck10'?'🚛' : v.vehicle_type==='tractor'?'🚜' : '🚚';
+    var typeLabel = v.vehicle_type==='truck10'?'รถสิบล้อ' : v.vehicle_type==='tractor'?'หัวลาก' : 'หางเทลเลอร์';
+    var kmText = a.currentKm ? a.currentKm.toLocaleString() + ' km' : 'ไม่มีข้อมูล';
+    return '<div class="alert-card ' + a.worstStatus + '">' +
+      '<div class="alert-vehicle-row">' +
+        '<div>' +
+          '<div class="alert-vehicle-name">' + typeIcon + ' ' + escapeHtml(v.plate||'(ไม่มีทะเบียน)') + '</div>' +
+          '<div class="alert-vehicle-meta">' + escapeHtml(typeLabel) + ' &nbsp;•&nbsp; เลขไมล์ปัจจุบัน: <strong>' + kmText + '</strong></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="alert-grid">' + a.services.map(function(s){
+        var icon = s.status==='overdue'?'🔴' : s.status==='soon'?'🟡' : s.status==='unknown'?'⚪' : '🟢';
+        return '<div class="alert-item ' + s.status + '" onclick="mtAlertClick(\'' + v.vehicle_type + ':' + v.id + '\',\'' + s.service_type.replace(/\'/g, '') + '\')">' +
+          '<div class="alert-item-name">' + icon + ' ' + escapeHtml(s.service_type) + '</div>' +
+          '<div class="alert-item-detail">' + escapeHtml(s.detail||s.message||'') + '</div>' +
+        '</div>';
+      }).join('') + '</div>' +
+    '</div>';
+  }).join('');
+
+  // Update sidebar badge
+  updateMaintenanceBadge();
+}
+
+// Click on alert item → open create maintenance modal pre-filled
+function mtAlertClick(vehicleStr, serviceType){
+  // Switch to records tab first
+  mtSwitchTab('records');
+  // Open new maintenance modal
+  setTimeout(function(){
+    if(typeof mtOpenMaintenance === 'function'){
+      mtOpenMaintenance();
+      // Pre-fill vehicle + service type
+      setTimeout(function(){
+        var vSelect = document.getElementById('mm-vehicle');
+        if(vSelect) vSelect.value = vehicleStr;
+        // Check the service type checkbox
+        var idx = SERVICE_TYPES.indexOf(serviceType);
+        if(idx>=0){
+          var cb = document.querySelector('input[data-st="'+idx+'"]');
+          if(cb && !cb.checked){ cb.checked = true; mmToggleServiceLabel(idx); }
+        }
+      }, 50);
+    }
+  }, 50);
+}
+
+// Update sidebar badge — count vehicles needing action
+function updateMaintenanceBadge(){
+  try {
+    var alerts = calculateAlerts();
+    var overdueCount = alerts.filter(function(a){return a.hasOverdue;}).length;
+    var soonCount = alerts.filter(function(a){return a.hasSoon && !a.hasOverdue;}).length;
+    var navMaint = document.getElementById('nav-maintenance');
+    if(!navMaint) return;
+    // Remove old badge
+    var oldBadge = navMaint.querySelector('.nav-badge');
+    if(oldBadge) oldBadge.remove();
+    if(overdueCount > 0){
+      var b = document.createElement('span');
+      b.className = 'nav-badge';
+      b.textContent = overdueCount;
+      b.title = overdueCount + ' คันเกินกำหนดซ่อม';
+      navMaint.appendChild(b);
+    } else if(soonCount > 0){
+      var b = document.createElement('span');
+      b.className = 'nav-badge warn';
+      b.textContent = soonCount;
+      b.title = soonCount + ' คันใกล้ครบรอบซ่อม';
+      navMaint.appendChild(b);
+    }
+  } catch(e){
+    console.warn('updateMaintenanceBadge error:', e);
+  }
+}
+
+// Hook into mtSwitchTab for records + alerts tabs
 const _originalMtSwitchTab = mtSwitchTab;
 mtSwitchTab = function(tab){
   _originalMtSwitchTab(tab);
   if(tab==='records') renderMaintenance();
+  if(tab==='alerts') renderAlerts();
 };
 
 // ── Intervals: Render Form ──
