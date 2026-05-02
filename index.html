@@ -466,7 +466,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .rate-search{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}#pg-ratecalc table{width:100%;border-collapse:collapse;font-size:13px}#pg-ratecalc th{padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--border);background:#F7F9F8;white-space:nowrap}#pg-ratecalc td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}#pg-ratecalc tr:hover td{background:var(--green-l)}#pg-ratecalc .price-tag{font-family:var(--mono);font-weight:600;color:var(--green-d)}#pg-ratecalc .price-tag.trailer{color:var(--blue)}#pg-ratecalc .badge-method{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700}#pg-ratecalc .badge-formula{background:var(--green-l);color:var(--green-d)}#pg-ratecalc .badge-table{background:var(--blue-l);color:var(--blue)}#pg-ratecalc /* ── History ── */
 .hist-item{border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;transition:.15s}#pg-ratecalc .hist-item:hover{border-color:var(--green-m);box-shadow:var(--shadow)}#pg-ratecalc .hist-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}#pg-ratecalc .hist-customer{font-weight:700;color:var(--text);font-size:14px}#pg-ratecalc .hist-date{font-size:11px;color:var(--text-3)}#pg-ratecalc .hist-oil{font-size:11px;background:var(--yellow-l);color:var(--yellow-d);padding:2px 8px;border-radius:20px;font-weight:600;font-family:var(--mono)}#pg-ratecalc .hist-prices{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:6px}#pg-ratecalc .hist-price-item{background:var(--bg);border-radius:6px;padding:6px 10px}#pg-ratecalc .hist-route{font-size:11px;color:var(--text-2);margin-bottom:2px}#pg-ratecalc .hist-p-truck{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green-d)}#pg-ratecalc .hist-p-trailer{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--blue)}#pg-ratecalc /* ── Modal ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}#pg-ratecalc .modal-overlay.open{display:flex}#pg-ratecalc /* ── Buttons ── */#pg-ratecalc .btn-green{background:var(--green);color:#fff;border-color:var(--green)}#pg-ratecalc .btn-green:hover{background:var(--green-d)}#pg-ratecalc .btn-ghost{background:#fff;color:var(--text-2);border-color:var(--border)}#pg-ratecalc .btn-ghost:hover{border-color:var(--green);color:var(--green)}#pg-ratecalc .btn-sm.danger:hover{border-color:var(--red);color:var(--red)}#pg-ratecalc /* ── Method toggle ── */
-.method-toggle{display:flex;gap:6px;margin-bottom:14px}#pg-ratecalc .method-btn{flex:1;height:36px;border-radius:6px;border:1.5px solid var(--border);background:#fff;color:var(--text-2);font-size:12px;font-family:var(--font);cursor:pointer;font-weight:600;transition:.15s}#pg-ratecalc .method-btn.active{border-color:var(--green);background:var(--green-l);color:var(--green-d)}#pg-ratecalc /* ── Range table in modal ── */
+.method-toggle{display:flex;gap:6px;margin-bottom:14px}#pg-ratecalc .method-btn{flex:1;height:36px;border-radius:6px;border:1.5px solid var(--border);background:#fff;color:var(--text-2);font-size:12px;font-family:var(--font);cursor:pointer;font-weight:600;transition:.15s}#pg-ratecalc .method-btn.active{border-color:var(--green);background:var(--green-l);color:var(--green-d)}
+#pg-ratecalc .calc-result-row{border:1.5px solid var(--green-m);border-radius:8px;padding:10px 12px;margin-bottom:6px;cursor:pointer;background:var(--green-l);transition:all .15s}
+#pg-ratecalc .calc-result-row:hover{border-color:var(--green);background:#fff;transform:translateX(2px);box-shadow:0 2px 8px rgba(45,122,79,0.15)}
+#pg-ratecalc #btn-use-current-oil:hover{background:var(--green);color:#fff}
+#pg-ratecalc /* ── Range table in modal ── */
 .range-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}#pg-ratecalc .range-table th{padding:6px 8px;background:var(--bg);border:1px solid var(--border);font-weight:700;color:var(--text-2)}#pg-ratecalc .range-table td{padding:5px 8px;border:1px solid var(--border)}#pg-ratecalc .range-table input{width:80px;height:28px;padding:0 6px;border-radius:4px;border:1px solid var(--border);font-family:var(--mono);font-size:12px;text-align:right}#pg-ratecalc .btn-add-range{height:28px;padding:0 12px;border-radius:4px;border:1.5px solid var(--green-m);background:var(--green-l);color:var(--green-d);font-size:11px;cursor:pointer;font-family:var(--font);font-weight:600;margin-top:8px}#pg-ratecalc /* ── Pager ── */
 .pager{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--text-3)}#pg-ratecalc .pager-btns{display:flex;gap:4px}#pg-ratecalc .pager-btn{height:26px;min-width:26px;padding:0 8px;border-radius:5px;border:1.5px solid var(--border);background:#fff;color:var(--text-2);font-size:11px;cursor:pointer;font-family:var(--font)}#pg-ratecalc .pager-btn.active{background:var(--green);color:#fff;border-color:var(--green)}#pg-ratecalc .pager-btn:disabled{opacity:.3;cursor:not-allowed}#pg-ratecalc /* ── Toast ── */
 .toast{position:fixed;bottom:24px;right:24px;background:var(--green-d);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;opacity:0;transform:translateY(8px);transition:.3s;pointer-events:none}#pg-ratecalc .toast.show{opacity:1;transform:translateY(0)}#pg-ratecalc /* ── Loading ── */
@@ -915,16 +919,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="card-title"><span>⚙️</span> คำนวณตามราคาน้ำมัน</div>
             <div class="fg">
               <label class="fl">ราคาน้ำมันที่ใช้คำนวณ (บาท/ลิตร)</label>
-              <input class="fi" type="number" step="0.01" id="calc-oil" placeholder="29.94" value="" style="font-family:var(--mono);font-weight:600">
+              <div style="display:flex;gap:6px">
+                <input class="fi" type="number" step="0.01" id="calc-oil" placeholder="29.94" value="" style="font-family:var(--mono);font-weight:600;flex:1" onkeydown="if(event.key==='Enter')calculatePrice()">
+                <button type="button" onclick="useCurrentOil()" id="btn-use-current-oil" style="height:36px;padding:0 10px;border:1px solid var(--green-m);background:var(--green-l);color:var(--green-d);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap" title="ใช้ราคาน้ำมันบางจาก B7 ปัจจุบัน">📋 ใช้ปัจจุบัน</button>
+              </div>
             </div>
             <div class="fg-row fi-row" style="margin-bottom:0">
               <div class="fg">
                 <label class="fl">ราคาฐาน สิบล้อ (บาท)</label>
-                <input class="fi" type="number" id="calc-base-truck" placeholder="4,100" style="font-family:var(--mono)">
+                <input class="fi" type="number" id="calc-base-truck" placeholder="4,100" style="font-family:var(--mono)" onkeydown="if(event.key==='Enter')calculatePrice()">
               </div>
               <div class="fg">
                 <label class="fl">ราคาฐาน หัวลาก (บาท)</label>
-                <input class="fi" type="number" id="calc-base-trailer" placeholder="5,300" style="font-family:var(--mono)">
+                <input class="fi" type="number" id="calc-base-trailer" placeholder="5,300" style="font-family:var(--mono)" onkeydown="if(event.key==='Enter')calculatePrice()">
               </div>
             </div>
             <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-2)">
@@ -949,6 +956,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
                     <div class="result-unit">บาท/เที่ยว</div>
                   </div>
                 </div>
+
+                <!-- จำนวนเที่ยว + ยอดรวม -->
+                <div style="margin-top:12px;padding:12px;background:rgba(255,255,255,0.5);border-radius:8px;border:1px dashed var(--green-m)">
+                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <label style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap">📦 จำนวนเที่ยว:</label>
+                    <input type="number" id="calc-qty" min="1" value="1" style="width:70px;height:32px;padding:0 8px;border:1.5px solid var(--green-m);border-radius:6px;font-family:var(--mono);font-weight:700;font-size:14px;text-align:center" oninput="updateTotals()" onkeydown="if(event.key==='Enter')event.preventDefault()">
+                    <span style="font-size:11px;color:var(--text-2)">เที่ยว</span>
+                    <div style="flex:1;text-align:right;font-size:11px;color:var(--text-2)">ยอดรวม:</div>
+                  </div>
+                  <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <div style="background:#fff;padding:8px 10px;border-radius:6px;border:1px solid var(--green-m)">
+                      <div style="font-size:10px;color:var(--text-3)">🚛 สิบล้อ × <span id="r-qty-truck">1</span></div>
+                      <div style="font-family:var(--mono);font-weight:700;font-size:16px;color:var(--green-d)" id="r-total-truck">—</div>
+                    </div>
+                    <div style="background:#fff;padding:8px 10px;border-radius:6px;border:1px solid var(--green-m)">
+                      <div style="font-size:10px;color:var(--text-3)">🚜 หัวลาก × <span id="r-qty-trailer">1</span></div>
+                      <div style="font-family:var(--mono);font-weight:700;font-size:16px;color:var(--green-d)" id="r-total-trailer">—</div>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="result-note" id="r-note"></div>
                 <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn-sm" onclick="saveToHistory()">💾 บันทึกใบเสนอราคา</button>
@@ -17852,16 +17880,25 @@ function searchRates() {
   });
   var wrap = document.getElementById('search-results');
   if (!found.length) { wrap.innerHTML='<div style="font-size:12px;color:var(--text-3);padding:8px">ไม่พบ Rate Card ที่ตรงกัน — กรอกข้อมูลเองในช่องด้านล่าง</div>'; return; }
-  wrap.innerHTML = found.slice(0,5).map(function(r) {
-    var methodLabel = r.method==='formula' ?
-      'ฐาน ' + (r.baseTruck||0).toLocaleString() + ' + ' + (r.rateTruck||0) + '฿/ลิตร' :
-      'ตาราง ' + (r.ranges||[]).length + ' range';
-    return '<div style="border:1px solid var(--green-m);border-radius:8px;padding:10px 12px;margin-bottom:6px;cursor:pointer;background:var(--green-l)" onclick="fillCalcFromRate(' + r.id + ')">' +
-      '<div style="font-weight:700;font-size:13px;color:var(--green-d)">' + r.customer + '</div>' +
-      '<div style="font-size:11px;color:var(--text-2)">📍 ' + r.origin + ' → ' + r.dest + '</div>' +
-      '<div style="font-size:11px;color:var(--text-3);margin-top:2px">' + methodLabel + '</div>' +
+  wrap.innerHTML =
+    '<div style="font-size:11px;color:var(--text-3);margin:6px 0 4px">' +
+    '👆 พบ ' + found.length + ' รายการ — คลิกเพื่อใช้ราคา (auto-fill ทุกช่อง)</div>' +
+    found.slice(0,5).map(function(r) {
+      var methodLabel = r.method==='formula' ?
+        'ฐาน ' + (r.baseTruck||0).toLocaleString() + ' + ' + (r.rateTruck||0) + '฿/ลิตร' :
+        'ตาราง ' + (r.ranges||[]).length + ' range';
+      return '<div class="calc-result-row" onclick="fillCalcFromRate(' + r.id + ')">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-weight:700;font-size:13px;color:var(--green-d);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.customer + '</div>' +
+            '<div style="font-size:11px;color:var(--text-2)">📍 ' + r.origin + ' → ' + r.dest + '</div>' +
+            '<div style="font-size:11px;color:var(--text-3);margin-top:2px">' + methodLabel + '</div>' +
+          '</div>' +
+          '<div style="font-size:11px;font-weight:700;color:var(--green-d);background:#fff;padding:4px 8px;border-radius:4px;border:1px solid var(--green-m);white-space:nowrap">ใช้ ▶</div>' +
+        '</div>' +
       '</div>';
-  }).join('');
+    }).join('') +
+    (found.length>5 ? '<div style="font-size:10px;color:var(--text-3);margin-top:4px;text-align:center">แสดง 5 จาก '+found.length+' รายการ — พิมพ์ค้นหาเพิ่มเติมเพื่อกรอง</div>' : '');
 }
 
 function fillCalcFromRate(id) {
@@ -17913,11 +17950,38 @@ function calculatePrice() {
   document.getElementById('r-note').textContent = note;
   document.getElementById('calc-result').style.display = 'block';
 
-  // บันทึก calcResult สำหรับ save
-  calcResult = { oil, baseTruck, baseTrailer, oilBase, rateTruck, rateTrailer, truck, trailer, cust, orig, dest, date: new Date().toISOString() };
+  // บันทึก calcResult สำหรับ save (qty/total จะ update โดย updateTotals())
+  var qty = parseInt(document.getElementById('calc-qty').value||1) || 1;
+  calcResult = { oil, baseTruck, baseTrailer, oilBase, rateTruck, rateTrailer, truck, trailer, qty, totalTruck:truck*qty, totalTrailer:trailer*qty, cust, orig, dest, date: new Date().toISOString() };
+  updateTotals();
 
   // สร้างตาราง range
   renderRangeTable(oil, baseTruck, baseTrailer, oilBase||oil, rateTruck, rateTrailer);
+}
+
+// ── ใช้ราคาน้ำมันปัจจุบัน (จาก oil panel) → ใส่ในช่องคำนวณ ──
+function useCurrentOil() {
+  if (!oilPrice) {
+    showToast('ยังไม่มีราคาน้ำมันปัจจุบัน — กดปุ่ม "ดึงราคาล่าสุด" ที่ panel ด้านบนก่อน');
+    return;
+  }
+  document.getElementById('calc-oil').value = oilPrice.toFixed(2);
+  showToast('ใช้ราคาน้ำมันปัจจุบัน ' + oilPrice.toFixed(2) + ' บาท/ลิตร');
+  if (calcResult) calculatePrice();
+}
+
+// ── อัปเดตยอดรวม (ราคา × จำนวนเที่ยว) ──
+function updateTotals() {
+  if (!calcResult) return;
+  var qty = parseInt(document.getElementById('calc-qty').value||1) || 1;
+  if (qty < 1) qty = 1;
+  calcResult.qty = qty;
+  calcResult.totalTruck = calcResult.truck * qty;
+  calcResult.totalTrailer = calcResult.trailer * qty;
+  document.getElementById('r-qty-truck').textContent = qty;
+  document.getElementById('r-qty-trailer').textContent = qty;
+  document.getElementById('r-total-truck').textContent = calcResult.totalTruck.toLocaleString() + ' ฿';
+  document.getElementById('r-total-trailer').textContent = calcResult.totalTrailer.toLocaleString() + ' ฿';
 }
 
 function renderRangeTable(currentOil, baseTruck, baseTrailer, oilBase, rateTruck, rateTrailer) {
@@ -18136,10 +18200,10 @@ function renderHistory() {
         '<div class="hist-oil">⛽ '+parseFloat(h.oil||0).toFixed(2)+' บาท/ลิตร</div>'+
         '<button class="btn-sm danger" onclick="deleteHistory('+h.id+')">ลบ</button>'+
       '</div>'+
-      '<div style="font-size:12px;color:var(--text-2);margin-bottom:6px">📍 '+(h.orig||'—')+' → '+(h.dest||'—')+'</div>'+
+      '<div style="font-size:12px;color:var(--text-2);margin-bottom:6px">📍 '+(h.orig||'—')+' → '+(h.dest||'—')+(h.qty&&h.qty>1?' &nbsp;|&nbsp; <strong style="color:var(--green-d)">📦 '+h.qty+' เที่ยว</strong>':'')+'</div>'+
       '<div class="hist-prices">'+
-        '<div class="hist-price-item"><div class="hist-route">🚛 รถสิบล้อ</div><div class="hist-p-truck">'+( h.truck||0).toLocaleString()+' บาท</div></div>'+
-        '<div class="hist-price-item"><div class="hist-route">🚜 หัวลาก</div><div class="hist-p-trailer">'+(h.trailer||0).toLocaleString()+' บาท</div></div>'+
+        '<div class="hist-price-item"><div class="hist-route">🚛 รถสิบล้อ</div><div class="hist-p-truck">'+( h.truck||0).toLocaleString()+' บาท'+(h.qty&&h.qty>1?' <span style="font-size:10px;color:var(--text-3)">× '+h.qty+' = <strong style="color:var(--green-d)">'+((h.totalTruck!=null?h.totalTruck:h.truck*h.qty)||0).toLocaleString()+'</strong></span>':'')+'</div></div>'+
+        '<div class="hist-price-item"><div class="hist-route">🚜 หัวลาก</div><div class="hist-p-trailer">'+(h.trailer||0).toLocaleString()+' บาท'+(h.qty&&h.qty>1?' <span style="font-size:10px;color:var(--text-3)">× '+h.qty+' = <strong style="color:var(--green-d)">'+((h.totalTrailer!=null?h.totalTrailer:h.trailer*h.qty)||0).toLocaleString()+'</strong></span>':'')+'</div></div>'+
         (h.baseTruck?'<div class="hist-price-item"><div class="hist-route">ราคาฐาน สิบล้อ</div><div style="font-size:12px;font-family:var(--mono)">'+(h.baseTruck||0).toLocaleString()+'</div></div>':'')+
         (h.baseTrailer?'<div class="hist-price-item"><div class="hist-route">ราคาฐาน หัวลาก</div><div style="font-size:12px;font-family:var(--mono)">'+(h.baseTrailer||0).toLocaleString()+'</div></div>':'')+
       '</div>'+
@@ -18192,9 +18256,12 @@ function printQuote(){
   win.document.write('<p>วันที่: '+new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})+'</p>');
   if(r.cust)win.document.write('<p>ลูกค้า: <strong>'+r.cust+'</strong></p>');
   if(r.orig&&r.dest)win.document.write('<p>เส้นทาง: '+r.orig+' → '+r.dest+'</p>');
-  win.document.write('<table><thead><tr><th>ประเภทรถ</th><th>ราคา (บาท/เที่ยว)</th><th>หมายเหตุ</th></tr></thead><tbody>');
-  win.document.write('<tr><td>รถสิบล้อ (20\')</td><td style="font-weight:700;font-size:18px">'+r.truck.toLocaleString()+'</td><td>น้ำมัน '+r.oil.toFixed(2)+' บาท/ลิตร</td></tr>');
-  win.document.write('<tr><td>หัวลาก/เทลเลอร์</td><td style="font-weight:700;font-size:18px">'+r.trailer.toLocaleString()+'</td><td>น้ำมัน '+r.oil.toFixed(2)+' บาท/ลิตร</td></tr>');
+  var qty = r.qty || 1;
+  var totalTruck = r.totalTruck != null ? r.totalTruck : (r.truck * qty);
+  var totalTrailer = r.totalTrailer != null ? r.totalTrailer : (r.trailer * qty);
+  win.document.write('<table><thead><tr><th>ประเภทรถ</th><th style="text-align:right">ราคา/เที่ยว (บาท)</th><th style="text-align:center">จำนวนเที่ยว</th><th style="text-align:right">ยอดรวม (บาท)</th></tr></thead><tbody>');
+  win.document.write('<tr><td>รถสิบล้อ (20\')</td><td style="text-align:right;font-weight:700">'+r.truck.toLocaleString()+'</td><td style="text-align:center">'+qty+'</td><td style="text-align:right;font-weight:700;font-size:16px;color:#1E5C3A">'+totalTruck.toLocaleString()+'</td></tr>');
+  win.document.write('<tr><td>หัวลาก/เทลเลอร์</td><td style="text-align:right;font-weight:700">'+r.trailer.toLocaleString()+'</td><td style="text-align:center">'+qty+'</td><td style="text-align:right;font-weight:700;font-size:16px;color:#1E5C3A">'+totalTrailer.toLocaleString()+'</td></tr>');
   win.document.write('</tbody></table>');
   win.document.write('<div style="margin-top:20px;font-size:12px;color:#666">ราคานี้อ้างอิงน้ำมันดีเซล B7 บางจาก '+r.oil.toFixed(2)+' บาท/ลิตร</div>');
   win.document.write('<div class="noprint" style="margin-top:20px"><button onclick="window.print()" style="padding:8px 16px;background:#2D7A4F;color:#fff;border:none;border-radius:6px;cursor:pointer">🖨 พิมพ์</button></div>');
@@ -18284,7 +18351,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.025';
+const APP_VERSION = '2026.04.29.026';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
