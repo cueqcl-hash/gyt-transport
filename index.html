@@ -3701,13 +3701,13 @@ function initApp(){
   // Sidebar menu — กรองตาม perm ของ user (ไม่ hard-code ตาม role อีกแล้ว)
   // ratecalc ไม่ผูกกับ perm เฉพาะ — admin/supervisor เห็น (มี dashboard)
   const ALL_NAV=[
-    {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'},
     {id:'jobs',     icon:'🚛',label:'ตารางงาน',           perm:'view_jobs'},
     {id:'users',    icon:'👥',label:'จัดการสิทธิ์',       perm:'manage_users'},
     {id:'vehicles', icon:'🔧',label:'รายการรถ',           perm:'view_vehicles'},
     {id:'drivers',  icon:'👤',label:'คนขับรถ',            perm:'view_drivers'},
     {id:'settings', icon:'⚙', label:'ตั้งค่าข้อมูลลูกค้า', perm:'view_settings'},
     {id:'ratecalc', icon:'⛽',label:'คำนวณราคาขนส่ง',     perm:'dashboard'}, // ใช้ dashboard เป็นเงื่อนไข (admin/supervisor เห็น)
+    {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
   ];
   const visibleNav = ALL_NAV.filter(function(n){return hasPerm(n.perm);});
   document.getElementById('sb-nav').innerHTML=visibleNav.map(n=>`
@@ -18235,7 +18235,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.021';
+const APP_VERSION = '2026.04.29.022';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
