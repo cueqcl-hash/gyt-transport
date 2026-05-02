@@ -1090,13 +1090,48 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <button class="mt-tab" id="mt-tab-reports" onclick="mtSwitchTab('reports')">📊 รายงาน</button>
         </div>
 
-        <!-- TAB: บันทึกซ่อม (Phase 2 — placeholder) -->
+        <!-- TAB: บันทึกซ่อม (Phase 2 — Active) -->
         <div id="mt-pg-records" class="mt-page" style="display:none">
+          <div class="mt-help">
+            📋 <strong>บันทึกประวัติการซ่อม</strong> — เก็บทุกครั้งที่นำรถเข้าซ่อม รองรับทั้งอู่เงินสด + อู่บริษัท VAT 7%
+            <br>💡 ระบบจะ auto-fill ข้อมูลอู่ + คำนวณ VAT + แนะนำรอบซ่อมถัดไปจากเลขไมล์
+          </div>
           <div class="mt-card">
-            <div class="mt-empty">
-              <div style="font-size:36px;margin-bottom:10px">📋</div>
-              <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">บันทึกซ่อม — Phase 2</div>
-              <div>ฟีเจอร์ CRUD บันทึกการซ่อม พร้อม Upload ใบกำกับภาษี กำลังพัฒนา</div>
+            <div class="mt-card-header">
+              <div class="mt-card-title">📋 ประวัติการซ่อม — <span id="mt-records-count" style="color:var(--green)">0</span> รายการ</div>
+              <button class="btn btn-green" onclick="mtOpenMaintenance()">+ บันทึกซ่อมใหม่</button>
+            </div>
+            <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <input class="fi" id="mt-records-search" placeholder="ค้นหา ทะเบียน / อู่ / เลขที่บิล..." oninput="renderMaintenance()" style="flex:1;min-width:200px">
+              <select class="fi" id="mt-records-filter-type" onchange="renderMaintenance()" style="width:160px">
+                <option value="">ทุกประเภทบิล</option>
+                <option value="cash">💵 เงินสด</option>
+                <option value="vat">🧾 VAT 7%</option>
+              </select>
+              <input class="fi" type="date" id="mt-records-from" onchange="renderMaintenance()" style="width:150px" title="ตั้งแต่วันที่">
+              <input class="fi" type="date" id="mt-records-to" onchange="renderMaintenance()" style="width:150px" title="ถึงวันที่">
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>วันที่</th>
+                    <th>ทะเบียนรถ</th>
+                    <th>อู่ที่ซ่อม</th>
+                    <th>รายการ</th>
+                    <th style="text-align:right">เลขไมล์</th>
+                    <th style="text-align:right">รวม (บาท)</th>
+                    <th style="width:100px"></th>
+                  </tr>
+                </thead>
+                <tbody id="mt-records-tbody"></tbody>
+              </table>
+              <div class="mt-empty" id="mt-records-empty" style="display:none">
+                ยังไม่มีบันทึกการซ่อม — กดปุ่ม "+ บันทึกซ่อมใหม่"
+              </div>
+            </div>
+            <div style="margin-top:12px;text-align:right;font-size:12px;color:var(--text-2)">
+              ยอดรวมทั้งหมด: <strong id="mt-records-total" style="color:var(--green-d);font-size:14px">0</strong> บาท
             </div>
           </div>
         </div>
@@ -18517,7 +18552,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.029';
+const APP_VERSION = '2026.04.29.030';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -18683,7 +18718,7 @@ async function loadFromSupabase() {
     const [
       sbJobs, sbCustomers, sbShippers, sbBillings,
       sbTractors, sbTrailers, sbDrivers, sbPairings, sbUsers,
-      sbShops, sbIntervals
+      sbShops, sbIntervals, sbMaintenance
     ] = await Promise.all([
       sbFetch('gyt_jobs','GET',null,'?order=startdate'),
       sbFetch('gyt_customers','GET',null,'?order=id'),
@@ -18696,6 +18731,7 @@ async function loadFromSupabase() {
       sbFetch('gyt_users','GET',null,'?order=id'),
       sbFetch('gyt_repair_shops','GET',null,'?order=id'),
       sbFetch('gyt_maintenance_intervals','GET',null,'?order=id'),
+      sbFetch('gyt_maintenance','GET',null,'?order=service_date.desc'),
     ]);
 
     if(sbJobs !== null) {
@@ -18711,6 +18747,7 @@ async function loadFromSupabase() {
     if(sbDrivers !== null && sbDrivers.length > 0) drivers = sbDrivers;
     if(sbShops !== null) repairShops = sbShops || [];
     if(sbIntervals !== null) maintenanceIntervals = sbIntervals || [];
+    if(sbMaintenance !== null) maintenanceRecords = sbMaintenance || [];
     if(sbPairings !== null && sbPairings.length > 0) {
       pairings = {};
       sbPairings.forEach(function(p){ pairings[p.plate] = p.driver_id; });
@@ -19240,6 +19277,374 @@ async function deleteShop(id){
     if(_onlineMode) await sbFetch('gyt_repair_shops','PATCH',{is_active:false},'?id=eq.'+id);
   } catch(e){ console.warn('deleteShop sync error:', e); }
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// MAINTENANCE RECORDS — Phase 2 (CRUD บันทึกการซ่อม)
+// ════════════════════════════════════════════════════════════════════════
+let maintenanceRecords = [];
+let editMaintenanceId = null;
+
+// Service types ที่ใช้บ่อย (matches DEFAULT_INTERVALS + extras)
+const SERVICE_TYPES = [
+  'น้ำมันเครื่อง',
+  'กรองน้ำมันเครื่อง',
+  'กรองอากาศ',
+  'กรองดีเซล',
+  'ตรวจเบรค',
+  'ผ้าเบรค',
+  'ยาง',
+  'คลัทช์',
+  'แบตเตอรี่',
+  'ซ่อมเครื่องยนต์',
+  'ซ่อมเกียร์',
+  'ซ่อมช่วงล่าง',
+  'อื่นๆ'
+];
+
+// Build combined vehicle list (truck10 + tractor + trailer)
+function getAllVehicles(){
+  var list = [];
+  (tractors||[]).forEach(function(t){
+    if(t.status === 'ลบ' || t.status === 'deleted') return;
+    var vt = (t.vtype||'').toLowerCase().includes('สิบล้อ') ? 'truck10' : 'tractor';
+    var label = (t.plate||'(ไม่มีทะเบียน)') + ' — ' + (vt==='truck10' ? '🚛 รถสิบล้อ' : '🚜 หัวลาก');
+    list.push({id:t.id, plate:t.plate, vehicle_type:vt, label:label});
+  });
+  (trailers||[]).forEach(function(t){
+    if(t.status === 'ลบ' || t.status === 'deleted') return;
+    var label = (t.plate||'(ไม่มีทะเบียน)') + ' — 🚚 หางเทลเลอร์';
+    list.push({id:t.id, plate:t.plate, vehicle_type:'trailer', label:label});
+  });
+  return list;
+}
+
+// ── Render maintenance records list ──
+function renderMaintenance(){
+  var q = ((document.getElementById('mt-records-search')||{}).value || '').toLowerCase().trim();
+  var ftype = (document.getElementById('mt-records-filter-type')||{}).value || '';
+  var dfrom = (document.getElementById('mt-records-from')||{}).value || '';
+  var dto = (document.getElementById('mt-records-to')||{}).value || '';
+  var allVehicles = getAllVehicles();
+  var vehicleMap = {};
+  allVehicles.forEach(function(v){ vehicleMap[v.vehicle_type+':'+v.id] = v; });
+  var shopMap = {};
+  (repairShops||[]).forEach(function(sh){ shopMap[sh.id] = sh; });
+
+  var filtered = (maintenanceRecords||[]).filter(function(r){
+    var v = vehicleMap[(r.vehicle_type||'')+':'+(r.vehicle_id||'')];
+    var sh = shopMap[r.shop_id];
+    if(ftype && (sh ? sh.type : '') !== ftype) return false;
+    if(dfrom && r.service_date < dfrom) return false;
+    if(dto && r.service_date > dto) return false;
+    if(!q) return true;
+    return ((v?v.plate:'').toLowerCase().includes(q)) ||
+           ((sh?sh.name:'').toLowerCase().includes(q)) ||
+           ((r.bill_no||'').toLowerCase().includes(q)) ||
+           ((r.invoice_no||'').toLowerCase().includes(q));
+  });
+
+  filtered.sort(function(a,b){ return (b.service_date||'').localeCompare(a.service_date||''); });
+
+  var cnt = document.getElementById('mt-records-count');
+  if(cnt) cnt.textContent = filtered.length;
+  var totalEl = document.getElementById('mt-records-total');
+  var sumTotal = filtered.reduce(function(s,r){return s + (parseFloat(r.total_amount)||0);},0);
+  if(totalEl) totalEl.textContent = sumTotal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  var tbody = document.getElementById('mt-records-tbody');
+  var emptyEl = document.getElementById('mt-records-empty');
+  if(!tbody) return;
+  if(!filtered.length){ tbody.innerHTML=''; if(emptyEl) emptyEl.style.display='block'; return; }
+  if(emptyEl) emptyEl.style.display='none';
+
+  tbody.innerHTML = filtered.map(function(r){
+    var v = vehicleMap[(r.vehicle_type||'')+':'+(r.vehicle_id||'')];
+    var sh = shopMap[r.shop_id];
+    var billText = sh && sh.type==='vat' ?
+      ('🧾 ' + escapeHtml(r.invoice_no||'(ไม่มีเลข)')) :
+      ('💵 ' + escapeHtml(r.bill_no||'(เงินสด)'));
+    var serviceText = (r.service_types||[]).slice(0,3).join(', ') + ((r.service_types||[]).length>3?' +'+((r.service_types||[]).length-3):'');
+    return '<tr>' +
+      '<td>' + (r.service_date||'—') + '</td>' +
+      '<td><strong>' + escapeHtml(v?v.plate:'(รถถูกลบ)') + '</strong>' +
+        '<div style="font-size:10px;color:var(--text-3)">' + (v?v.vehicle_type:r.vehicle_type||'—') + '</div>' +
+      '</td>' +
+      '<td>' + escapeHtml(sh?sh.name:'(อู่ถูกลบ)') +
+        '<div style="font-size:10px;color:var(--text-3)">' + billText + '</div>' +
+      '</td>' +
+      '<td style="font-size:12px">' + escapeHtml(serviceText||'—') + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono)">' + (r.mileage||0).toLocaleString() + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--green-d)">' + (parseFloat(r.total_amount)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>' +
+      '<td><button class="btn-sm" onclick="mtOpenMaintenance(' + r.id + ')">แก้</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── Open maintenance modal ──
+function mtOpenMaintenance(id){
+  editMaintenanceId = id || null;
+  document.getElementById('mm-title').textContent = id ? 'แก้ไขบันทึกการซ่อม' : 'บันทึกการซ่อมใหม่';
+  document.getElementById('mm-delete-btn').style.display = id ? 'inline-block' : 'none';
+
+  // Reset form
+  document.getElementById('mm-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('mm-mileage').value = '';
+  document.getElementById('mm-bill-no').value = '';
+  document.getElementById('mm-invoice-no').value = '';
+  document.getElementById('mm-before-vat').value = '';
+  document.getElementById('mm-vat').value = '';
+  document.getElementById('mm-total').value = '';
+  document.getElementById('mm-next-km').value = '';
+  document.getElementById('mm-next-date').value = '';
+  document.getElementById('mm-note').value = '';
+  document.getElementById('mm-shop-info').style.display = 'none';
+  document.getElementById('mm-shop-info').innerHTML = '';
+
+  // Populate vehicle dropdown
+  var vSelect = document.getElementById('mm-vehicle');
+  vSelect.innerHTML = '<option value="">— เลือกทะเบียนรถ —</option>' +
+    getAllVehicles().map(function(v){
+      return '<option value="' + v.vehicle_type + ':' + v.id + '">' + escapeHtml(v.label) + '</option>';
+    }).join('');
+
+  // Populate shop dropdown
+  var sSelect = document.getElementById('mm-shop');
+  sSelect.innerHTML = '<option value="">— เลือกอู่ —</option>' +
+    (repairShops||[]).filter(function(sh){return sh.is_active!==false;}).map(function(sh){
+      var typeLabel = sh.type==='vat' ? '🧾 VAT' : '💵 เงินสด';
+      return '<option value="' + sh.id + '">' + typeLabel + ' — ' + escapeHtml(sh.name) + '</option>';
+    }).join('');
+
+  // Populate service types checkboxes
+  var stWrap = document.getElementById('mm-service-types-wrap');
+  stWrap.innerHTML = SERVICE_TYPES.map(function(st,i){
+    return '<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;background:#fff" id="mm-st-label-' + i + '">' +
+      '<input type="checkbox" value="' + escapeHtml(st) + '" data-st="' + i + '" onchange="mmToggleServiceLabel(' + i + ')">' +
+      '<span>' + escapeHtml(st) + '</span>' +
+    '</label>';
+  }).join('');
+
+  // If editing, load data
+  if(id){
+    var r = (maintenanceRecords||[]).find(function(x){return x.id===id;});
+    if(r){
+      document.getElementById('mm-date').value = r.service_date||'';
+      document.getElementById('mm-mileage').value = r.mileage||'';
+      vSelect.value = (r.vehicle_type||'') + ':' + (r.vehicle_id||'');
+      sSelect.value = r.shop_id||'';
+      document.getElementById('mm-bill-no').value = r.bill_no||'';
+      document.getElementById('mm-invoice-no').value = r.invoice_no||'';
+      document.getElementById('mm-before-vat').value = r.amount_before_vat||'';
+      document.getElementById('mm-vat').value = r.vat_amount||'';
+      document.getElementById('mm-total').value = r.total_amount||'';
+      document.getElementById('mm-next-km').value = r.next_service_km||'';
+      document.getElementById('mm-next-date').value = r.next_service_date||'';
+      document.getElementById('mm-note').value = r.note||'';
+      // Check service types
+      (r.service_types||[]).forEach(function(st){
+        var idx = SERVICE_TYPES.indexOf(st);
+        if(idx>=0){
+          var cb = document.querySelector('input[data-st="'+idx+'"]');
+          if(cb){ cb.checked = true; mmToggleServiceLabel(idx); }
+        }
+      });
+      // Trigger shop info display
+      mmSelectShop();
+    }
+  }
+  openModal('modal-maintenance');
+}
+
+function mmToggleServiceLabel(i){
+  var cb = document.querySelector('input[data-st="'+i+'"]');
+  var lb = document.getElementById('mm-st-label-'+i);
+  if(cb && lb){
+    if(cb.checked){
+      lb.style.background = 'var(--green-l)';
+      lb.style.borderColor = 'var(--green)';
+      lb.style.color = 'var(--green-d)';
+    } else {
+      lb.style.background = '#fff';
+      lb.style.borderColor = 'var(--border)';
+      lb.style.color = '';
+    }
+  }
+}
+
+// Auto-fill shop info + toggle bill/invoice fields
+function mmSelectShop(){
+  var shopId = parseInt(document.getElementById('mm-shop').value||0);
+  var sh = (repairShops||[]).find(function(x){return x.id===shopId;});
+  var infoEl = document.getElementById('mm-shop-info');
+  var billWrap = document.getElementById('mm-billno-wrap');
+  var invoiceWrap = document.getElementById('mm-invoiceno-wrap');
+  if(!sh){
+    infoEl.style.display = 'none';
+    billWrap.style.display = 'block';
+    invoiceWrap.style.display = 'none';
+    document.getElementById('mm-vat-label').textContent = 'VAT 7% (บาท)';
+    return;
+  }
+  // Show info box
+  var info = '<strong>🏪 ' + escapeHtml(sh.name) + '</strong> &nbsp;&nbsp; ';
+  if(sh.type==='vat'){
+    info += '<span style="background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">🧾 VAT 7%</span>';
+    if(sh.tax_id) info += ' &nbsp;&nbsp; TAX ID: ' + escapeHtml(sh.tax_id);
+    if(sh.address) info += '<br><span style="font-size:11px">' + escapeHtml(sh.address) + '</span>';
+  } else {
+    info += '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">💵 เงินสด</span>';
+  }
+  if(sh.phone) info += ' &nbsp;&nbsp; 📞 ' + escapeHtml(sh.phone);
+  infoEl.innerHTML = info;
+  infoEl.style.display = 'block';
+
+  // Toggle bill/invoice fields
+  if(sh.type==='vat'){
+    billWrap.style.display = 'none';
+    invoiceWrap.style.display = 'block';
+    document.getElementById('mm-vat-label').textContent = 'VAT 7% (บาท) — auto';
+  } else {
+    billWrap.style.display = 'block';
+    invoiceWrap.style.display = 'none';
+    document.getElementById('mm-vat-label').textContent = 'VAT (ไม่ใช้)';
+  }
+  mmCalcVAT();
+}
+
+// Calculate VAT 7% from "before VAT" amount
+function mmCalcVAT(){
+  var shopId = parseInt(document.getElementById('mm-shop').value||0);
+  var sh = (repairShops||[]).find(function(x){return x.id===shopId;});
+  var beforeVat = parseFloat(document.getElementById('mm-before-vat').value||0);
+  if(sh && sh.type==='vat' && beforeVat>0){
+    var vat = Math.round(beforeVat * 0.07 * 100) / 100;
+    var total = beforeVat + vat;
+    document.getElementById('mm-vat').value = vat.toFixed(2);
+    document.getElementById('mm-total').value = total.toFixed(2);
+  } else {
+    document.getElementById('mm-vat').value = '0';
+    document.getElementById('mm-total').value = beforeVat ? beforeVat.toFixed(2) : '';
+  }
+}
+
+// Reverse: ถ้าใส่ total → ย้อนคำนวณ before VAT
+function mmCalcReverseVAT(){
+  // Only if before-vat is empty (otherwise let user calc forward)
+  var beforeVat = document.getElementById('mm-before-vat').value;
+  if(beforeVat) return; // Already filled, don\'t override
+  var shopId = parseInt(document.getElementById('mm-shop').value||0);
+  var sh = (repairShops||[]).find(function(x){return x.id===shopId;});
+  var total = parseFloat(document.getElementById('mm-total').value||0);
+  if(sh && sh.type==='vat' && total>0){
+    var bv = Math.round(total / 1.07 * 100) / 100;
+    var vat = Math.round((total-bv) * 100) / 100;
+    document.getElementById('mm-before-vat').value = bv.toFixed(2);
+    document.getElementById('mm-vat').value = vat.toFixed(2);
+  }
+}
+
+// Auto-suggest next service from intervals
+function mmCalcNextService(){
+  var mileage = parseInt(document.getElementById('mm-mileage').value||0);
+  if(!mileage) return;
+  // Use first checked service type to get interval
+  var checked = Array.from(document.querySelectorAll('#mm-service-types-wrap input:checked')).map(function(cb){return cb.value;});
+  if(!checked.length) return;
+  var firstSvc = checked[0];
+  var interval = (maintenanceIntervals||[]).find(function(x){return x.vehicle_id===0 && x.service_type===firstSvc;});
+  if(!interval){
+    interval = DEFAULT_INTERVALS.find(function(x){return x.service_type===firstSvc;});
+  }
+  if(interval && interval.interval_km){
+    document.getElementById('mm-next-km').value = mileage + interval.interval_km;
+  }
+  if(interval && interval.interval_months){
+    var d = new Date(document.getElementById('mm-date').value || new Date());
+    d.setMonth(d.getMonth() + interval.interval_months);
+    document.getElementById('mm-next-date').value = d.toISOString().slice(0,10);
+  }
+}
+
+// Save maintenance record
+async function saveMaintenance(){
+  var date = document.getElementById('mm-date').value;
+  var mileage = parseInt(document.getElementById('mm-mileage').value||0);
+  var vehicleStr = document.getElementById('mm-vehicle').value;
+  var shopId = parseInt(document.getElementById('mm-shop').value||0);
+  var total = parseFloat(document.getElementById('mm-total').value||0);
+  if(!date){ showToast('กรอกวันที่ก่อน'); return; }
+  if(!mileage){ showToast('กรอกเลขไมล์ก่อน'); return; }
+  if(!vehicleStr){ showToast('เลือกรถก่อน'); return; }
+  if(!shopId){ showToast('เลือกอู่ก่อน'); return; }
+  if(!total){ showToast('กรอกราคารวมก่อน'); return; }
+  var [vt, vid] = vehicleStr.split(':');
+  var sh = (repairShops||[]).find(function(x){return x.id===shopId;});
+  var serviceTypes = Array.from(document.querySelectorAll('#mm-service-types-wrap input:checked')).map(function(cb){return cb.value;});
+  var obj = {
+    vehicle_id: parseInt(vid),
+    vehicle_type: vt,
+    shop_id: shopId,
+    service_date: date,
+    mileage: mileage,
+    bill_no: (sh && sh.type==='cash') ? document.getElementById('mm-bill-no').value || null : null,
+    invoice_no: (sh && sh.type==='vat') ? document.getElementById('mm-invoice-no').value || null : null,
+    service_types: serviceTypes,
+    parts_list: [],
+    labor_cost: 0,
+    amount_before_vat: parseFloat(document.getElementById('mm-before-vat').value||0) || 0,
+    vat_amount: parseFloat(document.getElementById('mm-vat').value||0) || 0,
+    total_amount: total,
+    next_service_km: parseInt(document.getElementById('mm-next-km').value||0) || null,
+    next_service_date: document.getElementById('mm-next-date').value || null,
+    note: document.getElementById('mm-note').value || null,
+    created_by: currentUser ? (currentUser.fname + ' ' + currentUser.lname) : null,
+    updated_at: new Date().toISOString()
+  };
+  if(editMaintenanceId){
+    obj.id = editMaintenanceId;
+    var idx = maintenanceRecords.findIndex(function(x){return x.id===editMaintenanceId;});
+    if(idx>=0) Object.assign(maintenanceRecords[idx], obj);
+  } else {
+    obj.id = (maintenanceRecords.length ? Math.max.apply(null, maintenanceRecords.map(function(x){return x.id||0;}))+1 : 1);
+    obj.created_at = new Date().toISOString();
+    maintenanceRecords.push(obj);
+  }
+  closeModal('modal-maintenance');
+  renderMaintenance();
+  showToast(editMaintenanceId ? 'แก้ไขบันทึกซ่อมเรียบร้อย ✓' : 'บันทึกซ่อมใหม่เรียบร้อย ✓');
+  // Sync to cloud
+  try {
+    if(_onlineMode){
+      var r = await sbFetch('gyt_maintenance','POST',[obj],'?on_conflict=id');
+      if(r && r[0] && r[0].id){
+        var idx2 = maintenanceRecords.findIndex(function(x){return x.id===obj.id;});
+        if(idx2>=0) maintenanceRecords[idx2].id = r[0].id;
+      }
+    }
+  } catch(e){ console.warn('saveMaintenance sync error:', e); }
+}
+
+async function deleteMaintenance(){
+  if(!editMaintenanceId) return;
+  if(!confirm('ลบบันทึกการซ่อมนี้? (ลบถาวร — กู้คืนไม่ได้)')) return;
+  var idx = (maintenanceRecords||[]).findIndex(function(x){return x.id===editMaintenanceId;});
+  if(idx<0) return;
+  var deletedId = editMaintenanceId;
+  maintenanceRecords.splice(idx,1);
+  closeModal('modal-maintenance');
+  renderMaintenance();
+  showToast('ลบเรียบร้อย ✓');
+  try {
+    if(_onlineMode) await sbFetch('gyt_maintenance','DELETE',null,'?id=eq.'+deletedId);
+  } catch(e){ console.warn('deleteMaintenance sync error:', e); }
+}
+
+// Hook into mtSwitchTab for records tab
+const _originalMtSwitchTab = mtSwitchTab;
+mtSwitchTab = function(tab){
+  _originalMtSwitchTab(tab);
+  if(tab==='records') renderMaintenance();
+};
 
 // ── Intervals: Render Form ──
 function renderIntervalsForm(){
@@ -20405,6 +20810,103 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
   <div class="modal-foot">
     <button class="btn btn-ghost" onclick="closeModal('modal-shop')">ยกเลิก</button>
     <button class="btn btn-green" onclick="saveShop()">💾 บันทึก</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: MAINTENANCE RECORD -->
+<div class="modal-overlay" id="modal-maintenance">
+<div class="modal" style="max-width:780px">
+  <div class="modal-head">
+    <div><div class="modal-title" id="mm-title">บันทึกการซ่อม</div><div class="modal-sub">ใส่ข้อมูลให้ครบสำหรับใบกำกับภาษี</div></div>
+    <button class="close-x" onclick="closeModal('modal-maintenance')">×</button>
+  </div>
+  <div class="modal-body">
+
+    <!-- Section: ข้อมูลพื้นฐาน -->
+    <div class="ms-section-sub" style="font-weight:700;color:var(--green-d);margin-bottom:8px">📅 ข้อมูลพื้นฐาน</div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">วันที่ซ่อม *</label><input type="date" class="fi" id="mm-date"></div>
+      <div class="fg"><label class="fl">เลขไมล์ตอนซ่อม * (km)</label><input type="number" class="fi" id="mm-mileage" placeholder="เช่น 125000" oninput="mmCalcNextService()"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">เลือกรถ *</label>
+      <select class="fi" id="mm-vehicle">
+        <option value="">— เลือกทะเบียนรถ —</option>
+      </select>
+    </div>
+
+    <!-- Section: อู่ซ่อม -->
+    <div class="ms-section-sub" style="font-weight:700;color:var(--green-d);margin:14px 0 8px">🏪 อู่ที่ซ่อม</div>
+    <div class="fg">
+      <label class="fl">เลือกอู่ *</label>
+      <select class="fi" id="mm-shop" onchange="mmSelectShop()">
+        <option value="">— เลือกอู่ —</option>
+      </select>
+    </div>
+    <div id="mm-shop-info" style="display:none;background:var(--bg);padding:10px 14px;border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--text-2);margin-bottom:10px">
+      <!-- Auto-fill เมื่อเลือกอู่ -->
+    </div>
+    <div class="fg-row">
+      <div class="fg" id="mm-billno-wrap">
+        <label class="fl">เลขที่บิล (เงินสด)</label>
+        <input class="fi" id="mm-bill-no" placeholder="เลขที่บิลธรรมดา (ถ้ามี)">
+      </div>
+      <div class="fg" id="mm-invoiceno-wrap" style="display:none">
+        <label class="fl">เลขที่ใบกำกับภาษี * (VAT)</label>
+        <input class="fi" id="mm-invoice-no" placeholder="เลขที่ใบกำกับ">
+      </div>
+    </div>
+
+    <!-- Section: รายการที่ซ่อม -->
+    <div class="ms-section-sub" style="font-weight:700;color:var(--green-d);margin:14px 0 8px">🔧 รายการที่ซ่อม</div>
+    <div class="fg">
+      <div id="mm-service-types-wrap" style="display:flex;flex-wrap:wrap;gap:8px">
+        <!-- Checkboxes rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Section: ค่าใช้จ่าย -->
+    <div class="ms-section-sub" style="font-weight:700;color:var(--green-d);margin:14px 0 8px">💰 ค่าใช้จ่าย</div>
+    <div class="fg-row">
+      <div class="fg">
+        <label class="fl">ราคาก่อน VAT (บาท)</label>
+        <input type="number" class="fi" id="mm-before-vat" placeholder="0" oninput="mmCalcVAT()" style="font-family:var(--mono);text-align:right">
+      </div>
+      <div class="fg">
+        <label class="fl"><span id="mm-vat-label">VAT 7% (บาท)</span></label>
+        <input type="number" class="fi" id="mm-vat" readonly placeholder="0" style="font-family:var(--mono);text-align:right;background:#f5f5f5">
+      </div>
+    </div>
+    <div class="fg">
+      <label class="fl">รวมทั้งหมด (บาท) *</label>
+      <input type="number" class="fi" id="mm-total" placeholder="0" oninput="mmCalcReverseVAT()" style="font-family:var(--mono);font-weight:700;font-size:16px;text-align:right;color:var(--green-d)">
+    </div>
+
+    <!-- Section: รอบซ่อมถัดไป (auto-suggested) -->
+    <div class="ms-section-sub" style="font-weight:700;color:var(--green-d);margin:14px 0 8px">🔄 รอบซ่อมถัดไป (auto)</div>
+    <div class="fg-row">
+      <div class="fg">
+        <label class="fl">ครั้งถัดไปที่เลขไมล์ (km)</label>
+        <input type="number" class="fi" id="mm-next-km" placeholder="auto จาก default interval">
+      </div>
+      <div class="fg">
+        <label class="fl">หรือวันที่</label>
+        <input type="date" class="fi" id="mm-next-date">
+      </div>
+    </div>
+
+    <!-- Section: หมายเหตุ -->
+    <div class="fg" style="margin-top:14px">
+      <label class="fl">หมายเหตุ</label>
+      <textarea class="fi" id="mm-note" rows="2" style="height:auto;padding-top:8px;resize:vertical" placeholder="รายละเอียดเพิ่มเติม"></textarea>
+    </div>
+
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-maintenance')">ยกเลิก</button>
+    <button class="btn" id="mm-delete-btn" onclick="deleteMaintenance()" style="background:var(--red);color:#fff;border-color:var(--red);display:none">🗑 ลบ</button>
+    <button class="btn btn-green" onclick="saveMaintenance()">💾 บันทึก</button>
   </div>
 </div>
 </div>
