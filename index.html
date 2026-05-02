@@ -19862,7 +19862,31 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
         <table id="excel-preview-table" style="font-size:11px;border-collapse:collapse;width:100%">
           <thead id="excel-thead"></thead>
           <tbody id="excel-tbody"></tbody>
+ 
         </table>
       </div>
       <div class="fg-row" style="margin-top:12px">
-        <di
+        <div class="fg"><label class="fl">จำนวนแถวที่พบ</label><input class="fi" id="excel-row-count" readonly style="background:#f5f5f5"></div>
+        <div class="fg"><label class="fl">เริ่ม Job ID ที่</label><input class="fi" id="start-job-id" value="" placeholder="เช่น JOB-N064"></div>
+      </div>
+      
+      <div class="note-bar warning" style="margin-top:12px">
+        <strong>⚠️ คำเตือน:</strong> การ Import จะเพิ่มงานใหม่เข้าระบบ ตรวจสอบข้อมูลให้ถูกต้องก่อน Import
+      </div>
+    </div>
+    
+    <div id="excel-import-log" style="display:none;margin-top:16px">
+      <div class="sec-title">ผลการ Import</div>
+      <div id="import-result" style="font-family:var(--mono);font-size:11px;background:#f8f9fa;padding:12px;border-radius:6px;white-space:pre-wrap;max-height:200px;overflow-y:auto;border:1px solid var(--border)"></div>
+    </div>
+  </div>
+  
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-excel-import')">ยกเลิก</button>
+    <button class="btn btn-green" id="btn-import-excel" onclick="importExcelData()" style="display:none">📥 Import ข้อมูล</button>
+  </div>
+</div>
+</div>
+
+</body>
+</html>
