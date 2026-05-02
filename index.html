@@ -18748,7 +18748,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.032';
+const APP_VERSION = '2026.04.29.033';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -20471,7 +20471,8 @@ function renderInspections(){
       '<td>' + escapeHtml(r.inspector_name||'—') + '</td>' +
       '<td style="text-align:center">' + statusBadge + '</td>' +
       '<td><button class="btn-sm" onclick="insViewRecord(' + r.id + ')">ดู</button> ' +
-          '<button class="btn-sm" onclick="insPrintRecord(' + r.id + ')">🖨 พิมพ์</button></td>' +
+          '<button class="btn-sm" onclick="insPrintRecord(' + r.id + ')">🖨</button>' +
+          (r.total_issues > 0 ? ' <button class="btn-sm" onclick="insCreateRepairOrder(' + r.id + ')" title="สร้างใบสั่งซ่อม" style="background:var(--yellow-l);color:var(--yellow-d);border-color:var(--yellow-m)">🛠</button>' : '') + '</td>' +
     '</tr>';
   }).join('');
 }
