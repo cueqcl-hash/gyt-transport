@@ -1,0 +1,32 @@
+# ── Office temp/lock files (สร้างเองตอนเปิดไฟล์ Word/Excel/PowerPoint) ──
+~$*
+*.tmp
+.~lock.*
+
+# ── OS junk ──
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor / IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Node / npm (ถ้ามีการ install lib) ──
+node_modules/
+npm-debug.log
+yarn-debug.log
+package-lock.json
+
+# ── Log / temp ──
+*.log
+*.bak
+*.backup
+
+# ── ENV / secret ──
+.env
+.env.local
+*.key
+*.pem
