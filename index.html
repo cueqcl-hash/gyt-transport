@@ -18268,7 +18268,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.023';
+const APP_VERSION = '2026.04.29.024';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -18809,47 +18809,37 @@ async function startDeploy() {
 }
 
 // ── AUTO LOGIN FROM SESSION ──────────────────────────────
+// ใช้ flow เดียวกับ doLogin() — set currentUser แล้วเรียก initApp()
+// (initApp จัดการ render sidebar, avatar, ?page= routing, loadFromSupabase ฯลฯ ให้เอง)
 (function(){
+  var raw = null;
   try {
-    const raw = localStorage.getItem('gyt_session');
+    raw = localStorage.getItem('gyt_session');
     if (!raw) return;
-    const session = JSON.parse(raw);
+    var session = JSON.parse(raw);
     if (!session || !session.expiry || Date.now() > session.expiry) {
       localStorage.removeItem('gyt_session');
       return;
     }
-    // หา user จาก id
-    const u = users.find(function(x){ return x.id === session.userId; });
+    // หา user จาก id (ถ้าไม่เจอ → user ถูกลบออกจากระบบ → clear session)
+    var u = users.find(function(x){ return x.id === session.userId; });
     if (!u || u.status !== 'active') {
       localStorage.removeItem('gyt_session');
       return;
     }
-    // auto login
+    // auto login — ทำเหมือน doLogin() ทุกอย่าง
     currentUser = u;
-    var r = u.role;
-    var navItems = NAV_ITEMS[r] || NAV_ITEMS['staff'];
-    var nav = document.getElementById('sidebar-nav');
-    if(nav) nav.innerHTML = navItems.map(function(item){
-      return '<div class="nav-item" onclick="goPage(&apos;'+item.id+'&apos;)" id="nav-'+item.id+'">'+
-        '<span>'+item.icon+'</span><span>'+item.label+'</span></div>';
-    }).join('') + '<div class="nav-sep"></div>';
-    var av = document.getElementById('sb-av');
-    if(av) av.textContent = u.fname.charAt(0);
-    var uname = document.getElementById('sb-uname');
-    if(uname) uname.textContent = u.fname + ' ' + u.lname;
-    var urole = document.getElementById('sb-urole');
-    if(urole) urole.textContent = {admin:'ผู้ดูแลระบบ',supervisor:'ผู้บริหาร/ผู้จัดการ',staff:'เจ้าหน้าที่',driver:'คนขับรถ'}[r]||r;
     var loginScr = document.getElementById('screen-login');
     var appScr = document.getElementById('screen-app');
     if(loginScr) loginScr.style.display = 'none';
     if(appScr) appScr.style.display = 'flex';
-    setTimeout(function(){
-      goPage((r==='admin'||r==='supervisor')?'dashboard':'jobs');
-      applySidebarState();
-      loadFromSupabase();
-    }, 100);
+    // initApp จะ render sidebar ใหม่ (รองรับ ?page= URL จาก Ctrl+Click) +
+    // โหลดข้อมูลจาก Supabase + apply perms ทั้งหมด
+    if(typeof initApp === 'function') initApp();
   } catch(e) {
-    localStorage.removeItem('gyt_session');
+    // **อย่า** ลบ session เมื่อ error — แค่ log แล้วให้ user login ปกติแทน
+    // (การลบ session ทำให้ user ถูก force logout เพราะ bug เล็กๆ ครั้งก่อนเคยเกิดขึ้น)
+    console.warn('auto-login failed, falling back to manual login:', e);
   }
 })();
 
