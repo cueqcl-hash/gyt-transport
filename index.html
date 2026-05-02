@@ -3743,20 +3743,33 @@ function initApp(){
   // (ใช้สำหรับ Ctrl+Click sidebar → เปิด tab ใหม่ จะไปหน้าที่ user คลิก)
   var defaultPage = (r==='admin'||r==='supervisor')?'dashboard':'jobs';
   var requestedPage = null;
+  var urlRequestedPage = null;  // ค่าจาก URL ดิบ (ไม่ผ่าน perm check) — เก็บไว้ retry หลัง cloud sync
   try{
     var sp = new URLSearchParams(window.location.search);
     var p = sp.get('page');
     if(p){
+      urlRequestedPage = p;
       var allowed = visibleNav.find(function(n){return n.id===p;});
       if(allowed) requestedPage = p;
     }
   }catch(e){/* ignore */}
-  goPage(requestedPage || defaultPage);
+  if(requestedPage){
+    // perm พอแล้ว → goPage ปกติ (URL เขียนตามได้)
+    goPage(requestedPage);
+    window._pendingRoute = null;
+  }else{
+    // ไม่ผ่าน perm check (อาจเป็นเพราะ local perms ยังไม่ sync จาก cloud) →
+    // เก็บ URL request ไว้ พอ cloud sync เสร็จ + perms อัปเดต จะ retry routing อัตโนมัติ
+    // และห้ามเขียน URL ทับ (skipUrlUpdate) เพื่อให้ initApp รอบถัดไปอ่าน ?page= ตัวเดิมได้
+    window._pendingRoute = urlRequestedPage;
+    goPage(defaultPage, {skipUrlUpdate: !!urlRequestedPage});
+  }
   applySidebarState();
   loadFromSupabase();
 }
 
-function goPage(id){
+function goPage(id, opts){
+  opts = opts || {};
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('pg-'+id)?.classList.add('active');
@@ -3772,13 +3785,16 @@ function goPage(id){
   // อัปเดตการซ่อน/แสดงปุ่มตาม perms (สำหรับหน้าใหม่ที่เพิ่งเปิด)
   if(typeof applyPermsToUI === 'function') setTimeout(applyPermsToUI, 0);
   // อัปเดต URL ให้ตรงกับหน้าปัจจุบัน → refresh จะอยู่หน้าเดิม + share link ได้
-  try{
-    var url = new URL(window.location.href);
-    if(url.searchParams.get('page') !== id){
-      url.searchParams.set('page', id);
-      window.history.replaceState({page:id}, '', url.pathname + url.search);
-    }
-  }catch(e){/* ignore */}
+  // skipUrlUpdate=true → ใช้ตอน fallback เพื่อไม่ทับ URL ที่ user เจตนาเปิด (รอ cloud sync แล้วค่อย retry)
+  if(!opts.skipUrlUpdate){
+    try{
+      var url = new URL(window.location.href);
+      if(url.searchParams.get('page') !== id){
+        url.searchParams.set('page', id);
+        window.history.replaceState({page:id}, '', url.pathname + url.search);
+      }
+    }catch(e){/* ignore */}
+  }
 }
 
 // Sidebar click handler — รองรับ Ctrl/Cmd+Click และ Middle-Click → เปิด tab ใหม่ (browser default)
@@ -18268,7 +18284,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.024';
+const APP_VERSION = '2026.04.29.025';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
