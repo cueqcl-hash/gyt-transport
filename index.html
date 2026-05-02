@@ -513,6 +513,33 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 #pg-maintenance .alert-stat.ok .alert-stat-num{color:var(--green-d)}
 .nav-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:10px;margin-left:auto;font-family:var(--mono)}
 .nav-badge.warn{background:#E8B800;color:#3E2723}
+#pg-inspection .ins-pages{padding:0}
+#pg-inspection .ins-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin-bottom:14px}
+#pg-inspection .ins-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px}
+#pg-inspection .ins-section{margin-top:18px;padding-top:14px;border-top:2px solid var(--green-l)}
+#pg-inspection .ins-section-title{font-size:14px;font-weight:700;color:var(--green-d);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+#pg-inspection .ins-item{display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px 12px;border-bottom:1px solid #F3F4F6;align-items:center}
+#pg-inspection .ins-item:last-child{border-bottom:none}
+#pg-inspection .ins-item-text{font-size:13px;color:var(--text)}
+#pg-inspection .ins-item-std{font-size:10px;color:var(--text-3);margin-top:2px}
+#pg-inspection .ins-rating{display:flex;gap:4px;flex-wrap:wrap}
+#pg-inspection .ins-rate-btn{padding:4px 10px;border-radius:14px;border:1.5px solid var(--border);background:#fff;font-size:11px;font-weight:600;cursor:pointer;color:var(--text-2);transition:.15s;white-space:nowrap}
+#pg-inspection .ins-rate-btn:hover{border-color:var(--green)}
+#pg-inspection .ins-rate-btn.r5{border-color:#10B981;color:#065F46}
+#pg-inspection .ins-rate-btn.r4{border-color:#22C55E;color:#15803D}
+#pg-inspection .ins-rate-btn.r3{border-color:#F59E0B;color:#92400E}
+#pg-inspection .ins-rate-btn.r2{border-color:#F97316;color:#9A3412}
+#pg-inspection .ins-rate-btn.r1{border-color:#EF4444;color:#991B1B}
+#pg-inspection .ins-rate-btn.active.r5{background:#10B981;color:#fff}
+#pg-inspection .ins-rate-btn.active.r4{background:#22C55E;color:#fff}
+#pg-inspection .ins-rate-btn.active.r3{background:#F59E0B;color:#fff}
+#pg-inspection .ins-rate-btn.active.r2{background:#F97316;color:#fff}
+#pg-inspection .ins-rate-btn.active.r1{background:#EF4444;color:#fff}
+#pg-inspection .ins-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+#pg-inspection .ins-stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center}
+#pg-inspection .ins-stat-num{font-size:24px;font-weight:800;font-family:var(--mono)}
+#pg-inspection .ins-stat-label{font-size:10px;color:var(--text-2);margin-top:2px}
+
 
 
 #pg-ratecalc /* ── Range table in modal ── */
@@ -1295,21 +1322,128 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
       </div>
 
-      <!-- INSPECTION (Phase 1A — placeholder) -->
+      <!-- INSPECTION — Phase 4 (3 tabs) -->
       <div id="pg-inspection" class="screen">
-        <div style="padding:40px;text-align:center;background:#fff;border-radius:12px;border:1px solid var(--border);margin:20px 0">
-          <div style="font-size:48px;margin-bottom:16px">✅</div>
-          <h2 style="font-size:22px;color:var(--text);margin-bottom:8px">ตรวจสภาพรถ</h2>
-          <p style="color:var(--text-2);margin-bottom:20px">หน้านี้กำลังอยู่ระหว่างพัฒนา (Phase 4)</p>
-          <div style="background:var(--green-l);padding:16px;border-radius:8px;color:var(--green-d);max-width:520px;margin:0 auto;text-align:left">
-            <div style="font-weight:700;margin-bottom:8px">✅ จะมีฟีเจอร์:</div>
-            <ul style="margin:0;padding-left:20px;line-height:1.7">
-              <li>📋 9 templates (Weekly/Monthly/Pre-repair × สิบล้อ/หัวลาก/หาง)</li>
-              <li>📊 ผลตรวจ 5 ระดับ (ดีมาก/ดี/พอใช้/ต้องแก้/เสีย)</li>
-              <li>📷 รูปภาพ Optional</li>
-              <li>🛠 ปุ่ม "สร้างใบสั่งซ่อม" (เชื่อมระบบซ่อมบำรุง)</li>
-              <li>🖨 ปริ๊นใบตรวจไปเซ็นกระดาษ</li>
-            </ul>
+        <!-- Tabs -->
+        <div class="mt-tabs">
+          <button class="mt-tab active" id="ins-tab-history" onclick="insSwitchTab('history')">📋 ประวัติตรวจ</button>
+          <button class="mt-tab" id="ins-tab-new" onclick="insSwitchTab('new')">➕ ตรวจใหม่</button>
+          <button class="mt-tab" id="ins-tab-templates" onclick="insSwitchTab('templates')">⚙️ ดู Template</button>
+        </div>
+
+        <!-- TAB: ประวัติตรวจ -->
+        <div id="ins-pg-history" class="ins-pages">
+          <div class="mt-help">📋 <strong>ประวัติการตรวจสภาพรถ</strong> — เก็บผลการตรวจทุกครั้ง พร้อมพิมพ์เพื่อเซ็นกระดาษ</div>
+          <div class="ins-card">
+            <div class="mt-card-header">
+              <div class="mt-card-title">📋 ประวัติทั้งหมด — <span id="ins-records-count" style="color:var(--green)">0</span> รายการ</div>
+              <div style="display:flex;gap:8px">
+                <select class="fi" id="ins-filter-template" onchange="renderInspections()" style="width:160px">
+                  <option value="">ทุกประเภท</option>
+                  <option value="weekly">📅 Weekly</option>
+                  <option value="monthly">📆 Monthly</option>
+                  <option value="pre_repair">🛠 ก่อนซ่อม</option>
+                </select>
+                <button class="btn btn-green" onclick="insSwitchTab('new')">+ ตรวจใหม่</button>
+              </div>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr>
+                  <th>วันที่</th>
+                  <th>ทะเบียนรถ</th>
+                  <th>Template</th>
+                  <th>ผู้ตรวจ</th>
+                  <th style="text-align:center">ผลรวม</th>
+                  <th style="width:140px"></th>
+                </tr></thead>
+                <tbody id="ins-records-tbody"></tbody>
+              </table>
+              <div class="mt-empty" id="ins-records-empty" style="display:none">
+                ยังไม่มีบันทึกการตรวจ — กดปุ่ม "+ ตรวจใหม่"
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: ตรวจใหม่ -->
+        <div id="ins-pg-new" class="ins-pages" style="display:none">
+          <div class="mt-help">
+            ➕ <strong>เริ่มตรวจสภาพรถ</strong> — เลือกรถ + Template → ระบบจะแสดงรายการตรวจที่ต้องเช็ค
+            <br>📊 ผลตรวจ 5 ระดับ: <strong>5</strong>=ดีมาก / <strong>4</strong>=ดี / <strong>3</strong>=พอใช้ / <strong>2</strong>=ต้องแก้ / <strong>1</strong>=เสีย
+          </div>
+          <div class="ins-card">
+            <div class="mt-card-title">📝 ข้อมูลพื้นฐาน</div>
+            <div class="ins-form-grid">
+              <div class="fg"><label class="fl">วันที่ตรวจ *</label>
+                <input type="date" class="fi" id="ins-date">
+              </div>
+              <div class="fg"><label class="fl">เลือกรถ *</label>
+                <select class="fi" id="ins-vehicle" onchange="insLoadTemplate()">
+                  <option value="">— เลือกทะเบียน —</option>
+                </select>
+              </div>
+              <div class="fg"><label class="fl">Template *</label>
+                <select class="fi" id="ins-template" onchange="insLoadTemplate()">
+                  <option value="weekly">📅 Weekly (รายสัปดาห์)</option>
+                  <option value="monthly">📆 Monthly (รายเดือน)</option>
+                  <option value="pre_repair">🛠 Pre-repair (ก่อนซ่อม)</option>
+                </select>
+              </div>
+              <div class="fg"><label class="fl">ผู้ตรวจ</label>
+                <input class="fi" id="ins-inspector" placeholder="ชื่อผู้ตรวจ (auto-fill จาก login)">
+              </div>
+            </div>
+          </div>
+
+          <div id="ins-checklist-wrap" style="display:none">
+            <div class="ins-summary">
+              <div class="ins-stat" style="background:#ECFDF5"><div class="ins-stat-num" id="ins-stat-good" style="color:#065F46">0</div><div class="ins-stat-label">🟢 ดี (4-5)</div></div>
+              <div class="ins-stat" style="background:#FFFBEB"><div class="ins-stat-num" id="ins-stat-warn" style="color:#92400E">0</div><div class="ins-stat-label">🟡 พอใช้ (3)</div></div>
+              <div class="ins-stat" style="background:#FEF2F2"><div class="ins-stat-num" id="ins-stat-bad" style="color:#991B1B">0</div><div class="ins-stat-label">🔴 ต้องแก้/เสีย (1-2)</div></div>
+              <div class="ins-stat"><div class="ins-stat-num" id="ins-stat-pending" style="color:var(--text-3)">0</div><div class="ins-stat-label">⚪ ยังไม่ตรวจ</div></div>
+            </div>
+            <div class="ins-card">
+              <div class="mt-card-title" id="ins-checklist-title">📋 รายการตรวจ</div>
+              <div id="ins-checklist-body"></div>
+            </div>
+            <div class="ins-card">
+              <div class="fg">
+                <label class="fl">หมายเหตุรวม / ปัญหาที่พบ</label>
+                <textarea class="fi" id="ins-note" rows="3" style="height:auto;padding-top:8px;resize:vertical" placeholder="ระบุปัญหาหรือสิ่งที่ต้องดำเนินการ"></textarea>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+                <button class="btn btn-green" onclick="saveInspection()">💾 บันทึก</button>
+                <button class="btn btn-ghost" onclick="saveInspection(true)">💾 บันทึก + พิมพ์</button>
+                <button class="btn" onclick="insReset()" style="background:var(--red-l);color:var(--red);border-color:var(--red-m)">↻ ล้างฟอร์ม</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: Templates -->
+        <div id="ins-pg-templates" class="ins-pages" style="display:none">
+          <div class="mt-help">
+            ⚙️ <strong>ดู Template ตรวจสภาพ</strong> — รายการตรวจของแต่ละประเภทรถ + ความถี่ (ดูอย่างเดียว — แก้ในโค้ดได้ภายหลัง)
+          </div>
+          <div class="ins-card">
+            <div class="ins-form-grid">
+              <div class="fg"><label class="fl">ประเภทรถ</label>
+                <select class="fi" id="ins-tpl-vtype" onchange="insRenderTemplate()">
+                  <option value="truck10">🚛 รถสิบล้อ (10-wheel)</option>
+                  <option value="tractor">🚜 หัวลาก (Tractor)</option>
+                  <option value="trailer">🚚 หางเทลเลอร์ (Trailer)</option>
+                </select>
+              </div>
+              <div class="fg"><label class="fl">ความถี่</label>
+                <select class="fi" id="ins-tpl-freq" onchange="insRenderTemplate()">
+                  <option value="weekly">📅 Weekly (รายสัปดาห์)</option>
+                  <option value="monthly">📆 Monthly (รายเดือน)</option>
+                  <option value="pre_repair">🛠 Pre-repair (ก่อนซ่อม)</option>
+                </select>
+              </div>
+            </div>
+            <div id="ins-tpl-display"></div>
           </div>
         </div>
       </div>
@@ -18614,7 +18748,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.031';
+const APP_VERSION = '2026.04.29.032';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -18780,7 +18914,7 @@ async function loadFromSupabase() {
     const [
       sbJobs, sbCustomers, sbShippers, sbBillings,
       sbTractors, sbTrailers, sbDrivers, sbPairings, sbUsers,
-      sbShops, sbIntervals, sbMaintenance
+      sbShops, sbIntervals, sbMaintenance, sbInspections
     ] = await Promise.all([
       sbFetch('gyt_jobs','GET',null,'?order=startdate'),
       sbFetch('gyt_customers','GET',null,'?order=id'),
@@ -18794,6 +18928,7 @@ async function loadFromSupabase() {
       sbFetch('gyt_repair_shops','GET',null,'?order=id'),
       sbFetch('gyt_maintenance_intervals','GET',null,'?order=id'),
       sbFetch('gyt_maintenance','GET',null,'?order=service_date.desc'),
+      sbFetch('gyt_inspections','GET',null,'?order=inspection_date.desc'),
     ]);
 
     if(sbJobs !== null) {
@@ -18810,6 +18945,7 @@ async function loadFromSupabase() {
     if(sbShops !== null) repairShops = sbShops || [];
     if(sbIntervals !== null) maintenanceIntervals = sbIntervals || [];
     if(sbMaintenance !== null) maintenanceRecords = sbMaintenance || [];
+    if(sbInspections !== null) inspections = sbInspections || [];
     if(sbPairings !== null && sbPairings.length > 0) {
       pairings = {};
       sbPairings.forEach(function(p){ pairings[p.plate] = p.driver_id; });
@@ -19982,6 +20118,460 @@ async function saveIntervals(){
   try {
     if(_onlineMode) await sbFetch('gyt_maintenance_intervals','POST',changes,'?on_conflict=vehicle_id,service_type');
   } catch(e){ console.warn('saveIntervals sync error:', e); }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// INSPECTION MODULE — Phase 4 (9 Templates × 5-level rating)
+// ════════════════════════════════════════════════════════════════════════
+let inspections = [];
+let editInspectionId = null;
+
+// ── Inspection Items Master (hardcoded for simplicity) ──
+const _T10_WEEKLY = [
+  {cat:'เครื่องยนต์', name:'ระดับน้ำมันเครื่อง', std:'ก้านวัด: ระหว่าง MIN-MAX'},
+  {cat:'เครื่องยนต์', name:'น้ำหล่อเย็น (หม้อน้ำ)', std:'ระดับเต็ม + ไม่ขุ่น'},
+  {cat:'เครื่องยนต์', name:'สายพาน (ความตึง/รอยแตก)', std:'ไม่หย่อน + ไม่มีรอยแตก'},
+  {cat:'เครื่องยนต์', name:'รอยรั่วซึม (น้ำมัน/น้ำ)', std:'ใต้ท้องเครื่อง + รอบเครื่อง'},
+  {cat:'เบรค', name:'เบรคเท้า', std:'ไม่ลึก + ไม่ลื่น'},
+  {cat:'เบรค', name:'เบรคมือ', std:'ขึ้น 5-7 จังหวะแน่น'},
+  {cat:'เบรค', name:'ลมเบรค', std:'100-120 PSI'},
+  {cat:'ยาง', name:'ลมยาง 10 เส้น', std:'100-110 PSI ทุกเส้น'},
+  {cat:'ยาง', name:'ดอกยาง / รอยตำหนิ', std:'ดอกยางลึก > 1.6 mm'},
+  {cat:'ระบบไฟ', name:'ไฟหน้า ต่ำ/สูง', std:'ทุกดวงสว่าง'},
+  {cat:'ระบบไฟ', name:'ไฟเลี้ยว L/R + ฉุกเฉิน', std:'กะพริบสม่ำเสมอ'},
+  {cat:'ระบบไฟ', name:'ไฟเบรค + ไฟถอย', std:'ติดทันที'},
+  {cat:'ระบบไฟ', name:'ไฟส่องป้าย / ภายใน', std:'ทุกดวงสว่าง'},
+  {cat:'กระจก', name:'กระจกหน้า + ข้าง L/R + ส่องท้าย', std:'ไม่แตก + ปรับได้'},
+  {cat:'กระจก', name:'ที่ปัดน้ำฝน + ฉีดน้ำ', std:'ใบยางไม่แข็ง'},
+  {cat:'กระจก', name:'แตร + สัญญาณถอย', std:'ดังชัดเจน'},
+  {cat:'กระจก', name:'เข็มขัดนิรภัย', std:'คาดได้แน่น + ดึงคืนได้'},
+  {cat:'เอกสาร', name:'ทะเบียนรถ (วันต่ออายุ)', std:'ไม่หมดอายุ'},
+  {cat:'เอกสาร', name:'พ.ร.บ. (วันหมด)', std:'ไม่หมดอายุ'},
+  {cat:'เอกสาร', name:'ประกันภัย', std:'ไม่หมดอายุ'},
+  {cat:'เอกสาร', name:'ใบขับขี่คนขับ', std:'ประเภท 4 ขึ้นไป'},
+  {cat:'ฉุกเฉิน', name:'ถังดับเพลิง', std:'แรงดันเข็มเขียว'},
+  {cat:'ฉุกเฉิน', name:'ป้ายเตือน + ไฟวาบ', std:'พร้อมใช้'},
+  {cat:'ฉุกเฉิน', name:'ยางอะไหล่ + เครื่องมือ', std:'ลมเต็ม + ครบชุด'},
+  {cat:'ฉุกเฉิน', name:'สามเหลี่ยมเตือน', std:'2 ชิ้น'}
+];
+const _T10_MONTHLY_X = [
+  {cat:'เครื่องยนต์ละเอียด', name:'น้ำมันเกียร์ (ระดับ + สี)', std:'ใส + เต็ม'},
+  {cat:'เครื่องยนต์ละเอียด', name:'น้ำมันเฟืองท้าย', std:'ระดับเต็ม'},
+  {cat:'เครื่องยนต์ละเอียด', name:'น้ำมันพวงมาลัยพาวเวอร์', std:'ไม่มีฟอง'},
+  {cat:'เครื่องยนต์ละเอียด', name:'ไส้กรองอากาศ (สภาพภายนอก)', std:'ไม่อุดตัน'},
+  {cat:'ช่วงล่าง', name:'แหนบ + ก้ามแหนบ', std:'ไม่มีรอยร้าว/หัก'},
+  {cat:'ช่วงล่าง', name:'โช้คอัพ', std:'ไม่มีรอยรั่ว'},
+  {cat:'ช่วงล่าง', name:'บูชเพลา + คานยึด', std:'ไม่หลวม'},
+  {cat:'ช่วงล่าง', name:'เพลาขับ + Cross Joint', std:'ไม่มีเสียง'},
+  {cat:'คลัทช์-เกียร์', name:'จังหวะกดคลัทช์', std:'จังหวะ 1/3-1/2'},
+  {cat:'คลัทช์-เกียร์', name:'เปลี่ยนเกียร์ลื่น', std:'ไม่ติด'},
+  {cat:'ไฟฟ้า', name:'ขั้วแบตเตอรี่', std:'สะอาด + ไม่กัดกร่อน'},
+  {cat:'ไฟฟ้า', name:'ระบบชาร์จ (Alternator)', std:'13.8-14.5V'},
+  {cat:'ตัวถัง', name:'กระบะหลัง / สภาพพื้น', std:'ไม่ผุ + ไม่บิด'},
+  {cat:'ตัวถัง', name:'ราวบันได', std:'ไม่หลวม'},
+  {cat:'ตัวถัง', name:'รอยสนิม / รอยผุ', std:'ระบุตำแหน่ง'}
+];
+const _T10_PREREPAIR_X = [
+  {cat:'อาการ', name:'เสียงผิดปกติจากเครื่อง', std:'ระบุประเภทเสียง'},
+  {cat:'อาการ', name:'การสั่นสะเทือนผิดปกติ', std:'ระบุความเร็วที่เกิด'},
+  {cat:'อาการ', name:'กลิ่นไหม้ / กลิ่นน้ำมัน', std:'ระบุตำแหน่ง'},
+  {cat:'อาการ', name:'ควันไอเสีย (ดำ/ขาว/น้ำเงิน)', std:'สี + จังหวะ'},
+  {cat:'อาการ', name:'เครื่องสตาร์ทยาก', std:'จังหวะ + ความถี่'},
+  {cat:'ข้อมูล', name:'เลขไมล์ปัจจุบัน', std:'จากหน้าปัด km'},
+  {cat:'ข้อมูล', name:'เลขไมล์ครั้งล่าสุดเปลี่ยนน้ำมันเครื่อง', std:'km'},
+  {cat:'ข้อมูล', name:'เลขไมล์ครั้งล่าสุดเปลี่ยนกรอง', std:'km'},
+  {cat:'ข้อมูล', name:'อายุการใช้งานยาง', std:'จำนวนเดือน'},
+  {cat:'ข้อมูล', name:'ระยะเวลาที่อาการเริ่ม', std:'+ ความถี่'}
+];
+const _TR_TRACTOR_X = [
+  {cat:'ระบบลม (Air)', name:'แรงดันลม Compressor', std:'120-130 PSI'},
+  {cat:'ระบบลม (Air)', name:'ถังลม + วาล์วระบายน้ำ', std:'ไม่มีน้ำสะสม'},
+  {cat:'ระบบลม (Air)', name:'ท่อลม / สาย Glad Hand', std:'ไม่รั่ว'},
+  {cat:'5th Wheel', name:'จานหมุน (สะอาด + จาระบี)', std:'จาระบีพร้อม'},
+  {cat:'5th Wheel', name:'King Pin Lock', std:'ทดสอบเปิด/ปิด'},
+  {cat:'5th Wheel', name:'สาย Glad Hand (Service R / Emergency L)', std:'สีถูก + ไม่ผุ'},
+  {cat:'5th Wheel', name:'ปลั๊กไฟต่อหาง 7-pin / 15-pin', std:'ทุก pin ใช้ได้'}
+];
+const _TR_TRACTOR_MONTHLY_X = [
+  {cat:'5th Wheel ละเอียด', name:'ระยะ Play ของ King Pin', std:'≤ 3 mm'},
+  {cat:'5th Wheel ละเอียด', name:'ขายึด 5th wheel + Bolt', std:'ขันแน่น'}
+];
+const _TRAILER_WEEKLY = [
+  {cat:'ยาง', name:'ลมยาง 12 เส้น (3-axle)', std:'100-110 PSI'},
+  {cat:'ยาง', name:'ดอกยาง / รอยตำหนิ', std:'> 1.6 mm'},
+  {cat:'ยาง', name:'น็อตล้อ + ขันแน่น', std:'ครบ + ไม่หลวม'},
+  {cat:'เบรค', name:'ลมเบรค (รับจากหัวลาก)', std:'กดเบรค → ล็อค'},
+  {cat:'เบรค', name:'ผ้าเบรค (สึกหรอ)', std:'> 6 mm'},
+  {cat:'ขาทรัส', name:'Landing gear', std:'หมุนขึ้น/ลงได้'},
+  {cat:'ขาทรัส', name:'ไม่บิดงอ', std:'ตั้งตรง'},
+  {cat:'King Pin', name:'ความสึกหรอ', std:'50.8 mm'},
+  {cat:'King Pin', name:'ความสูง', std:'1245-1295 mm'},
+  {cat:'King Pin', name:'จาระบี + สะอาด', std:'จาระบีพร้อม'},
+  {cat:'Twist Lock', name:'4 มุม — ล็อคได้แน่น', std:'หมุน 90° แน่น'},
+  {cat:'Twist Lock', name:'สลักไม่หาย', std:'ครบ 4 ตัว'},
+  {cat:'กระบะ/พื้น', name:'ไม่ผุ ไม่บิด', std:'ตรวจรอบ'},
+  {cat:'กระบะ/พื้น', name:'คานยึด (Cross member)', std:'ไม่ร้าว'},
+  {cat:'ไฟท้าย', name:'ไฟหลัก + ไฟเลี้ยว L/R', std:'กะพริบสม่ำเสมอ'},
+  {cat:'ไฟท้าย', name:'ไฟเบรค + ไฟถอย', std:'ติดทันที'},
+  {cat:'ไฟท้าย', name:'ไฟส่องป้าย', std:'สว่าง'},
+  {cat:'โครงสร้าง', name:'Chassis ไม่บิด/ไม่ร้าว', std:'ตรวจตลอด'},
+  {cat:'เอกสาร', name:'ทะเบียนพ่วง', std:'ไม่หมด'},
+  {cat:'เอกสาร', name:'ประกันหาง', std:'ไม่หมด'}
+];
+const _TRAILER_MONTHLY_X = [
+  {cat:'ช่วงล่าง', name:'บูชแหนบ', std:'ไม่หลวม'},
+  {cat:'ช่วงล่าง', name:'โช้คอัพ (air suspension)', std:'ไม่รั่ว'},
+  {cat:'ช่วงล่าง', name:'เพลา + Axle Alignment', std:'ตรงกัน'},
+  {cat:'เบรค', name:'ระบบ ABS', std:'ไฟ ABS ดับหลังสตาร์ท'},
+  {cat:'โครงสร้าง', name:'รอยสนิมโครงเหล็ก', std:'ระบุตำแหน่ง'},
+  {cat:'Container', name:'ขายึดตู้ (Container locks)', std:'ครบ + ล็อคได้'},
+  {cat:'ป้าย', name:'Reflector + Side marker', std:'ครบ + สะท้อนแสง'},
+  {cat:'อุปกรณ์', name:'โซ่ + Hook', std:'ไม่ขึ้นสนิม'},
+  {cat:'อุปกรณ์', name:'ผ้าใบ + เชือก', std:'ไม่ฉีก'},
+  {cat:'อุปกรณ์', name:'ระบบยกเทเอียง (Tipper)', std:'ทำงานปกติ'}
+];
+const _TRAILER_PREREPAIR_X = [
+  {cat:'อาการ', name:'เบรคไม่กิน / เบรคติดข้าง', std:'ระบุข้าง'},
+  {cat:'อาการ', name:'เลี้ยวลำบาก / ลื่นไถล', std:'จังหวะ'},
+  {cat:'อาการ', name:'เสียงครางจากเพลา', std:'ความเร็ว'},
+  {cat:'อาการ', name:'การสั่นสะเทือนผิดปกติ', std:'ความเร็ว + จังหวะ'},
+  {cat:'ข้อมูล', name:'เลขไมล์รวมที่ใช้งาน', std:'km'},
+  {cat:'ข้อมูล', name:'ครั้งล่าสุดเปลี่ยนผ้าเบรค', std:'km'},
+  {cat:'ข้อมูล', name:'ครั้งล่าสุดเปลี่ยนยาง', std:'km'},
+  {cat:'ข้อมูล', name:'ระยะเวลาที่อาการเริ่ม', std:''}
+];
+
+// Build INSPECTION_ITEMS — 9 templates total (cascading: monthly = weekly + extras)
+const INSPECTION_ITEMS = {
+  truck10: {
+    weekly: _T10_WEEKLY,
+    monthly: _T10_WEEKLY.concat(_T10_MONTHLY_X),
+    pre_repair: _T10_WEEKLY.concat(_T10_MONTHLY_X).concat(_T10_PREREPAIR_X)
+  },
+  tractor: {
+    weekly: _T10_WEEKLY.slice(0,9).concat(_TR_TRACTOR_X).concat(_T10_WEEKLY.slice(9)),
+    monthly: _T10_WEEKLY.slice(0,9).concat(_TR_TRACTOR_X).concat(_T10_WEEKLY.slice(9)).concat(_T10_MONTHLY_X).concat(_TR_TRACTOR_MONTHLY_X),
+    pre_repair: _T10_WEEKLY.slice(0,9).concat(_TR_TRACTOR_X).concat(_T10_WEEKLY.slice(9)).concat(_T10_MONTHLY_X).concat(_TR_TRACTOR_MONTHLY_X).concat(_T10_PREREPAIR_X)
+  },
+  trailer: {
+    weekly: _TRAILER_WEEKLY,
+    monthly: _TRAILER_WEEKLY.concat(_TRAILER_MONTHLY_X),
+    pre_repair: _TRAILER_WEEKLY.concat(_TRAILER_MONTHLY_X).concat(_TRAILER_PREREPAIR_X)
+  }
+};
+
+const _RATING_LABELS = {5:'ดีมาก', 4:'ดี', 3:'พอใช้', 2:'ต้องแก้', 1:'เสีย'};
+const _TPL_LABELS = {weekly:'📅 Weekly', monthly:'📆 Monthly', pre_repair:'🛠 Pre-repair'};
+const _VTYPE_LABELS = {truck10:'🚛 รถสิบล้อ', tractor:'🚜 หัวลาก', trailer:'🚚 หาง'};
+
+let _currentInspectionResults = []; // [{idx, rating, note}]
+
+// ── Switch tab ──
+function insSwitchTab(tab){
+  ['history','new','templates'].forEach(function(t){
+    var btn = document.getElementById('ins-tab-'+t);
+    var pg = document.getElementById('ins-pg-'+t);
+    if(btn) btn.classList.toggle('active', t===tab);
+    if(pg) pg.style.display = (t===tab) ? 'block' : 'none';
+  });
+  if(tab==='history') renderInspections();
+  if(tab==='new') insInitNewForm();
+  if(tab==='templates') insRenderTemplate();
+}
+
+// ── Init new form ──
+function insInitNewForm(){
+  var dateEl = document.getElementById('ins-date');
+  if(dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0,10);
+  var inspector = document.getElementById('ins-inspector');
+  if(inspector && !inspector.value && currentUser){
+    inspector.value = currentUser.fname + ' ' + currentUser.lname;
+  }
+  // Populate vehicle dropdown
+  var vSelect = document.getElementById('ins-vehicle');
+  if(vSelect){
+    vSelect.innerHTML = '<option value="">— เลือกทะเบียน —</option>' +
+      (typeof getAllVehicles==='function' ? getAllVehicles() : []).map(function(v){
+        return '<option value="' + v.vehicle_type + ':' + v.id + '">' + escapeHtml(v.label) + '</option>';
+      }).join('');
+  }
+}
+
+// ── Load template after vehicle/template change ──
+function insLoadTemplate(){
+  var vStr = document.getElementById('ins-vehicle').value;
+  var tpl = document.getElementById('ins-template').value;
+  if(!vStr || !tpl){
+    document.getElementById('ins-checklist-wrap').style.display = 'none';
+    return;
+  }
+  var [vt, vid] = vStr.split(':');
+  var items = (INSPECTION_ITEMS[vt] && INSPECTION_ITEMS[vt][tpl]) || [];
+  if(!items.length){
+    document.getElementById('ins-checklist-wrap').style.display = 'none';
+    showToast('ไม่พบ template สำหรับประเภทรถนี้');
+    return;
+  }
+  // Reset results
+  _currentInspectionResults = items.map(function(){return {rating:null, note:''};});
+  // Render checklist
+  var title = '📋 รายการตรวจ — ' + (_TPL_LABELS[tpl]||tpl) + ' (' + items.length + ' ข้อ)';
+  document.getElementById('ins-checklist-title').textContent = title;
+  var body = document.getElementById('ins-checklist-body');
+  // Group by category
+  var byCategory = {};
+  items.forEach(function(item, i){
+    if(!byCategory[item.cat]) byCategory[item.cat] = [];
+    byCategory[item.cat].push({item:item, idx:i});
+  });
+  var html = '';
+  Object.keys(byCategory).forEach(function(cat){
+    html += '<div class="ins-section">' +
+      '<div class="ins-section-title">📁 ' + escapeHtml(cat) + ' (' + byCategory[cat].length + ')</div>';
+    byCategory[cat].forEach(function(x){
+      html += '<div class="ins-item">' +
+        '<div>' +
+          '<div class="ins-item-text">' + (x.idx+1) + '. ' + escapeHtml(x.item.name) + '</div>' +
+          (x.item.std ? '<div class="ins-item-std">📏 ' + escapeHtml(x.item.std) + '</div>' : '') +
+        '</div>' +
+        '<div class="ins-rating" id="ins-rating-' + x.idx + '">' +
+          [5,4,3,2,1].map(function(r){
+            return '<button type="button" class="ins-rate-btn r' + r + '" onclick="insSetRating(' + x.idx + ',' + r + ')">' + r + ' ' + _RATING_LABELS[r] + '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  });
+  body.innerHTML = html;
+  document.getElementById('ins-checklist-wrap').style.display = 'block';
+  insUpdateStats();
+}
+
+function insSetRating(idx, rating){
+  _currentInspectionResults[idx] = _currentInspectionResults[idx] || {};
+  _currentInspectionResults[idx].rating = rating;
+  // Update UI
+  var wrap = document.getElementById('ins-rating-' + idx);
+  if(wrap){
+    wrap.querySelectorAll('.ins-rate-btn').forEach(function(b){
+      b.classList.remove('active');
+    });
+    var btn = wrap.querySelector('.r' + rating);
+    if(btn) btn.classList.add('active');
+  }
+  insUpdateStats();
+}
+
+function insUpdateStats(){
+  var stats = {good:0, warn:0, bad:0, pending:0};
+  _currentInspectionResults.forEach(function(r){
+    if(!r || r.rating==null) stats.pending++;
+    else if(r.rating>=4) stats.good++;
+    else if(r.rating===3) stats.warn++;
+    else stats.bad++;
+  });
+  var elG=document.getElementById('ins-stat-good'); if(elG) elG.textContent=stats.good;
+  var elW=document.getElementById('ins-stat-warn'); if(elW) elW.textContent=stats.warn;
+  var elB=document.getElementById('ins-stat-bad'); if(elB) elB.textContent=stats.bad;
+  var elP=document.getElementById('ins-stat-pending'); if(elP) elP.textContent=stats.pending;
+}
+
+function insReset(){
+  if(!confirm('ล้างฟอร์มทั้งหมด? (ผลที่กรอกจะหายไป)')) return;
+  _currentInspectionResults = [];
+  document.getElementById('ins-vehicle').value = '';
+  document.getElementById('ins-note').value = '';
+  document.getElementById('ins-checklist-wrap').style.display = 'none';
+}
+
+// ── Save inspection ──
+async function saveInspection(printAfter){
+  var date = document.getElementById('ins-date').value;
+  var vStr = document.getElementById('ins-vehicle').value;
+  var tpl = document.getElementById('ins-template').value;
+  var inspector = document.getElementById('ins-inspector').value;
+  var note = document.getElementById('ins-note').value;
+  if(!date){ showToast('กรอกวันที่'); return; }
+  if(!vStr){ showToast('เลือกรถ'); return; }
+  var items = INSPECTION_ITEMS[vStr.split(':')[0]][tpl];
+  // Build results with item names attached
+  var results = _currentInspectionResults.map(function(r,i){
+    return {
+      item_name: items[i].name,
+      category: items[i].cat,
+      rating: r ? r.rating : null,
+      note: r ? r.note || '' : ''
+    };
+  });
+  var totalIssues = results.filter(function(r){return r.rating && r.rating <= 2;}).length;
+  var hasIssues = totalIssues > 0;
+  var [vt, vid] = vStr.split(':');
+
+  var obj = {
+    id: (inspections.length ? Math.max.apply(null, inspections.map(function(x){return x.id||0;}))+1 : 1),
+    vehicle_id: parseInt(vid),
+    vehicle_type: vt,
+    template_type: tpl,
+    inspection_date: date,
+    inspector_id: currentUser ? currentUser.id : null,
+    inspector_name: inspector,
+    results: results,
+    overall_status: hasIssues ? (totalIssues > 3 ? 'critical' : 'warning') : 'ok',
+    total_issues: totalIssues,
+    note: note,
+    created_at: new Date().toISOString()
+  };
+  inspections.push(obj);
+  showToast('บันทึกใบตรวจสภาพเรียบร้อย ✓ (' + (results.filter(function(r){return r.rating;}).length) + '/' + results.length + ' ข้อ)');
+  // Sync
+  try {
+    if(_onlineMode) await sbFetch('gyt_inspections','POST',[obj],'?on_conflict=id');
+  } catch(e){ console.warn('saveInspection sync error:', e); }
+  if(printAfter){
+    insPrintRecord(obj.id);
+  } else {
+    insSwitchTab('history');
+  }
+}
+
+// ── Render history list ──
+function renderInspections(){
+  var ftpl = (document.getElementById('ins-filter-template')||{}).value || '';
+  var allVehicles = (typeof getAllVehicles==='function' ? getAllVehicles() : []);
+  var vMap = {}; allVehicles.forEach(function(v){vMap[v.vehicle_type+':'+v.id]=v;});
+
+  var filtered = (inspections||[]).filter(function(r){
+    if(ftpl && r.template_type!==ftpl) return false;
+    return true;
+  });
+  filtered.sort(function(a,b){return (b.inspection_date||'').localeCompare(a.inspection_date||'');});
+
+  var cnt = document.getElementById('ins-records-count');
+  if(cnt) cnt.textContent = filtered.length;
+
+  var tbody = document.getElementById('ins-records-tbody');
+  var emptyEl = document.getElementById('ins-records-empty');
+  if(!tbody) return;
+  if(!filtered.length){ tbody.innerHTML=''; if(emptyEl) emptyEl.style.display='block'; return; }
+  if(emptyEl) emptyEl.style.display='none';
+
+  tbody.innerHTML = filtered.map(function(r){
+    var v = vMap[r.vehicle_type+':'+r.vehicle_id];
+    var statusBadge = r.overall_status==='critical' ?
+      '<span style="background:#FEE2E2;color:#991B1B;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">🔴 วิกฤต (' + r.total_issues + ' ข้อ)</span>' :
+      r.overall_status==='warning' ?
+      '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">🟡 มีปัญหา (' + r.total_issues + ')</span>' :
+      '<span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">🟢 ปกติ</span>';
+    return '<tr>' +
+      '<td>' + (r.inspection_date||'—') + '</td>' +
+      '<td><strong>' + escapeHtml(v?v.plate:'(รถถูกลบ)') + '</strong>' +
+        '<div style="font-size:10px;color:var(--text-3)">' + (_VTYPE_LABELS[r.vehicle_type]||r.vehicle_type) + '</div></td>' +
+      '<td>' + (_TPL_LABELS[r.template_type]||r.template_type) + '</td>' +
+      '<td>' + escapeHtml(r.inspector_name||'—') + '</td>' +
+      '<td style="text-align:center">' + statusBadge + '</td>' +
+      '<td><button class="btn-sm" onclick="insViewRecord(' + r.id + ')">ดู</button> ' +
+          '<button class="btn-sm" onclick="insPrintRecord(' + r.id + ')">🖨 พิมพ์</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── View record (open print preview) ──
+function insViewRecord(id){
+  insPrintRecord(id);
+}
+
+// ── Print inspection record ──
+function insPrintRecord(id){
+  var r = (inspections||[]).find(function(x){return x.id===id;});
+  if(!r){ showToast('ไม่พบรายการ'); return; }
+  var allVehicles = (typeof getAllVehicles==='function' ? getAllVehicles() : []);
+  var v = allVehicles.find(function(x){return x.id===r.vehicle_id && x.vehicle_type===r.vehicle_type;});
+  var win = window.open('', '_blank', 'width=800,height=900');
+  var html = '<html><head><title>ใบตรวจสภาพรถ' + (v?' - '+v.plate:'') + '</title><style>' +
+    'body{font-family:Sarabun,sans-serif;padding:20px;color:#111;font-size:12px}' +
+    'h2{color:#1E5C3A;margin:0 0 6px}h3{margin:14px 0 6px;color:#2D7A4F}' +
+    'table{width:100%;border-collapse:collapse;margin-top:8px}' +
+    'th,td{padding:5px 8px;border:1px solid #ccc;font-size:11px;vertical-align:top}' +
+    'th{background:#f0f0f0;text-align:left}' +
+    '.cat-row{background:#E8F5EC;font-weight:700;color:#1E5C3A}' +
+    '.r-checkbox{text-align:center;width:50px}' +
+    '.sig-row{display:flex;justify-content:space-between;margin-top:30px}' +
+    '.sig-box{width:45%;border-top:1px solid #333;padding-top:6px;text-align:center;font-size:11px}' +
+    '@media print{.noprint{display:none}}</style></head><body>';
+  html += '<h2>บริษัท กรีน เยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด</h2>';
+  html += '<div style="font-size:10px;color:#666">31/1 ซ.เชื้อเพลิง(อมร) ถ.เชื้อเพลิง แขวงช่องนนทรี เขตยานนาวา กรุงเทพฯ 10120 | TAX ID: 0115544003652</div>';
+  html += '<hr><h3 style="text-align:center">📋 ใบตรวจสภาพรถ — ' + (_TPL_LABELS[r.template_type]||r.template_type) + '</h3>';
+  html += '<table style="margin-bottom:10px"><tr>' +
+    '<td><strong>วันที่ตรวจ:</strong> ' + (r.inspection_date||'—') + '</td>' +
+    '<td><strong>ทะเบียนรถ:</strong> ' + (v?v.plate:'—') + ' (' + (_VTYPE_LABELS[r.vehicle_type]||r.vehicle_type) + ')</td>' +
+    '<td><strong>ผู้ตรวจ:</strong> ' + (r.inspector_name||'—') + '</td>' +
+  '</tr></table>';
+
+  html += '<table><thead><tr><th style="width:30px">#</th><th>รายการตรวจ</th><th>มาตรฐาน</th><th class="r-checkbox">5<br>ดีมาก</th><th class="r-checkbox">4<br>ดี</th><th class="r-checkbox">3<br>พอใช้</th><th class="r-checkbox">2<br>ต้องแก้</th><th class="r-checkbox">1<br>เสีย</th><th>หมายเหตุ</th></tr></thead><tbody>';
+  var lastCat = '';
+  (r.results||[]).forEach(function(item, i){
+    var items = INSPECTION_ITEMS[r.vehicle_type] && INSPECTION_ITEMS[r.vehicle_type][r.template_type];
+    var meta = items ? items[i] : null;
+    if(item.category !== lastCat){
+      html += '<tr class="cat-row"><td colspan="9">📁 ' + (item.category||'') + '</td></tr>';
+      lastCat = item.category;
+    }
+    var checks = [5,4,3,2,1].map(function(rt){
+      return '<td class="r-checkbox">' + (item.rating===rt ? '☑' : '☐') + '</td>';
+    }).join('');
+    html += '<tr>' +
+      '<td style="text-align:center">' + (i+1) + '</td>' +
+      '<td>' + (item.item_name||'') + '</td>' +
+      '<td style="font-size:10px;color:#666">' + (meta?(meta.std||''):'') + '</td>' +
+      checks +
+      '<td>' + (item.note||'') + '</td>' +
+    '</tr>';
+  });
+  html += '</tbody></table>';
+
+  if(r.note){
+    html += '<div style="margin-top:10px;padding:8px;background:#FFFBEB;border-left:3px solid #E8B800"><strong>หมายเหตุรวม:</strong> ' + r.note + '</div>';
+  }
+
+  html += '<div class="sig-row"><div class="sig-box">ผู้ตรวจ<br>(' + (r.inspector_name||'') + ')<br>วันที่: ____________</div><div class="sig-box">ผู้รับรอง (Supervisor)<br>(__________________)<br>วันที่: ____________</div></div>';
+  html += '<div class="noprint" style="margin-top:20px;text-align:center"><button onclick="window.print()" style="padding:10px 24px;background:#2D7A4F;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">🖨 พิมพ์</button></div>';
+  html += '</body></html>';
+  win.document.write(html);
+  win.document.close();
+}
+
+// ── Render template viewer ──
+function insRenderTemplate(){
+  var vt = document.getElementById('ins-tpl-vtype').value;
+  var freq = document.getElementById('ins-tpl-freq').value;
+  var items = (INSPECTION_ITEMS[vt] && INSPECTION_ITEMS[vt][freq]) || [];
+  var byCategory = {};
+  items.forEach(function(item, i){
+    if(!byCategory[item.cat]) byCategory[item.cat] = [];
+    byCategory[item.cat].push({item, idx:i});
+  });
+  var html = '<h3 style="margin-top:14px">' + (_VTYPE_LABELS[vt]||vt) + ' — ' + (_TPL_LABELS[freq]||freq) + ' (' + items.length + ' ข้อ)</h3>';
+  Object.keys(byCategory).forEach(function(cat){
+    html += '<div class="ins-section"><div class="ins-section-title">📁 ' + escapeHtml(cat) + ' (' + byCategory[cat].length + ' ข้อ)</div>';
+    byCategory[cat].forEach(function(x){
+      html += '<div class="ins-item"><div>' +
+        '<div class="ins-item-text">' + (x.idx+1) + '. ' + escapeHtml(x.item.name) + '</div>' +
+        (x.item.std ? '<div class="ins-item-std">📏 ' + escapeHtml(x.item.std) + '</div>' : '') +
+        '</div></div>';
+    });
+    html += '</div>';
+  });
+  document.getElementById('ins-tpl-display').innerHTML = html;
+}
+
+// Trigger initial render when nav to inspection
+const _origGoPage = window.goPage;
+if(_origGoPage){
+  window.goPage = function(id, opts){
+    _origGoPage(id, opts);
+    if(id==='inspection') insSwitchTab('history');
+  };
 }
 
 // ── AUTO LOGIN FROM SESSION ──────────────────────────────
