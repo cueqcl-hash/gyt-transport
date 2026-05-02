@@ -470,6 +470,23 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 #pg-ratecalc .calc-result-row{border:1.5px solid var(--green-m);border-radius:8px;padding:10px 12px;margin-bottom:6px;cursor:pointer;background:var(--green-l);transition:all .15s}
 #pg-ratecalc .calc-result-row:hover{border-color:var(--green);background:#fff;transform:translateX(2px);box-shadow:0 2px 8px rgba(45,122,79,0.15)}
 #pg-ratecalc #btn-use-current-oil:hover{background:var(--green);color:#fff}
+/* ── Maintenance & Inspection Pages ── */
+#pg-maintenance .mt-tabs,#pg-inspection .mt-tabs{display:flex;gap:4px;margin-bottom:18px;background:var(--surface);border-radius:var(--radius-lg);padding:4px;border:1px solid var(--border);overflow-x:auto}
+#pg-maintenance .mt-tab,#pg-inspection .mt-tab{flex:1;min-width:130px;height:40px;border-radius:8px;border:none;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:.15s;color:var(--text-2);background:transparent;white-space:nowrap;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px}
+#pg-maintenance .mt-tab:hover,#pg-inspection .mt-tab:hover{background:var(--green-l);color:var(--green-d)}
+#pg-maintenance .mt-tab.active,#pg-inspection .mt-tab.active{background:var(--green);color:#fff;box-shadow:0 2px 6px rgba(45,122,79,.3)}
+#pg-maintenance .mt-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:14px}
+#pg-maintenance .mt-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+#pg-maintenance .mt-card-title{font-size:16px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+#pg-maintenance .mt-empty{padding:40px;text-align:center;color:var(--text-3);font-size:13px}
+#pg-maintenance .mt-pill-cash{display:inline-block;background:#FEF3C7;color:#92400E;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600}
+#pg-maintenance .mt-pill-vat{display:inline-block;background:#DBEAFE;color:#1E40AF;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600}
+#pg-maintenance .mt-interval-row{display:grid;grid-template-columns:2fr 1fr 1fr 60px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+#pg-maintenance .mt-interval-row:last-child{border-bottom:none}
+#pg-maintenance .mt-interval-row label{font-size:13px;font-weight:600;color:var(--text)}
+#pg-maintenance .mt-interval-row input{height:32px;padding:0 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:13px;text-align:right}
+#pg-maintenance .mt-help{background:var(--green-l);color:var(--green-d);padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;line-height:1.6}
+
 #pg-ratecalc /* ── Range table in modal ── */
 .range-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}#pg-ratecalc .range-table th{padding:6px 8px;background:var(--bg);border:1px solid var(--border);font-weight:700;color:var(--text-2)}#pg-ratecalc .range-table td{padding:5px 8px;border:1px solid var(--border)}#pg-ratecalc .range-table input{width:80px;height:28px;padding:0 6px;border-radius:4px;border:1px solid var(--border);font-family:var(--mono);font-size:12px;text-align:right}#pg-ratecalc .btn-add-range{height:28px;padding:0 12px;border-radius:4px;border:1.5px solid var(--green-m);background:var(--green-l);color:var(--green-d);font-size:11px;cursor:pointer;font-family:var(--font);font-weight:600;margin-top:8px}#pg-ratecalc /* ── Pager ── */
 .pager{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--text-3)}#pg-ratecalc .pager-btns{display:flex;gap:4px}#pg-ratecalc .pager-btn{height:26px;min-width:26px;padding:0 8px;border-radius:5px;border:1.5px solid var(--border);background:#fff;color:var(--text-2);font-size:11px;cursor:pointer;font-family:var(--font)}#pg-ratecalc .pager-btn.active{background:var(--green);color:#fff;border-color:var(--green)}#pg-ratecalc .pager-btn:disabled{opacity:.3;cursor:not-allowed}#pg-ratecalc /* ── Toast ── */
@@ -1062,6 +1079,146 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   
       </div>
 
+      <!-- MAINTENANCE — Phase 1B (Tabs + อู่ซ่อม + รอบซ่อม) -->
+      <div id="pg-maintenance" class="screen">
+        <!-- Tabs -->
+        <div class="mt-tabs">
+          <button class="mt-tab" id="mt-tab-records" onclick="mtSwitchTab('records')">📋 บันทึกซ่อม</button>
+          <button class="mt-tab" id="mt-tab-alerts" onclick="mtSwitchTab('alerts')">🚨 แจ้งเตือน</button>
+          <button class="mt-tab active" id="mt-tab-shops" onclick="mtSwitchTab('shops')">🏪 อู่ซ่อม</button>
+          <button class="mt-tab" id="mt-tab-intervals" onclick="mtSwitchTab('intervals')">⚙️ รอบซ่อม</button>
+          <button class="mt-tab" id="mt-tab-reports" onclick="mtSwitchTab('reports')">📊 รายงาน</button>
+        </div>
+
+        <!-- TAB: บันทึกซ่อม (Phase 2 — placeholder) -->
+        <div id="mt-pg-records" class="mt-page" style="display:none">
+          <div class="mt-card">
+            <div class="mt-empty">
+              <div style="font-size:36px;margin-bottom:10px">📋</div>
+              <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">บันทึกซ่อม — Phase 2</div>
+              <div>ฟีเจอร์ CRUD บันทึกการซ่อม พร้อม Upload ใบกำกับภาษี กำลังพัฒนา</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: แจ้งเตือน (Phase 3 — placeholder) -->
+        <div id="mt-pg-alerts" class="mt-page" style="display:none">
+          <div class="mt-card">
+            <div class="mt-empty">
+              <div style="font-size:36px;margin-bottom:10px">🚨</div>
+              <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">แจ้งเตือนรอบซ่อม — Phase 3</div>
+              <div>ระบบแจ้งเตือนรถที่ใกล้ครบรอบ/เกินกำหนดซ่อม</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: อู่ซ่อม (Phase 1B — Active) -->
+        <div id="mt-pg-shops" class="mt-page">
+          <div class="mt-help">
+            🏪 <strong>Directory อู่ซ่อม</strong> — เก็บข้อมูลอู่ที่ใช้บริการประจำ ใช้ตอนกรอกบันทึกซ่อม จะ auto-fill ข้อมูลให้
+            <br>💵 <strong>เงินสด</strong> = ใบบิลธรรมดา ไม่มี VAT &nbsp;|&nbsp;
+            🧾 <strong>VAT 7%</strong> = ใบกำกับภาษี (ใช้หักลดหย่อน/บัญชีได้)
+          </div>
+          <div class="mt-card">
+            <div class="mt-card-header">
+              <div class="mt-card-title">🏪 รายชื่ออู่ซ่อม — <span id="mt-shops-count" style="color:var(--green)">0</span> ราย</div>
+              <button class="btn btn-green" onclick="mtOpenShop()">+ เพิ่มอู่</button>
+            </div>
+            <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <input class="fi" id="mt-shops-search" placeholder="ค้นหา ชื่ออู่ / เลขผู้เสียภาษี / เบอร์..." oninput="renderRepairShops()" style="flex:1;min-width:200px">
+              <select class="fi" id="mt-shops-filter-type" onchange="renderRepairShops()" style="width:160px">
+                <option value="">ทุกประเภท</option>
+                <option value="cash">💵 เงินสด</option>
+                <option value="vat">🧾 VAT 7%</option>
+              </select>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ชื่ออู่ / บริษัท</th>
+                    <th>ประเภท</th>
+                    <th>เลขผู้เสียภาษี</th>
+                    <th>เบอร์ติดต่อ</th>
+                    <th>ผู้ติดต่อ</th>
+                    <th style="width:100px"></th>
+                  </tr>
+                </thead>
+                <tbody id="mt-shops-tbody"></tbody>
+              </table>
+              <div class="mt-empty" id="mt-shops-empty" style="display:none">
+                ยังไม่มีอู่ซ่อม — กดปุ่ม "+ เพิ่มอู่" เพื่อเริ่มต้น
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: รอบซ่อม (Phase 1B — Active) -->
+        <div id="mt-pg-intervals" class="mt-page" style="display:none">
+          <div class="mt-help">
+            ⚙️ <strong>ตั้งค่ารอบซ่อม Default</strong> — ใช้กับรถทุกคันที่ยังไม่มีการตั้งค่าเฉพาะ
+            <br>ระบบจะคำนวณ "ครั้งถัดไปที่ต้องซ่อม" จากค่านี้ + เลขไมล์ตอนซ่อมล่าสุด
+          </div>
+          <div class="mt-card">
+            <div class="mt-card-header">
+              <div class="mt-card-title">⚙️ Default รอบซ่อม (Global)</div>
+              <button class="btn btn-green" onclick="saveIntervals()">💾 บันทึก</button>
+            </div>
+            <div id="mt-intervals-body">
+              <div class="mt-interval-row" style="font-weight:700;color:var(--text-2);font-size:11px;text-transform:uppercase;border-bottom:2px solid var(--border)">
+                <div>รายการ</div>
+                <div style="text-align:right">ทุกๆ (km)</div>
+                <div style="text-align:right">หรือทุกๆ (เดือน)</div>
+                <div></div>
+              </div>
+              <!-- rows render by JS -->
+            </div>
+            <div style="margin-top:14px;padding:10px 14px;background:#FEF3C7;color:#92400E;border-radius:8px;font-size:12px">
+              💡 <strong>เคล็ดลับ:</strong> เว้นว่างไว้ในช่อง "เดือน" ถ้าต้องการให้คิดเฉพาะ km (เหมาะกับรายการที่ไม่อิงเวลา เช่น ยาง / เบรค)
+            </div>
+          </div>
+          <div class="mt-card">
+            <div class="mt-card-header">
+              <div class="mt-card-title">🔧 รอบซ่อมเฉพาะคัน (Per-Vehicle Override)</div>
+            </div>
+            <div class="mt-empty">
+              <div style="font-size:14px;color:var(--text-2);margin-bottom:6px">รถคันใดที่ต้องการรอบพิเศษ → ตั้งค่าได้ในหน้านี้ (กำลังพัฒนา)</div>
+              <div style="font-size:11px">ตอนนี้ระบบใช้ Default ด้านบนกับทุกคัน</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: รายงาน (Phase 5 — placeholder) -->
+        <div id="mt-pg-reports" class="mt-page" style="display:none">
+          <div class="mt-card">
+            <div class="mt-empty">
+              <div style="font-size:36px;margin-bottom:10px">📊</div>
+              <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">รายงานสรุปค่าซ่อม — Phase 5</div>
+              <div>รายเดือน / VAT-able / Export Excel</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INSPECTION (Phase 1A — placeholder) -->
+      <div id="pg-inspection" class="screen">
+        <div style="padding:40px;text-align:center;background:#fff;border-radius:12px;border:1px solid var(--border);margin:20px 0">
+          <div style="font-size:48px;margin-bottom:16px">✅</div>
+          <h2 style="font-size:22px;color:var(--text);margin-bottom:8px">ตรวจสภาพรถ</h2>
+          <p style="color:var(--text-2);margin-bottom:20px">หน้านี้กำลังอยู่ระหว่างพัฒนา (Phase 4)</p>
+          <div style="background:var(--green-l);padding:16px;border-radius:8px;color:var(--green-d);max-width:520px;margin:0 auto;text-align:left">
+            <div style="font-weight:700;margin-bottom:8px">✅ จะมีฟีเจอร์:</div>
+            <ul style="margin:0;padding-left:20px;line-height:1.7">
+              <li>📋 9 templates (Weekly/Monthly/Pre-repair × สิบล้อ/หัวลาก/หาง)</li>
+              <li>📊 ผลตรวจ 5 ระดับ (ดีมาก/ดี/พอใช้/ต้องแก้/เสีย)</li>
+              <li>📷 รูปภาพ Optional</li>
+              <li>🛠 ปุ่ม "สร้างใบสั่งซ่อม" (เชื่อมระบบซ่อมบำรุง)</li>
+              <li>🖨 ปริ๊นใบตรวจไปเซ็นกระดาษ</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <!-- SETTINGS -->
       <div id="pg-settings" class="screen">
 
@@ -1473,6 +1630,11 @@ const ALL_PERMS = [
   {id:'view_settings',label:'ตั้งค่าข้อมูลลูกค้า',   group:'หน้าอื่น'},
   {id:'manage_users', label:'จัดการ User/สิทธิ์',   group:'หน้าอื่น'},
   {id:'export',       label:'Export รายงาน',         group:'หน้าอื่น'},
+  // ── ซ่อมบำรุง + ตรวจสภาพ (Phase 1A) ──
+  {id:'view_maintenance',  label:'ดูบันทึกซ่อมบำรุง',     group:'ซ่อมบำรุง'},
+  {id:'manage_maintenance',label:'แก้ไขบันทึกซ่อมบำรุง',  group:'ซ่อมบำรุง'},
+  {id:'view_inspection',   label:'ดูใบตรวจสภาพรถ',        group:'ซ่อมบำรุง'},
+  {id:'manage_inspection', label:'แก้ไขใบตรวจสภาพรถ',     group:'ซ่อมบำรุง'},
 ];
 const DEFAULT_PERMS = {
   admin:      ALL_PERMS.map(function(p){return p.id;}),
@@ -3738,6 +3900,8 @@ function initApp(){
     {id:'drivers',  icon:'👤',label:'คนขับรถ',            perm:'view_drivers'},
     {id:'settings', icon:'⚙', label:'ตั้งค่าข้อมูลลูกค้า', perm:'view_settings'},
     {id:'ratecalc', icon:'⛽',label:'คำนวณราคาขนส่ง',     perm:'dashboard'}, // ใช้ dashboard เป็นเงื่อนไข (admin/supervisor เห็น)
+    {id:'maintenance',icon:'🛠',label:'ซ่อมบำรุงรถ',       perm:'view_maintenance'}, // Phase 1A
+    {id:'inspection',icon:'✅',label:'ตรวจสภาพรถ',          perm:'view_inspection'},   // Phase 1A
     {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
   ];
   const visibleNav = ALL_NAV.filter(function(n){return hasPerm(n.perm);});
@@ -3804,7 +3968,7 @@ function goPage(id, opts){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('pg-'+id)?.classList.add('active');
   document.getElementById('nav-'+id)?.classList.add('active');
-  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User'};
+  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ'};
   document.getElementById('topbar-title').textContent=titles[id]||'';
   const badge=document.getElementById('topbar-badge');
   if(id==='jobs'){badge.style.display='block';badge.textContent='Green Yello Transport';}
@@ -18353,7 +18517,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.027';
+const APP_VERSION = '2026.04.29.029';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -18518,7 +18682,8 @@ async function loadFromSupabase() {
   try {
     const [
       sbJobs, sbCustomers, sbShippers, sbBillings,
-      sbTractors, sbTrailers, sbDrivers, sbPairings, sbUsers
+      sbTractors, sbTrailers, sbDrivers, sbPairings, sbUsers,
+      sbShops, sbIntervals
     ] = await Promise.all([
       sbFetch('gyt_jobs','GET',null,'?order=startdate'),
       sbFetch('gyt_customers','GET',null,'?order=id'),
@@ -18529,6 +18694,8 @@ async function loadFromSupabase() {
       sbFetch('gyt_drivers','GET',null,'?order=id'),
       sbFetch('gyt_pairings','GET',null,''),
       sbFetch('gyt_users','GET',null,'?order=id'),
+      sbFetch('gyt_repair_shops','GET',null,'?order=id'),
+      sbFetch('gyt_maintenance_intervals','GET',null,'?order=id'),
     ]);
 
     if(sbJobs !== null) {
@@ -18542,6 +18709,8 @@ async function loadFromSupabase() {
     if(sbTractors !== null && sbTractors.length > 0) tractors = sbTractors;
     if(sbTrailers !== null && sbTrailers.length > 0) trailers = sbTrailers;
     if(sbDrivers !== null && sbDrivers.length > 0) drivers = sbDrivers;
+    if(sbShops !== null) repairShops = sbShops || [];
+    if(sbIntervals !== null) maintenanceIntervals = sbIntervals || [];
     if(sbPairings !== null && sbPairings.length > 0) {
       pairings = {};
       sbPairings.forEach(function(p){ pairings[p.plate] = p.driver_id; });
@@ -18891,6 +19060,233 @@ async function startDeploy() {
   }
 
   if (btn) { btn.disabled = false; btn.textContent = '🚀 Deploy เลย'; }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// MAINTENANCE MODULE — Phase 1B (อู่ซ่อม + รอบซ่อม)
+// ════════════════════════════════════════════════════════════════════════
+let repairShops = [];
+let maintenanceIntervals = []; // includes vehicle_id=0 globals + per-vehicle
+let editShopId = null;
+let mtCurrentTab = 'shops';
+
+// Default service types (used when no DB intervals are present yet)
+const DEFAULT_INTERVALS = [
+  {service_type:'น้ำมันเครื่อง',     interval_km:10000, interval_months:6},
+  {service_type:'กรองน้ำมันเครื่อง', interval_km:10000, interval_months:6},
+  {service_type:'กรองอากาศ',         interval_km:30000, interval_months:12},
+  {service_type:'กรองดีเซล',         interval_km:20000, interval_months:12},
+  {service_type:'ตรวจเบรค',          interval_km:30000, interval_months:null},
+  {service_type:'ยาง',               interval_km:80000, interval_months:null},
+];
+
+// ── Tab switching ──
+function mtSwitchTab(tab){
+  mtCurrentTab = tab;
+  ['records','alerts','shops','intervals','reports'].forEach(function(t){
+    var btn = document.getElementById('mt-tab-'+t);
+    var pg = document.getElementById('mt-pg-'+t);
+    if(btn) btn.classList.toggle('active', t===tab);
+    if(pg) pg.style.display = (t===tab) ? 'block' : 'none';
+  });
+  if(tab==='shops') renderRepairShops();
+  if(tab==='intervals') renderIntervalsForm();
+}
+
+// ── Repair Shops: Render List ──
+function renderRepairShops(){
+  var q = (document.getElementById('mt-shops-search')||{}).value || '';
+  var ftype = (document.getElementById('mt-shops-filter-type')||{}).value || '';
+  q = q.toLowerCase().trim();
+  var filtered = (repairShops||[]).filter(function(sh){
+    if(sh.is_active === false) return false;
+    if(ftype && sh.type !== ftype) return false;
+    if(!q) return true;
+    return ((sh.name||'').toLowerCase().includes(q)) ||
+           ((sh.tax_id||'').includes(q)) ||
+           ((sh.phone||'').includes(q));
+  });
+  var cnt = document.getElementById('mt-shops-count');
+  if(cnt) cnt.textContent = filtered.length;
+  var tbody = document.getElementById('mt-shops-tbody');
+  var emptyEl = document.getElementById('mt-shops-empty');
+  if(!tbody) return;
+  if(!filtered.length){
+    tbody.innerHTML = '';
+    if(emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+  if(emptyEl) emptyEl.style.display = 'none';
+  tbody.innerHTML = filtered.map(function(sh){
+    var pill = sh.type === 'vat'
+      ? '<span class="mt-pill-vat">🧾 VAT 7%</span>'
+      : '<span class="mt-pill-cash">💵 เงินสด</span>';
+    return '<tr>' +
+      '<td><strong>' + escapeHtml(sh.name||'—') + '</strong>' +
+        (sh.address ? '<div style="font-size:11px;color:var(--text-3);margin-top:2px">' + escapeHtml((sh.address||'').slice(0,60)) + (sh.address.length>60?'...':'') + '</div>' : '') +
+      '</td>' +
+      '<td>' + pill + '</td>' +
+      '<td style="font-family:var(--mono);font-size:12px">' + escapeHtml(sh.tax_id||'—') + '</td>' +
+      '<td>' + escapeHtml(sh.phone||'—') + '</td>' +
+      '<td>' + escapeHtml(sh.contact_person||'—') + '</td>' +
+      '<td><button class="btn-sm" onclick="mtOpenShop(' + sh.id + ')">แก้</button> ' +
+          '<button class="btn-sm danger" onclick="deleteShop(' + sh.id + ')">ลบ</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function escapeHtml(s){
+  if(s==null) return '';
+  return String(s).replace(/[&<>"\']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+// ── Repair Shop: Modal CRUD ──
+function mtOpenShop(id){
+  editShopId = id || null;
+  var title = id ? 'แก้ไขอู่ซ่อม' : 'เพิ่มอู่ซ่อม';
+  document.getElementById('ms-title').textContent = title;
+  // Reset form
+  document.getElementById('ms-name').value = '';
+  document.getElementById('ms-tax-id').value = '';
+  document.getElementById('ms-address').value = '';
+  document.getElementById('ms-phone').value = '';
+  document.getElementById('ms-contact').value = '';
+  document.getElementById('ms-note').value = '';
+  document.getElementById('ms-type-cash').checked = true;
+  if(id){
+    var sh = (repairShops||[]).find(function(x){return x.id===id;});
+    if(sh){
+      document.getElementById('ms-name').value = sh.name||'';
+      document.getElementById('ms-tax-id').value = sh.tax_id||'';
+      document.getElementById('ms-address').value = sh.address||'';
+      document.getElementById('ms-phone').value = sh.phone||'';
+      document.getElementById('ms-contact').value = sh.contact_person||'';
+      document.getElementById('ms-note').value = sh.note||'';
+      if(sh.type==='vat') document.getElementById('ms-type-vat').checked = true;
+      else document.getElementById('ms-type-cash').checked = true;
+    }
+  }
+  msToggleType();
+  openModal('modal-shop');
+}
+
+function msToggleType(){
+  var isVat = document.getElementById('ms-type-vat').checked;
+  document.getElementById('ms-vat-fields').style.display = isVat ? 'block' : 'none';
+  // Highlight selected radio container
+  document.getElementById('ms-type-cash-label').style.borderColor = isVat ? 'var(--border)' : 'var(--green)';
+  document.getElementById('ms-type-vat-label').style.borderColor = isVat ? 'var(--green)' : 'var(--border)';
+}
+
+async function saveShop(){
+  var type = document.querySelector('input[name="ms-type"]:checked').value;
+  var name = (document.getElementById('ms-name').value||'').trim();
+  var taxId = (document.getElementById('ms-tax-id').value||'').trim();
+  if(!name){ showToast('กรอกชื่ออู่/บริษัทก่อน'); return; }
+  if(type==='vat' && !taxId){
+    if(!confirm('ไม่ได้กรอก เลขผู้เสียภาษี — บันทึกต่อไหม?')) return;
+  }
+  if(type==='vat' && taxId && taxId.replace(/\D/g,'').length !== 13){
+    if(!confirm('เลขผู้เสียภาษีไม่ครบ 13 หลัก — บันทึกต่อไหม?')) return;
+  }
+  var obj = {
+    name: name, type: type,
+    tax_id: taxId || null,
+    address: (document.getElementById('ms-address').value||'').trim() || null,
+    phone: (document.getElementById('ms-phone').value||'').trim() || null,
+    contact_person: (document.getElementById('ms-contact').value||'').trim() || null,
+    note: (document.getElementById('ms-note').value||'').trim() || null,
+    is_active: true,
+    updated_at: new Date().toISOString()
+  };
+  if(editShopId){
+    obj.id = editShopId;
+    var idx = repairShops.findIndex(function(x){return x.id===editShopId;});
+    if(idx>=0){
+      Object.assign(repairShops[idx], obj);
+    }
+  } else {
+    obj.id = (repairShops.length ? Math.max.apply(null, repairShops.map(function(x){return x.id||0;}))+1 : 1);
+    obj.created_at = new Date().toISOString();
+    repairShops.push(obj);
+  }
+  closeModal('modal-shop');
+  renderRepairShops();
+  showToast(editShopId ? 'แก้ไขอู่เรียบร้อย ✓' : 'เพิ่มอู่ใหม่เรียบร้อย ✓');
+  // Sync to cloud
+  try {
+    var rec = Object.assign({}, obj);
+    if(_onlineMode) {
+      var r = await sbFetch('gyt_repair_shops','POST',[rec],'?on_conflict=id');
+      if(r && r[0] && r[0].id) {
+        // Update id from server (in case of new insert)
+        var idx2 = repairShops.findIndex(function(x){return x.id===obj.id;});
+        if(idx2>=0) repairShops[idx2].id = r[0].id;
+      }
+    }
+  } catch(e){ console.warn('saveShop sync error:', e); }
+}
+
+async function deleteShop(id){
+  if(!confirm('ลบอู่นี้? (จะ soft-delete — ใบเสร็จเก่ายังคงอ้างถึงได้)')) return;
+  var idx = (repairShops||[]).findIndex(function(x){return x.id===id;});
+  if(idx<0) return;
+  repairShops[idx].is_active = false;
+  renderRepairShops();
+  showToast('ลบอู่เรียบร้อย ✓');
+  try {
+    if(_onlineMode) await sbFetch('gyt_repair_shops','PATCH',{is_active:false},'?id=eq.'+id);
+  } catch(e){ console.warn('deleteShop sync error:', e); }
+}
+
+// ── Intervals: Render Form ──
+function renderIntervalsForm(){
+  var body = document.getElementById('mt-intervals-body');
+  if(!body) return;
+  // Get globals (vehicle_id=0)
+  var globals = (maintenanceIntervals||[]).filter(function(x){return x.vehicle_id===0;});
+  // If no DB record yet, use DEFAULT_INTERVALS
+  var rows = DEFAULT_INTERVALS.map(function(def){
+    var found = globals.find(function(g){return g.service_type===def.service_type;});
+    return found || Object.assign({vehicle_id:0,vehicle_type:'global'}, def);
+  });
+  // Header row exists already in HTML; just append data rows
+  var headerHtml = body.querySelector('.mt-interval-row[style*="border-bottom:2px"]').outerHTML;
+  body.innerHTML = headerHtml + rows.map(function(r,i){
+    return '<div class="mt-interval-row">' +
+      '<label>' + escapeHtml(r.service_type) + '</label>' +
+      '<input type="number" id="iv-km-' + i + '" data-service-type="' + escapeHtml(r.service_type) + '" value="' + (r.interval_km||'') + '" placeholder="—">' +
+      '<input type="number" id="iv-mo-' + i + '" data-service-type="' + escapeHtml(r.service_type) + '" value="' + (r.interval_months||'') + '" placeholder="—">' +
+      '<div></div>' +
+    '</div>';
+  }).join('');
+}
+
+async function saveIntervals(){
+  var rows = document.querySelectorAll('#mt-intervals-body .mt-interval-row');
+  var changes = [];
+  DEFAULT_INTERVALS.forEach(function(def, i){
+    var km = parseInt((document.getElementById('iv-km-'+i)||{}).value || 0) || null;
+    var mo = parseInt((document.getElementById('iv-mo-'+i)||{}).value || 0) || null;
+    changes.push({
+      vehicle_id:0, vehicle_type:'global',
+      service_type:def.service_type,
+      interval_km:km, interval_months:mo
+    });
+  });
+  // Update local
+  changes.forEach(function(c){
+    var idx = (maintenanceIntervals||[]).findIndex(function(x){return x.vehicle_id===0 && x.service_type===c.service_type;});
+    if(idx>=0) Object.assign(maintenanceIntervals[idx], c);
+    else maintenanceIntervals.push(Object.assign({}, c));
+  });
+  showToast('บันทึกรอบซ่อมเรียบร้อย ✓');
+  // Sync
+  try {
+    if(_onlineMode) await sbFetch('gyt_maintenance_intervals','POST',changes,'?on_conflict=vehicle_id,service_type');
+  } catch(e){ console.warn('saveIntervals sync error:', e); }
 }
 
 // ── AUTO LOGIN FROM SESSION ──────────────────────────────
@@ -19948,6 +20344,67 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
   <div class="modal-foot">
     <button class="btn btn-ghost" onclick="closeModal('modal-import')">ยกเลิก</button>
     <button class="btn btn-green" onclick="importCSV()">📥 Import</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: REPAIR SHOP -->
+<div class="modal-overlay" id="modal-shop">
+<div class="modal" style="max-width:600px">
+  <div class="modal-head">
+    <div><div class="modal-title" id="ms-title">เพิ่มอู่ซ่อม</div><div class="modal-sub">ใส่ข้อมูลให้ครบสำหรับอู่ที่เป็นบริษัท VAT</div></div>
+    <button class="close-x" onclick="closeModal('modal-shop')">×</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg">
+      <label class="fl">ประเภท *</label>
+      <div style="display:flex;gap:8px">
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer" id="ms-type-cash-label">
+          <input type="radio" name="ms-type" value="cash" id="ms-type-cash" checked onchange="msToggleType()">
+          <span>💵 <strong>เงินสด</strong> (ใบบิลธรรมดา)</span>
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer" id="ms-type-vat-label">
+          <input type="radio" name="ms-type" value="vat" id="ms-type-vat" onchange="msToggleType()">
+          <span>🧾 <strong>VAT 7%</strong> (ใบกำกับภาษี)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl">ชื่ออู่ / บริษัท *</label>
+      <input class="fi" id="ms-name" placeholder="เช่น อู่ช่างหมู หรือ บริษัท ABC จำกัด">
+    </div>
+
+    <div id="ms-vat-fields" style="display:none">
+      <div class="fg">
+        <label class="fl">เลขผู้เสียภาษี (13 หลัก) *</label>
+        <input class="fi" id="ms-tax-id" placeholder="0XXXXXXXXXXXX" maxlength="13">
+      </div>
+      <div class="fg">
+        <label class="fl">ที่อยู่ตามใบกำกับภาษี</label>
+        <textarea class="fi" id="ms-address" rows="2" style="height:auto;padding-top:8px;resize:vertical" placeholder="ที่อยู่บริษัทตามใบกำกับ"></textarea>
+      </div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg">
+        <label class="fl">เบอร์ติดต่อ</label>
+        <input class="fi" id="ms-phone" placeholder="08X-XXX-XXXX">
+      </div>
+      <div class="fg">
+        <label class="fl">ผู้ติดต่อ / ช่าง</label>
+        <input class="fi" id="ms-contact" placeholder="ชื่อช่าง / ผู้ดูแล">
+      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl">หมายเหตุ</label>
+      <textarea class="fi" id="ms-note" rows="2" style="height:auto;padding-top:8px;resize:vertical" placeholder="ข้อมูลเพิ่มเติม เช่น พื้นที่ความถนัด, เวลาเปิด-ปิด"></textarea>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-shop')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="saveShop()">💾 บันทึก</button>
   </div>
 </div>
 </div>
