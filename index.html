@@ -41,7 +41,8 @@ html,body{height:100%;font-family:var(--font);color:var(--text);font-size:14px;l
 .sb-uname{font-size:12px;color:#fff;font-weight:500}
 .sb-urole{font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px}
 .sb-nav{flex:1;padding:10px 8px;overflow-y:auto}
-.nav-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--radius);cursor:pointer;margin-bottom:2px;color:rgba(255,255,255,0.6);font-size:13px;transition:all 0.15s;border:1px solid transparent}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--radius);cursor:pointer;margin-bottom:2px;color:rgba(255,255,255,0.6);font-size:13px;transition:all 0.15s;border:1px solid transparent;text-decoration:none}
+a.nav-item:visited,a.nav-item:hover,a.nav-item:active{text-decoration:none}
 .nav-item:hover{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.9)}
 .nav-item.active{background:rgba(232,184,0,0.18);color:var(--yellow-m);border-color:rgba(232,184,0,0.25);font-weight:500}
 .nav-item svg{width:15px;height:15px;flex-shrink:0}
@@ -3710,10 +3711,12 @@ function initApp(){
     {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
   ];
   const visibleNav = ALL_NAV.filter(function(n){return hasPerm(n.perm);});
+  // ใช้ <a href> เพื่อรองรับ Ctrl+Click / Middle-Click → เปิด tab ใหม่ (browser handle เอง)
+  // Normal click → preventDefault แล้วเรียก goPage() (SPA navigation)
   document.getElementById('sb-nav').innerHTML=visibleNav.map(n=>`
-    <div class="nav-item" id="nav-${n.id}" onclick="goPage('${n.id}')">
+    <a class="nav-item" id="nav-${n.id}" href="?page=${n.id}" onclick="return navClick(event,'${n.id}')">
       <span style="font-size:14px">${n.icon}</span><span>${n.label}</span>
-    </div>`).join('');
+    </a>`).join('');
 
   const note=document.getElementById('jobs-note');
   note.style.display='none';
@@ -3736,7 +3739,19 @@ function initApp(){
   };
   localStorage.setItem('gyt_session', JSON.stringify(session));
 
-  goPage((r==='admin'||r==='supervisor')?'dashboard':'jobs');
+  // ตรวจ URL ?page=... ก่อน — ถ้ามีและ user มีสิทธิ์เห็นหน้านั้น → เปิดหน้านั้น
+  // (ใช้สำหรับ Ctrl+Click sidebar → เปิด tab ใหม่ จะไปหน้าที่ user คลิก)
+  var defaultPage = (r==='admin'||r==='supervisor')?'dashboard':'jobs';
+  var requestedPage = null;
+  try{
+    var sp = new URLSearchParams(window.location.search);
+    var p = sp.get('page');
+    if(p){
+      var allowed = visibleNav.find(function(n){return n.id===p;});
+      if(allowed) requestedPage = p;
+    }
+  }catch(e){/* ignore */}
+  goPage(requestedPage || defaultPage);
   applySidebarState();
   loadFromSupabase();
 }
@@ -3756,6 +3771,24 @@ function goPage(id){
   if(id==='users')renderUsers();
   // อัปเดตการซ่อน/แสดงปุ่มตาม perms (สำหรับหน้าใหม่ที่เพิ่งเปิด)
   if(typeof applyPermsToUI === 'function') setTimeout(applyPermsToUI, 0);
+  // อัปเดต URL ให้ตรงกับหน้าปัจจุบัน → refresh จะอยู่หน้าเดิม + share link ได้
+  try{
+    var url = new URL(window.location.href);
+    if(url.searchParams.get('page') !== id){
+      url.searchParams.set('page', id);
+      window.history.replaceState({page:id}, '', url.pathname + url.search);
+    }
+  }catch(e){/* ignore */}
+}
+
+// Sidebar click handler — รองรับ Ctrl/Cmd+Click และ Middle-Click → เปิด tab ใหม่ (browser default)
+// Normal click → SPA navigation ผ่าน goPage()
+function navClick(e, id){
+  // Ctrl(Win/Linux) + Cmd(Mac) + Shift + Middle-click → ปล่อยให้ browser handle (เปิด tab/window ใหม่)
+  if(e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return true;
+  e.preventDefault();
+  goPage(id);
+  return false;
 }
 
 // ============================
@@ -18235,7 +18268,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.022';
+const APP_VERSION = '2026.04.29.023';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
