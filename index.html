@@ -18797,7 +18797,12 @@ function printQuote(){
 // ══════════════════════════════════════════════════════
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(function(el){
-  el.addEventListener('click',function(e){if(e.target===el)el.classList.remove('open');});
+  el.addEventListener('click',function(e){
+    if(e.target!==el) return;
+    // กันการคลิก backdrop ปิด modal-job + modal-multi (กันข้อมูลหาย)
+    if(el.id==='modal-job' || el.id==='modal-multi') return;
+    el.classList.remove('open');
+  });
 });
 function showToast(msg){
   var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
@@ -18882,7 +18887,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.039';
+const APP_VERSION = '2026.04.29.040';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
