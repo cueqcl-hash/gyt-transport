@@ -780,6 +780,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <button class="btn btn-ghost" onclick="openBin()" id="bin-btn" style="color:var(--red);border-color:var(--red-m)" title="ถังขยะ — งานที่ลบไปแล้ว">🗑 ถังขยะ<span class="bin-badge" id="bin-badge" style="display:none">0</span></button>
           <button class="btn btn-green" id="btn-add-job" onclick="openAddJob()">+ ใบงานใหม่</button>
           <button class="btn btn-yellow" id="btn-add-multi" onclick="openMultiJob()">+ หลายตู้ (BL เดียว)</button>
+          <button class="btn btn-ghost" onclick="exportJobsExcel()" title="Export ใบงานที่ filter อยู่เป็นไฟล์ Excel" style="border-color:#10B981;color:#065F46">📤 Export Excel</button>
           <button class="btn btn-blue" onclick="openModal('modal-excel-import')" title="Import งานจากไฟล์ Excel">📊 Import Excel</button>
         </div>
         <div class="tbl-wrap"><div class="tbl-scroll" id="j-tbl-scroll"><table><thead><tr id="j-thead-row"><th class="cb-th"><input type="checkbox" class="row-cb" id="cb-all-hdr" onchange="toggleSelectAll(this)" title="เลือกทั้งหมดในหน้านี้"></th><th style="width:110px;position:sticky;left:40px;background:#F2F7F4;z-index:2"></th></tr></thead><tbody id="j-tbody"></tbody></table>
@@ -18887,7 +18888,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.040';
+const APP_VERSION = '2026.04.29.041';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -21061,6 +21062,116 @@ if(_origGoPage){
   window.addEventListener('scroll', _repositionMcDropdowns, true);
   window.addEventListener('resize', _repositionMcDropdowns);
 })();
+
+// ════════════════════════════════════════════════════════════════════════
+// EXPORT JOBS TO EXCEL — ใช้ getFiltered() + ALL_COLS
+// ════════════════════════════════════════════════════════════════════════
+function exportJobsExcel(){
+  if(typeof XLSX === 'undefined'){
+    showToast('XLSX library กำลังโหลด...');
+    if(typeof loadXLSXLibrary==='function') loadXLSXLibrary();
+    setTimeout(exportJobsExcel, 1500);
+    return;
+  }
+  // ดึงข้อมูลที่ filter อยู่ (หรือทั้งหมด ถ้าไม่มี getFiltered)
+  var data = (typeof getFiltered==='function') ? getFiltered() : (jobs||[]);
+  if(!data || !data.length){ showToast('ไม่มีข้อมูลให้ Export'); return; }
+  // เรียง: วันเริ่มปฏิบัติงานล่าสุดก่อน
+  data = data.slice().sort(function(a,b){return (b.startdate||'').localeCompare(a.startdate||'');});
+
+  // Helper: format datetime จาก ISO → DD/MM/YYYY HH:MM
+  var fmtDT = function(v){
+    if(!v) return '';
+    var d = new Date(v);
+    if(isNaN(d.getTime())) return v;
+    var pad = function(n){return String(n).padStart(2,'0');};
+    return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+  };
+
+  // Build headers + rows ตาม ALL_COLS
+  var headers = ['#'];
+  ALL_COLS.forEach(function(c){ headers.push(c.label); });
+  // เพิ่มคอลัมน์ที่ไม่อยู่ใน ALL_COLS แต่มีประโยชน์
+  headers.push('หมายเหตุ');
+  headers.push('ที่อยู่ออกใบเสร็จ - ชื่อ');
+  headers.push('ที่อยู่ออกใบเสร็จ - ที่อยู่');
+  headers.push('ที่อยู่ออกใบเสร็จ - Tax ID');
+  headers.push('ผู้ลงงาน');
+  headers.push('วันที่ลงงาน');
+  headers.push('แก้ไขล่าสุดโดย');
+  headers.push('วันที่แก้ไขล่าสุด');
+
+  var rows = [headers];
+  data.forEach(function(j, i){
+    var row = [i+1];
+    ALL_COLS.forEach(function(c){
+      var v = j[c.field];
+      if(c.field==='startdate' || c.field==='deliverdate'){
+        row.push(fmtDT(v));
+      } else {
+        row.push(v != null ? v : '');
+      }
+    });
+    row.push(j.note||'');
+    row.push(j.receiptName||j.receipt_name||'');
+    row.push(j.receiptAddr||j.receipt_addr||'');
+    row.push(j.receiptTaxid||j.receipt_taxid||'');
+    row.push(j.createdBy||'');
+    row.push(fmtDT(j.createdAt));
+    row.push(j.updatedBy||'');
+    row.push(fmtDT(j.updatedAt));
+    rows.push(row);
+  });
+
+  // Sheet 2: สรุปยอดตามสถานะ
+  var byStatus = {};
+  data.forEach(function(j){
+    var st = j.status||'(ไม่ระบุ)';
+    byStatus[st] = (byStatus[st]||0) + 1;
+  });
+  var summary = [['สถานะใบงาน', 'จำนวน']];
+  Object.keys(byStatus).forEach(function(k){ summary.push([k, byStatus[k]]); });
+  summary.push(['รวมทั้งหมด', data.length]);
+
+  // Sheet 3: สรุปยอดตามประเภทตู้
+  var byType = {};
+  data.forEach(function(j){
+    var t = j.type||'(ไม่ระบุ)';
+    byType[t] = (byType[t]||0) + 1;
+  });
+  var typeSummary = [['ประเภทตู้', 'จำนวน']];
+  Object.keys(byType).sort().forEach(function(k){ typeSummary.push([k, byType[k]]); });
+  typeSummary.push(['รวมทั้งหมด', data.length]);
+
+  // สร้าง workbook
+  var wb = XLSX.utils.book_new();
+  var ws1 = XLSX.utils.aoa_to_sheet(rows);
+  var ws2 = XLSX.utils.aoa_to_sheet(summary);
+  var ws3 = XLSX.utils.aoa_to_sheet(typeSummary);
+
+  // Auto column widths (ปรับตาม ALL_COLS + extra cols)
+  var widths = [{wch:5}]; // #
+  ALL_COLS.forEach(function(c){
+    var w = parseInt((c.width||'120px').replace('px','')) / 7;
+    widths.push({wch: Math.max(10, Math.min(35, Math.round(w)))});
+  });
+  // Extra cols: หมายเหตุ, receipt fields, audit
+  widths.push({wch:25}, {wch:20}, {wch:30}, {wch:14}, {wch:18}, {wch:16}, {wch:18}, {wch:16});
+  ws1['!cols'] = widths;
+  ws2['!cols'] = [{wch:20},{wch:10}];
+  ws3['!cols'] = [{wch:20},{wch:10}];
+
+  XLSX.utils.book_append_sheet(wb, ws1, 'รายละเอียดใบงาน');
+  XLSX.utils.book_append_sheet(wb, ws2, 'สรุปตามสถานะ');
+  XLSX.utils.book_append_sheet(wb, ws3, 'สรุปตามประเภทตู้');
+
+  // Filename: รวมช่วงวันที่ที่ filter
+  var dFrom = (document.getElementById('j-date-from')||{}).value || '';
+  var dTo = (document.getElementById('j-date-to')||{}).value || '';
+  var fname = 'ตารางงาน_' + (dFrom||'all').replace(/\//g,'-') + '_to_' + (dTo||'all').replace(/\//g,'-') + '_' + new Date().toISOString().slice(0,10) + '.xlsx';
+  XLSX.writeFile(wb, fname);
+  showToast('Export Excel สำเร็จ ✓ (' + data.length + ' ใบงาน)');
+}
 
 // ── AUTO LOGIN FROM SESSION ──────────────────────────────
 // ใช้ flow เดียวกับ doLogin() — set currentUser แล้วเรียก initApp()
