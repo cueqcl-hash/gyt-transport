@@ -4348,9 +4348,21 @@ function buildContainerRows(){
   for(let i=1;i<=n;i++){
     const row=document.createElement('tr');
     row.style.borderBottom='1px solid var(--border)';
+    const fp = `mc-r${i}`;
     row.innerHTML=`
       <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--green);font-size:13px">${i}</td>
       <td style="padding:4px 6px"><input class="fi" id="mc-r${i}-container" placeholder="ABCU${String(i).padStart(7,'0')}" style="height:32px;font-size:12px"></td>
+      <td style="padding:4px 6px">
+        <div class="sd-wrap">
+          <input class="sd-input" id="${fp}-type-input" placeholder="20'/40'/HC..." autocomplete="off"
+            style="height:32px;font-size:12px"
+            oninput="ctypeFilter('${fp}')" onfocus="ctypeOpen('${fp}')" onblur="ctypeBlur('${fp}')"
+            onkeydown="ctypeKeyDown(event,'${fp}')">
+          <span class="sd-arrow">&#9662;</span>
+          <div class="sd-list" id="${fp}-type-list" style="max-height:220px"></div>
+        </div>
+        <input type="hidden" id="${fp}-type" value="">
+      </td>
       <td style="padding:4px 6px"><input class="fi" type="text" id="mc-r${i}-startdate" value="${defDT}" placeholder="วว/ดด/ปปปป ชช:นน" style="height:32px;font-size:12px"></td>
       <td style="padding:4px 6px"><input class="fi" type="text" id="mc-r${i}-deliverdate" placeholder="วว/ดด/ปปปป ชช:นน" style="height:32px;font-size:12px"></td>
       <td style="padding:4px 6px"><input class="fi" id="mc-r${i}-weight" placeholder="-" style="height:32px;font-size:12px;width:100px"></td>
@@ -4383,6 +4395,15 @@ function copyFromAbove(rowIdx){
     }
     to.value = from.value;
   });
+  // คัดลอก ประเภทตู้ (ทั้ง visible + hidden inputs)
+  var typeFromVis = document.getElementById('mc-r'+prev+'-type-input');
+  var typeFromHid = document.getElementById('mc-r'+prev+'-type');
+  var typeToVis = document.getElementById('mc-r'+rowIdx+'-type-input');
+  var typeToHid = document.getElementById('mc-r'+rowIdx+'-type');
+  if(typeFromHid && typeFromHid.value && typeToVis && typeToHid){
+    typeToVis.value = typeFromVis ? typeFromVis.value : typeFromHid.value;
+    typeToHid.value = typeFromHid.value;
+  }
   showToast('คัดลอกข้อมูลจากตู้ที่ '+prev+' แล้ว');
 }
 
@@ -4390,24 +4411,31 @@ function previewMulti(){
   const n=parseInt(document.getElementById('mc-count').value)||1;
   const booking=document.getElementById('mc-booking').value.trim();
   const shipper=document.getElementById('mc-shipper').value.trim();
-  const type=document.getElementById('mc-type').value;
   if(!shipper||!document.getElementById('mc-origin').value.trim()||!document.getElementById('mc-dest').value.trim()){
     showToast('กรุณากรอก Shipper / ต้นทาง / ปลายทาง ก่อน');return;
   }
+  // นับ ประเภทตู้ ที่ใช้ → แสดงสรุปใน title
+  var typeCounts = {};
+  for(let i=1;i<=n;i++){
+    var t = document.getElementById('mc-r'+i+'-type')?.value || '(ยังไม่เลือก)';
+    typeCounts[t] = (typeCounts[t]||0) + 1;
+  }
+  var typeBreakdown = Object.entries(typeCounts).map(function(x){return x[1]+' × '+x[0];}).join(' + ');
   const pvDiv=document.getElementById('mc-preview');
   pvDiv.style.display='block';
-  document.getElementById('mc-preview-title').textContent=`ตัวอย่าง: จะสร้างใบงาน ${n} ใบ | BL: ${booking||'(ยังไม่กรอก)'}  |  ${type} x ${n} ตู้`;
+  document.getElementById('mc-preview-title').textContent=`ตัวอย่าง: จะสร้างใบงาน ${n} ใบ | BL: ${booking||'(ยังไม่กรอก)'}  |  ${typeBreakdown}`;
   let html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;margin-top:6px">';
   for(let i=1;i<=n;i++){
     const sd=document.getElementById(`mc-r${i}-startdate`)?.value||'';
     const cn=document.getElementById(`mc-r${i}-container`)?.value||`ตู้ ${i}`;
     const pl=document.getElementById(`mc-r${i}-plate`)?.value||'-';
     const dr=document.getElementById(`mc-r${i}-driver`)?.value||'-';
+    const tp=document.getElementById('mc-r'+i+'-type')?.value||'—';
     const d=sd?new Date(sd):null;
     const dtStr=d?`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`:'—';
     html+=`<div style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px">
       <div style="font-size:11px;font-weight:700;color:var(--green)">ตู้ ${i} — JOB-${nextJID+i-1}</div>
-      <div style="font-size:11px;color:var(--text-2);margin-top:2px">${cn} | ${type}</div>
+      <div style="font-size:11px;color:var(--text-2);margin-top:2px">${cn} | <strong>${tp}</strong></div>
       <div style="font-size:11px;color:var(--text-3)">${dtStr}</div>
       <div style="font-size:11px;color:var(--text-3)">🚛 ${pl} | ${dr}</div>
     </div>`;
@@ -4429,11 +4457,18 @@ function saveMulti(){
       showToast(`ตู้ที่ ${i}: กรุณาระบุวันเริ่มปฏิบัติงาน`);return;
     }
   }
+  // Validate ประเภทตู้ ของแต่ละแถว
+  for(let i=1;i<=n;i++){
+    var t = (document.getElementById('mc-r'+i+'-type')?.value || '').trim();
+    if(!t){
+      showToast('ตู้ที่ '+i+': กรุณาเลือกประเภทตู้');
+      return;
+    }
+  }
   const shared={
     customer,phone:document.getElementById('mc-phone').value.trim(),
     shipper,carrier:document.getElementById('mc-carrier').value.trim(),
     booking:document.getElementById('mc-booking').value.trim(),
-    type:normalizeType(document.getElementById('mc-type').value),
     cargo_type:document.getElementById('mc-cargo')?.value.trim()||'',
     delivery_type:document.getElementById('mc-delivery-type').value,
     origin,originUrl:document.getElementById('mc-origin-url').value.trim(),
@@ -4449,6 +4484,7 @@ function saveMulti(){
     const job={
       ...shared,
       id:`JOB-${nextJID++}`,
+      type:normalizeType(document.getElementById('mc-r'+i+'-type').value),
       container:document.getElementById(`mc-r${i}-container`).value.trim(),
       startdate:document.getElementById(`mc-r${i}-startdate`).value,
       deliverdate:document.getElementById(`mc-r${i}-deliverdate`).value,
@@ -18827,7 +18863,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.034';
+const APP_VERSION = '2026.04.29.035';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -21495,16 +21531,6 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
       <div class="fg"><label class="fl">สินค้าเป็น (ใช้ร่วมทุกตู้)</label><input class="fi" id="mc-cargo" list="cargo-suggestions" placeholder="เช่น อิเล็กทรอนิกส์ / อาหาร / เคมีภัณฑ์" autocomplete="off"></div>
     </div>
     <div class="fg-row">
-      <div class="fg"><label class="fl">ประเภทตู้</label>
-      <div class="sd-wrap">
-        <input class="sd-input" id="mc-type-input" placeholder="พิมพ์เพื่อกรอง เช่น 20 หรือ 40..." autocomplete="off"
-          oninput="ctypeFilter(&apos;mc&apos;)" onfocus="ctypeOpen(&apos;mc&apos;)" onblur="ctypeBlur(&apos;mc&apos;)"
-          onkeydown="if(event.key===&apos;Escape&apos;)ctypeClose(&apos;mc&apos;)">
-        <span class="sd-arrow">&#9662;</span>
-        <div class="sd-list" id="mc-type-list" style="max-height:220px"></div>
-      </div>
-      <input type="hidden" id="mc-type" value="">
-    </div>
       <div class="fg"><label class="fl">ประเภทงาน</label>
         <select class="fi" id="mc-job-type">
           <option value="">-- เลือกประเภทงาน --</option>
@@ -21519,6 +21545,8 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
         </select>
       </div>
     </div>
+    <!-- mc-type kept as hidden fallback for legacy code -->
+    <input type="hidden" id="mc-type" value="">
     <div class="fg-row">
       <div class="fg"><label class="fl">ต้นทาง *</label><input class="fi" id="mc-origin" placeholder="ท่าเรือแหลมฉบัง"></div>
       <div class="fg"><label class="fl">ลิงก์ Map ต้นทาง</label><div class="fi-loc"><input class="fi" id="mc-origin-url" placeholder="https://maps.app.goo.gl/..."><button class="loc-btn" onclick="openMapUrl('mc-origin-url')">🗺</button></div></div>
@@ -21545,6 +21573,7 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
         <tr style="background:#F2F7F4">
           <th style="padding:7px 8px;text-align:center;border-bottom:2px solid var(--border);width:36px">ตู้</th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:130px">หมายเลขตู้</th>
+          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:150px">ประเภทตู้ *</th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:150px">วันเริ่มปฏิบัติงาน *</th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:150px">วันเวลารับ/ส่งสินค้า</th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:110px">น้ำหนัก (กก.)</th>
