@@ -4327,13 +4327,19 @@ function openModal(id){document.getElementById(id).classList.add('open');}
 function openMultiJob(){
   if(!hasPerm('add_jobs')){showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน');return;}
   ['customer','phone','shipper','carrier','booking','origin','dest','return',
-   'cargo','origin-url','dest-url','return-url'].forEach(f=>{
+   'cargo','origin-url','dest-url','return-url','note'].forEach(f=>{
     const el=document.getElementById('mc-'+f);if(el)el.value='';
+  });
+  // Clear hidden vals (sd-input + billing party)
+  ['mc-customer-val','mc-shipper-val','mc-billing-party-val','mc-billing-party'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('mc-type').value="";
   document.getElementById('mc-delivery-type').value='จัดส่งสินค้าภายในวัน';
   document.getElementById('mc-count').value='5';
   document.getElementById('mc-preview').style.display='none';
+  // Reset billing party section (กลับ default mode = shipper)
+  if(typeof restoreReceiptSection==='function') restoreReceiptSection('mc', null);
   buildContainerRows();
   document.getElementById('modal-multi').classList.add('open');
 }
@@ -4470,12 +4476,16 @@ function saveMulti(){
     shipper,carrier:document.getElementById('mc-carrier').value.trim(),
     booking:document.getElementById('mc-booking').value.trim(),
     cargo_type:document.getElementById('mc-cargo')?.value.trim()||'',
+    job_type:document.getElementById('mc-job-type')?.value||'',
     delivery_type:document.getElementById('mc-delivery-type').value,
     origin,originUrl:document.getElementById('mc-origin-url').value.trim(),
     dest,destUrl:document.getElementById('mc-dest-url').value.trim(),
     returnyard:document.getElementById('mc-return').value.trim(),
     returnyardUrl:document.getElementById('mc-return-url').value.trim(),
-    status:'รอดำเนินการ',note:'',
+    // ที่อยู่ออกใบเสร็จ + Billing Party (เหมือน fj saveJob)
+    ...getReceiptData('mc'),
+    status:'รอดำเนินการ',
+    note:document.getElementById('mc-note')?.value.trim()||'',
   };
   const created=[];
   const __mc_byName=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'ไม่ระบุ';
@@ -18863,7 +18873,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.035';
+const APP_VERSION = '2026.04.29.036';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -21479,7 +21489,7 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
         <input type="hidden" id="mc-customer-val">
         <div id="mc-customer-hint" style="font-size:11px;color:var(--red);margin-top:3px;display:none">⚠ ยังไม่มีข้อมูล</div>
       </div>
-      <div class="fg"><label class="fl">เบอร์ติดต่อ (auto)</label><input class="fi" id="mc-phone" placeholder="อัตโนมัติจาก Master Data" readonly style="background:#F5F7F5;color:var(--text-3)"></div>
+      <div class="fg"><label class="fl">เบอร์ติดต่อ</label><input class="fi" id="mc-phone" placeholder="0XX-XXX-XXXX (auto-fill จาก Master หรือกรอกเอง)"></div>
     </div>
     <div class="fg"><label class="fl">Shipper (เจ้าของสินค้า) *</label>
       <div class="sd-wrap">
@@ -21558,6 +21568,11 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
     <div class="fg-row">
       <div class="fg"><label class="fl">ปลายทาง</label><input class="fi" id="mc-return" placeholder="ท่าเรือแหลมฉบัง (CY)"></div>
       <div class="fg"><label class="fl">ลิงก์ Map ปลายทาง</label><div class="fi-loc"><input class="fi" id="mc-return-url" placeholder="https://maps.app.goo.gl/..."><button class="loc-btn" onclick="openMapUrl('mc-return-url')">🗺</button></div></div>
+    </div>
+
+    <div class="fg" style="margin-top:8px">
+      <label class="fl">หมายเหตุ (ใช้ร่วมทุกตู้)</label>
+      <input class="fi" id="mc-note" placeholder="หมายเหตุเพิ่มเติม">
     </div>
 
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">รายการตู้ทั้งหมด</div>
