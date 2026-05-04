@@ -18873,7 +18873,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.037';
+const APP_VERSION = '2026.04.29.038';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -21016,13 +21016,36 @@ if(_origGoPage){
     }
   });
 
-  // กรณี scroll/resize ตอนเปิด → ปิด dropdown (กัน position หลุด)
-  window.addEventListener('scroll', function(){
+  // กรณี scroll → REPOSITION dropdown ตาม input (ไม่ปิด)
+  function _repositionMcDropdowns(){
     document.querySelectorAll('[id^="mc-r"][id$="-type-list"].open').forEach(function(list){
+      if(list.style.position !== 'fixed') return;
       var fp = list.id.replace('-type-list', '');
-      ctypeClose(fp);
+      var input = document.getElementById(fp+'-type-input');
+      if(!input) return;
+      var r = input.getBoundingClientRect();
+      // ถ้า input หลุดออกนอกหน้าจอ → ปิด dropdown
+      if(r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth){
+        ctypeClose(fp);
+        return;
+      }
+      // คำนวณว่าจะวางบนหรือล่างของ input (ถ้าใกล้ขอบล่าง → วางบน)
+      var dropdownH = list.offsetHeight || 220;
+      var spaceBelow = window.innerHeight - r.bottom;
+      var spaceAbove = r.top;
+      if(spaceBelow < dropdownH && spaceAbove > spaceBelow){
+        // วางเหนือ input
+        list.style.top = (r.top - dropdownH - 2) + 'px';
+      } else {
+        // วางใต้ input (default)
+        list.style.top = (r.bottom + 2) + 'px';
+      }
+      list.style.left = r.left + 'px';
+      list.style.width = Math.max(r.width, 200) + 'px';
     });
-  }, true);
+  }
+  window.addEventListener('scroll', _repositionMcDropdowns, true);
+  window.addEventListener('resize', _repositionMcDropdowns);
 })();
 
 // ── AUTO LOGIN FROM SESSION ──────────────────────────────
