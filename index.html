@@ -15838,9 +15838,10 @@ function deleteMaster(type,id){
   renderSettings();showToast('ลบข้อมูลเรียบร้อย');
 }
 
-// Modal backdrop close
+// Modal backdrop close — NOTE: modal-job + modal-multi ไม่อยู่ใน list
+// (เพราะกรอกข้อมูลยาว — ต้องกดยกเลิก/บันทึกเองเท่านั้น กันข้อมูลหายโดยไม่ตั้งใจ)
 document.addEventListener('DOMContentLoaded',()=>{
-  ['modal-job','modal-detail','modal-cols','modal-user','modal-perms','modal-master','modal-multi','modal-billing','modal-vehicle','modal-driver','modal-pair','modal-delete-job','modal-bulk-delete','modal-bin','modal-cost','modal-rate','modal-import'].forEach(id=>{
+  ['modal-detail','modal-cols','modal-user','modal-perms','modal-master','modal-billing','modal-vehicle','modal-driver','modal-pair','modal-delete-job','modal-bulk-delete','modal-bin','modal-cost','modal-rate','modal-import'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('click',e=>{if(e.target===el)closeModal(id);});
   });
@@ -18805,7 +18806,15 @@ function showToast(msg){
 
 // กด ESC ปิด modal
 document.addEventListener('keydown',function(e){
-  if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(function(el){el.classList.remove('open');});
+  if(e.key==='Escape'){
+    // กด Escape ปิด modal ทั่วไป — แต่ modal-job + modal-multi ต้องยืนยันก่อน (กันข้อมูลหาย)
+    document.querySelectorAll('.modal-overlay.open').forEach(function(el){
+      if(el.id==='modal-job' || el.id==='modal-multi'){
+        if(!confirm('ปิดฟอร์มโดยไม่บันทึก? ข้อมูลที่กรอกจะหายทั้งหมด')) return;
+      }
+      el.classList.remove('open');
+    });
+  }
 });
 
 
@@ -18873,7 +18882,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.038';
+const APP_VERSION = '2026.04.29.039';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
