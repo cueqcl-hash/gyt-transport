@@ -539,6 +539,35 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 #pg-inspection .ins-stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center}
 #pg-inspection .ins-stat-num{font-size:24px;font-weight:800;font-family:var(--mono)}
 #pg-inspection .ins-stat-label{font-size:10px;color:var(--text-2);margin-top:2px}
+/* Phase 5: Reports */
+#pg-maintenance .rpt-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+#pg-maintenance .rpt-stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+#pg-maintenance .rpt-stat-num{font-size:22px;font-weight:800;font-family:var(--mono);line-height:1.1}
+#pg-maintenance .rpt-stat-label{font-size:11px;color:var(--text-2);margin-top:4px}
+#pg-maintenance .rpt-stat-money{color:var(--green-d)}
+#pg-maintenance .rpt-stat.cash{background:#FEF3C7;border-color:#F59E0B}
+#pg-maintenance .rpt-stat.cash .rpt-stat-num{color:#92400E}
+#pg-maintenance .rpt-stat.vat{background:#DBEAFE;border-color:#3B82F6}
+#pg-maintenance .rpt-stat.vat .rpt-stat-num{color:#1E3A8A}
+#pg-maintenance .rpt-stat.total{background:var(--green-l);border-color:var(--green)}
+#pg-maintenance .rpt-stat.total .rpt-stat-num{color:var(--green-d);font-size:26px}
+#pg-maintenance .rpt-svc-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#pg-maintenance .rpt-svc-tag{font-size:11px;padding:3px 10px;border-radius:14px;background:var(--green-l);color:var(--green-d);font-weight:600}
+/* Phase 6: File upload */
+.mm-files-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:8px}
+.mm-file-card{position:relative;border:1.5px solid var(--border);border-radius:8px;padding:6px;background:#fff;transition:.15s}
+.mm-file-card:hover{border-color:var(--green);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.mm-file-card img{width:100%;height:80px;object-fit:cover;border-radius:6px;display:block;cursor:pointer}
+.mm-file-card .pdf-icon{height:80px;display:flex;align-items:center;justify-content:center;font-size:36px;background:#FEE2E2;color:#991B1B;border-radius:6px;cursor:pointer}
+.mm-file-card .file-name{font-size:9px;color:var(--text-2);text-align:center;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mm-file-card .remove-btn{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(220,38,38,.9);color:#fff;border:none;font-size:11px;cursor:pointer;line-height:1;font-weight:700;display:flex;align-items:center;justify-content:center}
+.mm-file-card .remove-btn:hover{background:#DC2626}
+.mm-upload-zone{border:2px dashed var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:.15s;background:#fafafa}
+.mm-upload-zone:hover{border-color:var(--green);background:var(--green-l)}
+.mm-upload-icon{font-size:24px;margin-bottom:4px}
+.mm-upload-progress{display:none;margin-top:8px;font-size:12px;color:var(--green-d)}
+.mm-attach-icon{display:inline-flex;align-items:center;gap:3px;font-size:11px;background:var(--green-l);color:var(--green-d);padding:2px 8px;border-radius:10px;font-weight:600}
+
 
 
 
@@ -1310,13 +1339,63 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           </div>
         </div>
 
-        <!-- TAB: รายงาน (Phase 5 — placeholder) -->
+        <!-- TAB: รายงาน (Phase 5 — Active) -->
         <div id="mt-pg-reports" class="mt-page" style="display:none">
+          <div class="mt-help">
+            📊 <strong>รายงานสรุปค่าซ่อม</strong> — เลือกช่วงเวลา + ตัวกรอง → ดูสรุปค่าซ่อม + Export Excel สำหรับบัญชี/ภาษี
+          </div>
           <div class="mt-card">
-            <div class="mt-empty">
-              <div style="font-size:36px;margin-bottom:10px">📊</div>
-              <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">รายงานสรุปค่าซ่อม — Phase 5</div>
-              <div>รายเดือน / VAT-able / Export Excel</div>
+            <div class="mt-card-title">🔍 ตัวกรอง</div>
+            <div class="ins-form-grid" style="margin-top:10px">
+              <div class="fg"><label class="fl">ตั้งแต่วันที่</label><input type="date" class="fi" id="rpt-from" onchange="renderReports()"></div>
+              <div class="fg"><label class="fl">ถึงวันที่</label><input type="date" class="fi" id="rpt-to" onchange="renderReports()"></div>
+              <div class="fg"><label class="fl">Quick Range</label>
+                <select class="fi" id="rpt-quick" onchange="rptApplyQuick()">
+                  <option value="">— เลือกช่วงเวลา —</option>
+                  <option value="this_month">เดือนนี้</option>
+                  <option value="last_month">เดือนที่แล้ว</option>
+                  <option value="this_year">ปีนี้</option>
+                  <option value="last_year">ปีที่แล้ว</option>
+                  <option value="last_3_months">3 เดือนล่าสุด</option>
+                  <option value="last_6_months">6 เดือนล่าสุด</option>
+                </select>
+              </div>
+              <div class="fg"><label class="fl">ประเภทบิล</label>
+                <select class="fi" id="rpt-type" onchange="renderReports()">
+                  <option value="">ทั้งหมด</option>
+                  <option value="cash">💵 เงินสด</option>
+                  <option value="vat">🧾 VAT 7%</option>
+                </select>
+              </div>
+              <div class="fg"><label class="fl">ประเภทรถ</label>
+                <select class="fi" id="rpt-vtype" onchange="renderReports()">
+                  <option value="">ทุกประเภท</option>
+                  <option value="truck10">🚛 รถสิบล้อ</option>
+                  <option value="tractor">🚜 หัวลาก</option>
+                  <option value="trailer">🚚 หางเทลเลอร์</option>
+                </select>
+              </div>
+              <div class="fg" style="display:flex;align-items:flex-end">
+                <button class="btn btn-green" onclick="exportReportExcel()" style="width:100%">📄 Export Excel</button>
+              </div>
+            </div>
+          </div>
+          <div class="rpt-summary" id="rpt-summary-cards"></div>
+          <div class="mt-card">
+            <div class="mt-card-header">
+              <div class="mt-card-title">📋 รายละเอียดค่าซ่อม</div>
+              <div style="font-size:12px;color:var(--text-2)"><span id="rpt-records-count">0</span> รายการ</div>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr>
+                  <th>วันที่</th><th>ทะเบียน</th><th>อู่</th><th>ประเภท</th><th>รายการ</th>
+                  <th style="text-align:right">ก่อน VAT</th><th style="text-align:right">VAT</th><th style="text-align:right">รวม</th>
+                </tr></thead>
+                <tbody id="rpt-detail-tbody"></tbody>
+                <tfoot id="rpt-detail-tfoot"></tfoot>
+              </table>
+              <div class="mt-empty" id="rpt-empty" style="display:none">ไม่มีข้อมูลในช่วงเวลาที่เลือก</div>
             </div>
           </div>
         </div>
@@ -18748,7 +18827,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.033';
+const APP_VERSION = '2026.04.29.034';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19568,7 +19647,9 @@ function renderMaintenance(){
         '<div style="font-size:10px;color:var(--text-3)">' + (v?v.vehicle_type:r.vehicle_type||'—') + '</div>' +
       '</td>' +
       '<td>' + escapeHtml(sh?sh.name:'(อู่ถูกลบ)') +
-        '<div style="font-size:10px;color:var(--text-3)">' + billText + '</div>' +
+        '<div style="font-size:10px;color:var(--text-3)">' + billText +
+        ((r.receipt_files && r.receipt_files.length) ? ' &nbsp;<span class="mm-attach-icon">📎 ' + r.receipt_files.length + '</span>' : '') +
+        '</div>' +
       '</td>' +
       '<td style="font-size:12px">' + escapeHtml(serviceText||'—') + '</td>' +
       '<td style="text-align:right;font-family:var(--mono)">' + (r.mileage||0).toLocaleString() + '</td>' +
@@ -19597,6 +19678,8 @@ function mtOpenMaintenance(id){
   document.getElementById('mm-note').value = '';
   document.getElementById('mm-shop-info').style.display = 'none';
   document.getElementById('mm-shop-info').innerHTML = '';
+  _currentReceiptFiles = [];
+  if(typeof mmRenderFilesList==='function') mmRenderFilesList();
 
   // Populate vehicle dropdown
   var vSelect = document.getElementById('mm-vehicle');
@@ -19638,6 +19721,10 @@ function mtOpenMaintenance(id){
       document.getElementById('mm-next-km').value = r.next_service_km||'';
       document.getElementById('mm-next-date').value = r.next_service_date||'';
       document.getElementById('mm-note').value = r.note||'';
+      _currentReceiptFiles = (r.receipt_files || []).map(function(f){
+        return typeof f === 'string' ? {url:f, name:f.split('/').pop(), type:''} : f;
+      });
+      if(typeof mmRenderFilesList==='function') mmRenderFilesList();
       // Check service types
       (r.service_types||[]).forEach(function(st){
         var idx = SERVICE_TYPES.indexOf(st);
@@ -19794,6 +19881,7 @@ async function saveMaintenance(){
     total_amount: total,
     next_service_km: parseInt(document.getElementById('mm-next-km').value||0) || null,
     next_service_date: document.getElementById('mm-next-date').value || null,
+    receipt_files: _currentReceiptFiles.slice(),
     note: document.getElementById('mm-note').value || null,
     created_by: currentUser ? (currentUser.fname + ' ' + currentUser.lname) : null,
     updated_at: new Date().toISOString()
@@ -20064,12 +20152,255 @@ function updateMaintenanceBadge(){
   }
 }
 
-// Hook into mtSwitchTab for records + alerts tabs
+// ════════════════════════════════════════════════════════════════════════
+// REPORTS MODULE — Phase 5
+// ════════════════════════════════════════════════════════════════════════
+function rptApplyQuick(){
+  var preset = document.getElementById('rpt-quick').value;
+  if(!preset) return;
+  var today = new Date();
+  var from, to;
+  if(preset==='this_month'){ from = new Date(today.getFullYear(), today.getMonth(), 1); to = today; }
+  else if(preset==='last_month'){ from = new Date(today.getFullYear(), today.getMonth()-1, 1); to = new Date(today.getFullYear(), today.getMonth(), 0); }
+  else if(preset==='this_year'){ from = new Date(today.getFullYear(), 0, 1); to = today; }
+  else if(preset==='last_year'){ from = new Date(today.getFullYear()-1, 0, 1); to = new Date(today.getFullYear()-1, 11, 31); }
+  else if(preset==='last_3_months'){ from = new Date(today.getFullYear(), today.getMonth()-2, 1); to = today; }
+  else if(preset==='last_6_months'){ from = new Date(today.getFullYear(), today.getMonth()-5, 1); to = today; }
+  document.getElementById('rpt-from').value = from.toISOString().slice(0,10);
+  document.getElementById('rpt-to').value = to.toISOString().slice(0,10);
+  renderReports();
+}
+
+function _rptGetFilteredRecords(){
+  var from = (document.getElementById('rpt-from')||{}).value || '';
+  var to = (document.getElementById('rpt-to')||{}).value || '';
+  var ftype = (document.getElementById('rpt-type')||{}).value || '';
+  var fvtype = (document.getElementById('rpt-vtype')||{}).value || '';
+  var shopMap = {};
+  (repairShops||[]).forEach(function(sh){shopMap[sh.id]=sh;});
+  var allVehicles = (typeof getAllVehicles==='function' ? getAllVehicles() : []);
+  var vMap = {};
+  allVehicles.forEach(function(v){vMap[v.vehicle_type+':'+v.id]=v;});
+  return (maintenanceRecords||[]).filter(function(r){
+    if(from && r.service_date < from) return false;
+    if(to && r.service_date > to) return false;
+    if(fvtype && r.vehicle_type !== fvtype) return false;
+    if(ftype){
+      var sh = shopMap[r.shop_id];
+      if(!sh || sh.type !== ftype) return false;
+    }
+    return true;
+  }).map(function(r){
+    return {record:r, shop:shopMap[r.shop_id], vehicle:vMap[r.vehicle_type+':'+r.vehicle_id]};
+  });
+}
+
+function renderReports(){
+  var data = _rptGetFilteredRecords();
+  data.sort(function(a,b){return (a.record.service_date||'').localeCompare(b.record.service_date||'');});
+  var stats = {count:data.length, totalAll:0, totalCash:0, totalVat:0, vatAmount:0, countCash:0, countVat:0, serviceCount:{}};
+  data.forEach(function(d){
+    var r = d.record;
+    var total = parseFloat(r.total_amount)||0;
+    stats.totalAll += total;
+    if(d.shop && d.shop.type==='vat'){
+      stats.totalVat += total;
+      stats.vatAmount += parseFloat(r.vat_amount)||0;
+      stats.countVat++;
+    } else { stats.totalCash += total; stats.countCash++; }
+    (r.service_types||[]).forEach(function(st){
+      stats.serviceCount[st] = (stats.serviceCount[st]||0) + 1;
+    });
+  });
+  var fmt = function(n){return n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var topServices = Object.entries(stats.serviceCount).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+  var topSvcHtml = topServices.length ?
+    '<div class="rpt-svc-list">' + topServices.map(function(x){return '<span class="rpt-svc-tag">' + escapeHtml(x[0]) + ' <strong>' + x[1] + '</strong></span>';}).join('') + '</div>' : '';
+  var summaryHtml =
+    '<div class="rpt-stat total"><div class="rpt-stat-num">' + fmt(stats.totalAll) + '</div><div class="rpt-stat-label">💰 รวมทั้งหมด (' + stats.count + ' รายการ)</div></div>' +
+    '<div class="rpt-stat cash"><div class="rpt-stat-num">' + fmt(stats.totalCash) + '</div><div class="rpt-stat-label">💵 เงินสด (' + stats.countCash + ')</div></div>' +
+    '<div class="rpt-stat vat"><div class="rpt-stat-num">' + fmt(stats.totalVat) + '</div><div class="rpt-stat-label">🧾 VAT รวม (' + stats.countVat + ')</div></div>' +
+    '<div class="rpt-stat"><div class="rpt-stat-num rpt-stat-money">' + fmt(stats.vatAmount) + '</div><div class="rpt-stat-label">💸 VAT 7% (หักลดหย่อนได้)</div></div>';
+  document.getElementById('rpt-summary-cards').innerHTML = summaryHtml;
+  var prevTopSvc = document.getElementById('rpt-top-svc');
+  if(prevTopSvc) prevTopSvc.remove();
+  if(topSvcHtml){
+    var div = document.createElement('div');
+    div.id = 'rpt-top-svc'; div.className = 'mt-card';
+    div.innerHTML = '<div class="mt-card-title">🔧 รายการซ่อมยอดนิยม (Top 5)</div>' + topSvcHtml;
+    var anchor = document.querySelector('#mt-pg-reports .rpt-summary');
+    if(anchor && anchor.nextSibling) anchor.parentNode.insertBefore(div, anchor.nextSibling);
+  }
+  var tbody = document.getElementById('rpt-detail-tbody');
+  var emptyEl = document.getElementById('rpt-empty');
+  var cntEl = document.getElementById('rpt-records-count');
+  if(cntEl) cntEl.textContent = data.length;
+  if(!data.length){ tbody.innerHTML=''; document.getElementById('rpt-detail-tfoot').innerHTML=''; if(emptyEl) emptyEl.style.display='block'; return; }
+  if(emptyEl) emptyEl.style.display = 'none';
+  tbody.innerHTML = data.map(function(d){
+    var r = d.record;
+    var typePill = (d.shop && d.shop.type==='vat') ?
+      '<span style="background:#DBEAFE;color:#1E40AF;padding:1px 6px;border-radius:10px;font-size:10px">🧾 VAT</span>' :
+      '<span style="background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:10px;font-size:10px">💵 เงินสด</span>';
+    var svcText = (r.service_types||[]).slice(0,2).join(', ') + ((r.service_types||[]).length>2?' +'+((r.service_types||[]).length-2):'');
+    return '<tr>' +
+      '<td>' + (r.service_date||'—') + '</td>' +
+      '<td><strong>' + escapeHtml(d.vehicle ? d.vehicle.plate : '(ลบ)') + '</strong></td>' +
+      '<td>' + escapeHtml(d.shop ? d.shop.name : '(ลบ)') + '</td>' +
+      '<td>' + typePill + '</td>' +
+      '<td style="font-size:12px">' + escapeHtml(svcText||'—') + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono)">' + fmt(parseFloat(r.amount_before_vat)||0) + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);color:#1E40AF">' + fmt(parseFloat(r.vat_amount)||0) + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--green-d)">' + fmt(parseFloat(r.total_amount)||0) + '</td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('rpt-detail-tfoot').innerHTML =
+    '<tr style="background:var(--green-l);font-weight:700">' +
+      '<td colspan="5" style="text-align:right">รวม:</td>' +
+      '<td style="text-align:right;font-family:var(--mono)">' + fmt(data.reduce(function(s,d){return s+(parseFloat(d.record.amount_before_vat)||0);},0)) + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);color:#1E40AF">' + fmt(stats.vatAmount) + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);color:var(--green-d);font-size:14px">' + fmt(stats.totalAll) + '</td>' +
+    '</tr>';
+}
+
+function exportReportExcel(){
+  if(typeof XLSX === 'undefined'){
+    showToast('XLSX library กำลังโหลด...');
+    if(typeof loadXLSXLibrary==='function') loadXLSXLibrary();
+    setTimeout(exportReportExcel, 1500); return;
+  }
+  var data = _rptGetFilteredRecords();
+  if(!data.length){ showToast('ไม่มีข้อมูลให้ Export'); return; }
+  data.sort(function(a,b){return (a.record.service_date||'').localeCompare(b.record.service_date||'');});
+  var detailRows = [['วันที่','ทะเบียน','ประเภทรถ','อู่','ประเภทบิล','เลขบิล/ใบกำกับ','รายการที่ซ่อม','เลขไมล์','ราคาก่อน VAT','VAT 7%','รวมทั้งหมด','หมายเหตุ']];
+  var vtypeMap = {truck10:'รถสิบล้อ', tractor:'หัวลาก', trailer:'หาง'};
+  data.forEach(function(d){
+    var r = d.record;
+    var billNo = (d.shop && d.shop.type==='vat') ? (r.invoice_no||'') : (r.bill_no||'');
+    detailRows.push([r.service_date||'', d.vehicle ? d.vehicle.plate : '(ลบ)', vtypeMap[r.vehicle_type] || r.vehicle_type || '',
+      d.shop ? d.shop.name : '(ลบ)', d.shop && d.shop.type==='vat' ? 'VAT 7%' : 'เงินสด', billNo,
+      (r.service_types||[]).join(', '), r.mileage||0,
+      parseFloat(r.amount_before_vat)||0, parseFloat(r.vat_amount)||0, parseFloat(r.total_amount)||0, r.note||'']);
+  });
+  var sumBefore = data.reduce(function(s,d){return s+(parseFloat(d.record.amount_before_vat)||0);},0);
+  var sumVat = data.reduce(function(s,d){return s+(parseFloat(d.record.vat_amount)||0);},0);
+  var sumTotal = data.reduce(function(s,d){return s+(parseFloat(d.record.total_amount)||0);},0);
+  detailRows.push(['','','','','','','รวม:','', sumBefore, sumVat, sumTotal, '']);
+  var byShop = {};
+  data.forEach(function(d){
+    var key = (d.shop ? d.shop.name : '(ลบ)') + '|' + (d.shop ? d.shop.type : 'cash');
+    if(!byShop[key]) byShop[key] = {name:(d.shop?d.shop.name:'(ลบ)'), type:(d.shop?d.shop.type:'cash'), count:0, before:0, vat:0, total:0};
+    byShop[key].count++;
+    byShop[key].before += parseFloat(d.record.amount_before_vat)||0;
+    byShop[key].vat += parseFloat(d.record.vat_amount)||0;
+    byShop[key].total += parseFloat(d.record.total_amount)||0;
+  });
+  var summaryRows = [['อู่','ประเภทบิล','จำนวนใบ','ราคาก่อน VAT','VAT','รวม']];
+  Object.keys(byShop).forEach(function(k){
+    var sh = byShop[k];
+    summaryRows.push([sh.name, sh.type==='vat'?'VAT 7%':'เงินสด', sh.count, sh.before, sh.vat, sh.total]);
+  });
+  var wb = XLSX.utils.book_new();
+  var ws1 = XLSX.utils.aoa_to_sheet(detailRows);
+  var ws2 = XLSX.utils.aoa_to_sheet(summaryRows);
+  ws1['!cols'] = [{wch:11},{wch:14},{wch:11},{wch:25},{wch:10},{wch:14},{wch:30},{wch:10},{wch:13},{wch:10},{wch:13},{wch:20}];
+  ws2['!cols'] = [{wch:25},{wch:10},{wch:10},{wch:13},{wch:10},{wch:13}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'รายละเอียด');
+  XLSX.utils.book_append_sheet(wb, ws2, 'สรุปตามอู่');
+  var fname = 'รายงานค่าซ่อม_' + (document.getElementById('rpt-from').value||'all') + '_to_' + (document.getElementById('rpt-to').value||'all') + '.xlsx';
+  XLSX.writeFile(wb, fname);
+  showToast('Export Excel สำเร็จ ✓');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// FILE UPLOAD — Phase 6 (Supabase Storage)
+// ════════════════════════════════════════════════════════════════════════
+const STORAGE_BUCKET = 'maintenance-receipts';
+let _currentReceiptFiles = [];
+
+async function uploadReceiptFile(file){
+  var safeName = file.name.replace(/[^\w.-]/g, '_').slice(0, 60);
+  var path = 'receipts/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + safeName;
+  var uploadUrl = SUPA_URL + '/storage/v1/object/' + STORAGE_BUCKET + '/' + encodeURIComponent(path);
+  var res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'true'
+    },
+    body: file
+  });
+  if(!res.ok){ var err = await res.text(); throw new Error('Upload failed: ' + res.status + ' ' + err); }
+  return {
+    url: SUPA_URL + '/storage/v1/object/public/' + STORAGE_BUCKET + '/' + path,
+    name: file.name, type: file.type, size: file.size, path: path
+  };
+}
+
+async function deleteReceiptFile(path){
+  if(!path) return;
+  try {
+    await fetch(SUPA_URL + '/storage/v1/object/' + STORAGE_BUCKET + '/' + encodeURIComponent(path), {
+      method: 'DELETE',
+      headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY}
+    });
+  } catch(e){ console.warn('deleteReceiptFile error:', e); }
+}
+
+async function mmHandleFileUpload(event){
+  var files = Array.from(event.target.files || []);
+  if(!files.length) return;
+  var progressEl = document.getElementById('mm-upload-progress');
+  progressEl.style.display = 'block';
+  for(var i=0; i<files.length; i++){
+    var f = files[i];
+    if(f.size > 10*1024*1024){ showToast('ไฟล์ ' + f.name + ' ใหญ่เกิน 10MB'); continue; }
+    progressEl.textContent = '📤 อัปโหลด ' + (i+1) + '/' + files.length + ': ' + f.name;
+    try {
+      var uploaded = await uploadReceiptFile(f);
+      _currentReceiptFiles.push(uploaded);
+      mmRenderFilesList();
+    } catch(e){ showToast('อัปโหลดไม่สำเร็จ: ' + e.message); console.error(e); }
+  }
+  progressEl.textContent = '✅ อัปโหลดเสร็จ ' + _currentReceiptFiles.length + ' ไฟล์';
+  setTimeout(function(){ progressEl.style.display = 'none'; }, 2500);
+  event.target.value = '';
+}
+
+function mmRenderFilesList(){
+  var grid = document.getElementById('mm-files-grid');
+  if(!grid) return;
+  if(!_currentReceiptFiles.length){ grid.innerHTML = ''; return; }
+  grid.innerHTML = _currentReceiptFiles.map(function(f, i){
+    var isPdf = (f.type||'').includes('pdf') || (f.name||'').toLowerCase().endsWith('.pdf');
+    var preview = isPdf
+      ? '<div class="pdf-icon" onclick="window.open(\'' + f.url + '\',\'_blank\')">📄</div>'
+      : '<img src="' + f.url + '" alt="' + escapeHtml(f.name) + '" onclick="window.open(\'' + f.url + '\',\'_blank\')">';
+    return '<div class="mm-file-card">' + preview +
+      '<div class="file-name" title="' + escapeHtml(f.name) + '">' + escapeHtml(f.name) + '</div>' +
+      '<button type="button" class="remove-btn" onclick="mmRemoveFile(' + i + ')" title="ลบ">×</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function mmRemoveFile(idx){
+  if(idx < 0 || idx >= _currentReceiptFiles.length) return;
+  if(!confirm('ลบไฟล์นี้? (ลบจาก Storage ถาวร)')) return;
+  var f = _currentReceiptFiles[idx];
+  try { await deleteReceiptFile(f.path); } catch(e){}
+  _currentReceiptFiles.splice(idx, 1);
+  mmRenderFilesList();
+}
+
+// Hook into mtSwitchTab for records + alerts + reports tabs
 const _originalMtSwitchTab = mtSwitchTab;
 mtSwitchTab = function(tab){
   _originalMtSwitchTab(tab);
   if(tab==='records') renderMaintenance();
   if(tab==='alerts') renderAlerts();
+  if(tab==='reports') renderReports();
 };
 
 // ── Intervals: Render Form ──
@@ -21775,6 +22106,19 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
         <label class="fl">หรือวันที่</label>
         <input type="date" class="fi" id="mm-next-date">
       </div>
+    </div>
+
+    <!-- Section: ใบกำกับ / ใบเสร็จ (Phase 6) -->
+    <div class="ms-section-sub" style="font-weight:700;color:var(--green-d);margin:14px 0 8px">📎 รูปใบกำกับภาษี / ใบเสร็จ (Optional)</div>
+    <div class="fg">
+      <div class="mm-upload-zone" onclick="document.getElementById('mm-files-input').click()">
+        <div class="mm-upload-icon">📷</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">คลิกเพื่อแนบไฟล์</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">รูป (JPG/PNG/WEBP) หรือ PDF — สูงสุด 10MB ต่อไฟล์</div>
+      </div>
+      <input type="file" id="mm-files-input" accept="image/*,application/pdf" multiple style="display:none" onchange="mmHandleFileUpload(event)">
+      <div class="mm-upload-progress" id="mm-upload-progress"></div>
+      <div class="mm-files-grid" id="mm-files-grid"></div>
     </div>
 
     <!-- Section: หมายเหตุ -->
