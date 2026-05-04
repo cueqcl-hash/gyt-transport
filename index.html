@@ -18873,7 +18873,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.036';
+const APP_VERSION = '2026.04.29.037';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -20951,6 +20951,79 @@ if(_origGoPage){
     if(id==='inspection') insSwitchTab('history');
   };
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// CTYPE DROPDOWN PORTAL — Phase fix: escape overflow clip in multi-modal rows
+// ────────────────────────────────────────────────────────────────────────
+// สำหรับแถวใน table ของ + หลายตู้ (mc-r1, mc-r2, ...) — ปัญหา dropdown ถูก clip
+// โดย overflow-x:auto ของ wrapper → ย้าย dropdown ไป document.body ตอนเปิด
+// (Portal pattern) แล้วคืนกลับตอนปิด
+// ════════════════════════════════════════════════════════════════════════
+(function(){
+  if(typeof ctypeOpen !== 'function' || typeof ctypeClose !== 'function') return;
+  var _origCtypeOpen = ctypeOpen;
+  var _origCtypeClose = ctypeClose;
+
+  function _ctypePortalOpen(fp){
+    if(fp.indexOf('mc-r') !== 0) return; // เฉพาะแถว mc
+    var list = document.getElementById(fp+'-type-list');
+    var input = document.getElementById(fp+'-type-input');
+    if(!list || !input) return;
+    if(!list._mcOrigParent){
+      list._mcOrigParent = list.parentNode;
+    }
+    document.body.appendChild(list);
+    var r = input.getBoundingClientRect();
+    list.style.position = 'fixed';
+    list.style.top = (r.bottom + 2) + 'px';
+    list.style.left = r.left + 'px';
+    list.style.width = Math.max(r.width, 200) + 'px';
+    list.style.zIndex = '9999';
+  }
+
+  function _ctypePortalClose(fp){
+    if(fp.indexOf('mc-r') !== 0) return;
+    var list = document.getElementById(fp+'-type-list');
+    if(!list || !list._mcOrigParent) return;
+    list._mcOrigParent.appendChild(list);
+    list.style.position = '';
+    list.style.top = '';
+    list.style.left = '';
+    list.style.width = '';
+    list.style.zIndex = '';
+    list._mcOrigParent = null;
+  }
+
+  window.ctypeOpen = function(fp){
+    _origCtypeOpen(fp);
+    setTimeout(function(){ _ctypePortalOpen(fp); }, 0);
+  };
+  window.ctypeClose = function(fp){
+    _ctypePortalClose(fp);
+    _origCtypeClose(fp);
+  };
+
+  // กรณี modal ปิด (Escape) → คืน list ทุกตัวกลับ
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      document.querySelectorAll('[id^="mc-r"][id$="-type-list"]').forEach(function(list){
+        if(list._mcOrigParent){
+          list._mcOrigParent.appendChild(list);
+          list.style.cssText = '';
+          list._mcOrigParent = null;
+        }
+      });
+    }
+  });
+
+  // กรณี scroll/resize ตอนเปิด → ปิด dropdown (กัน position หลุด)
+  window.addEventListener('scroll', function(){
+    document.querySelectorAll('[id^="mc-r"][id$="-type-list"].open').forEach(function(list){
+      var fp = list.id.replace('-type-list', '');
+      ctypeClose(fp);
+    });
+  }, true);
+})();
 
 // ── AUTO LOGIN FROM SESSION ──────────────────────────────
 // ใช้ flow เดียวกับ doLogin() — set currentUser แล้วเรียก initApp()
