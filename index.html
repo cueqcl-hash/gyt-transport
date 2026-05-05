@@ -18888,7 +18888,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.041';
+const APP_VERSION = '2026.04.29.042';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19040,6 +19040,40 @@ async function refreshJobsFromCloud(){
 }
 
 // ── INITIAL LOAD FROM SUPABASE ─────────────────────────────
+// Paginated fetch — ดึงทีละ 1000 records จนกว่าจะหมด (Supabase REST ตัด max 1000/request)
+async function sbFetchAll(table, query) {
+  var all = [];
+  var pageSize = 1000;
+  var page = 0;
+  query = query || '';
+  while(true){
+    var from = page * pageSize;
+    var to = from + pageSize - 1;
+    var url = SUPA_URL + '/rest/v1/' + table + query;
+    try {
+      var r = await fetch(url, {
+        headers: {
+          'apikey': SUPA_KEY,
+          'Authorization': 'Bearer ' + SUPA_KEY,
+          'Range-Unit': 'items',
+          'Range': from + '-' + to
+        }
+      });
+      if(!r.ok) break;
+      var data = await r.json();
+      if(!data.length) break;
+      all = all.concat(data);
+      page++;
+      if(data.length < pageSize) break;
+      if(page > 50) break; // safety: max 50,000 records
+    } catch(e){
+      console.warn('sbFetchAll error page '+page+':', e.message);
+      break;
+    }
+  }
+  return all;
+}
+
 async function loadFromSupabase() {
   // ตรวจสอบว่าอยู่บน Vercel หรือ custom domain เท่านั้นถึงจะ sync
   var _origin = window.location.origin || '';
@@ -19056,7 +19090,7 @@ async function loadFromSupabase() {
       sbTractors, sbTrailers, sbDrivers, sbPairings, sbUsers,
       sbShops, sbIntervals, sbMaintenance, sbInspections
     ] = await Promise.all([
-      sbFetch('gyt_jobs','GET',null,'?order=startdate'),
+      sbFetchAll('gyt_jobs', '?order=startdate.desc'),
       sbFetch('gyt_customers','GET',null,'?order=id'),
       sbFetch('gyt_shippers','GET',null,'?order=id'),
       sbFetch('gyt_billings','GET',null,'?order=id'),
