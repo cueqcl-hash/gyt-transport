@@ -4765,6 +4765,42 @@ let carrierDB = JSON.parse(localStorage.getItem('gyt_carriers')||JSON.stringify(
 
 function saveCarrierDB(){localStorage.setItem('gyt_carriers',JSON.stringify(carrierDB));}
 function addCarrier(name){if(name&&!carrierDB.includes(name)){carrierDB.push(name);carrierDB.sort();saveCarrierDB();}}
+
+// 🔧 v052 — Rebuild carrierDB ให้รวมทุก carrier ที่ใช้ใน jobs (+ กรอง garbage)
+function rebuildCarrierDB(){
+  if(typeof jobs === 'undefined' || !Array.isArray(jobs)) return 0;
+  // เก็บค่าเดิมที่ user เพิ่มเอง (ไม่ลบทิ้ง)
+  var seen = {};
+  var keep = [];
+  function _isValid(c){
+    if(!c) return false;
+    var t = String(c).trim();
+    if(t.length < 3) return false;            // สั้นเกินไป (ของเสียอย่าง "CK", "H", "HU")
+    if(/^\d+$/.test(t)) return false;         // เลขล้วน (พวก booking number ที่ใส่ผิดช่อง)
+    if(/^[\s\-_=+.,]+$/.test(t)) return false; // เครื่องหมายล้วน
+    return true;
+  }
+  function _add(c){
+    if(!_isValid(c)) return;
+    var t = String(c).trim();
+    var key = t.toLowerCase();
+    if(seen[key]) return;
+    seen[key] = true;
+    keep.push(t);
+  }
+  // 1. เก็บของเดิมที่ valid
+  (carrierDB||[]).forEach(_add);
+  // 2. เพิ่มจาก jobs[]
+  jobs.forEach(function(j){ _add(j.carrier); });
+  // sort & save
+  keep.sort(function(a,b){ return a.toLowerCase().localeCompare(b.toLowerCase()); });
+  var added = keep.length - (carrierDB||[]).length;
+  carrierDB = keep;
+  saveCarrierDB();
+  console.log('[carrierDB] rebuilt: total='+carrierDB.length+' (delta '+(added>=0?'+':'')+added+')');
+  return carrierDB.length;
+}
+
 function saveLocDB(){
   localStorage.setItem('gyt_locations', JSON.stringify(locDB));
 }
@@ -18979,7 +19015,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.051';
+const APP_VERSION = '2026.04.29.052';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19149,6 +19185,8 @@ async function refreshJobsFromCloud(){
       // Re-render
       if(typeof renderJobs === 'function') renderJobs();
       if(typeof renderDashboard === 'function') renderDashboard();
+      // 🔧 v052 — sync carrierDB หลัง refresh (กัน carrier ใหม่ตกหล่น)
+      try { rebuildCarrierDB(); } catch(_){}
 
       // Diff
       var newByKey = {};
@@ -19276,6 +19314,8 @@ async function loadFromSupabase() {
       // map snake_case → camelCase สำหรับ jobs
       jobs = (sbJobs||[]).map(mapJobFromDB);
       nextJID = jobs.length ? Math.max(...jobs.map(j=>parseInt((j.id||'0').replace(/\D/g,''))||0))+1 : 100;
+      // 🔧 v052 — sync carrierDB ทุกครั้งที่โหลด jobs ใหม่
+      try { rebuildCarrierDB(); } catch(e){ console.warn('rebuildCarrierDB failed:', e.message); }
     }
     if(sbCustomers !== null && sbCustomers.length > 0) customers = sbCustomers;
     if(sbShippers !== null && sbShippers.length > 0) shippers = sbShippers;
