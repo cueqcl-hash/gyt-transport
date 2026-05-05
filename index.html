@@ -4139,6 +4139,33 @@ let locCache = {origin:null,dest:null,return:null};
 async function doLogin(){
   const name=document.getElementById('l-user').value.trim();
   const pass=document.getElementById('l-pass').value;
+  const errEl=document.getElementById('l-err');
+  errEl.textContent='';
+
+  // 🔧 v049 — ดึง users ล่าสุดจาก Supabase ก่อน verify password
+  // เพื่อให้ user ที่เพิ่ม/แก้บน cloud (เช่น เปลี่ยนรหัสผ่าน) login ได้ทันที
+  // โดยไม่ต้องพึ่ง users[] ที่ฮาร์ดโค้ดอยู่ใน HTML default
+  try {
+    if(typeof SUPA_URL !== 'undefined' && typeof sbFetch === 'function'){
+      errEl.textContent='⏳ กำลังตรวจสอบข้อมูลจาก Cloud...';
+      const sbUsers = await sbFetch('gyt_users','GET',null,'?order=id');
+      if(sbUsers && sbUsers.length > 0){
+        users = sbUsers.map(function(u){ return Object.assign({}, u, {perms: u.perms||[]}); });
+        // recompute nextUID หลัง refresh users
+        try {
+          var maxUid = users.reduce(function(m, u){ return Math.max(m, parseInt(u.id)||0); }, 0);
+          nextUID = maxUid + 1;
+        } catch(_){}
+        try { localStorage.setItem('gyt_users', JSON.stringify(users)); } catch(_){}
+        console.log('[Login] users refreshed from Supabase ('+users.length+')');
+      }
+      errEl.textContent='';
+    }
+  } catch(e){
+    console.warn('[Login] Supabase users fetch failed (using local cache):', e.message);
+    errEl.textContent='';
+  }
+
   // รองรับทั้ง pass (plain legacy) และ pass_hash (SHA-256)
   let u=null;
   for(const x of users){
@@ -4148,7 +4175,7 @@ async function doLogin(){
     const passOk=await verifyPassword(pass,x.pass_hash||x.pass);
     if(passOk){u=x;break;}
   }
-  if(!u){document.getElementById('l-err').textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';return;}
+  if(!u){errEl.textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';return;}
   currentUser=u;
   document.getElementById('screen-login').style.display='none';
   document.getElementById('screen-app').style.display='flex';
@@ -18948,7 +18975,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.048';
+const APP_VERSION = '2026.04.29.049';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
