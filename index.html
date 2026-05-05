@@ -18929,7 +18929,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.045';
+const APP_VERSION = '2026.04.29.046';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -21965,10 +21965,7 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">รายการตู้ทั้งหมด</div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
       <span style="font-size:12px;color:var(--text-2)">จำนวนตู้:</span>
-      <input type="number" id="mc-count" min="1" max="50" value="5" onchange="onMcCountChange()" oninput="onMcCountChange()" list="mc-count-suggestions" style="width:80px;height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--mono);font-weight:600;text-align:center" title="กรอกจำนวน 1-50">
-      <datalist id="mc-count-suggestions">
-        <option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option><option value="5"></option><option value="10"></option><option value="15"></option><option value="20"></option><option value="25"></option><option value="30"></option><option value="40"></option><option value="50"></option>
-      </datalist>
+      <input type="number" id="mc-count" min="1" max="50" value="5" onchange="onMcCountChange()" oninput="onMcCountChange()" style="width:80px;height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--mono);font-weight:600;text-align:center" title="กรอกจำนวน 1-50">
       <span style="font-size:11px;color:var(--text-3)">กรอกหมายเลขตู้ / วันเวลา / ทะเบียน / คนขับ รายตู้ได้เลย</span>
     </div>
 
