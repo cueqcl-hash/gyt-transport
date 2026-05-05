@@ -692,19 +692,38 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <div class="stat-card"><div class="stat-label">กำลังดำเนินการ</div><div class="stat-num green" id="d-go">0</div><div class="stat-sub">อยู่ระหว่างทาง</div></div>
           <div class="stat-card"><div class="stat-label">เสร็จสิ้น</div><div class="stat-num green" id="d-done">0</div><div class="stat-sub">วันนี้</div></div>
         </div>
-        <div class="dash-2col">
-          <div class="card" style="margin-bottom:0">
-            <div class="card-header"><span class="card-title">ใบงานล่าสุด</span></div>
-            <div style="overflow-x:auto"><table id="d-recent-tbl"></table></div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header"><span class="card-title">ใบงานล่าสุด</span></div>
+          <div style="overflow-x:auto"><table id="d-recent-tbl"></table></div>
+        </div>
+
+        <!-- 🆕 v054 — ผลงานพนักงานขับ -->
+        <div class="dash-card" style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-size:15px;font-weight:700;color:var(--text)">🚛 ผลงานพนักงานขับ</div>
+              <div style="font-size:11px;color:var(--text-3);margin-top:2px">จำนวนใบงานที่แต่ละคนขับ (นับทุกสถานะ ยกเว้นยกเลิก)</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="dash-driver-period" onchange="renderDriverStats()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--font);background:#fff;cursor:pointer">
+                <option value="week">📅 สัปดาห์นี้</option>
+                <option value="lastWeek">📅 สัปดาห์ก่อน</option>
+                <option value="7d">📅 7 วันล่าสุด</option>
+                <option value="month" selected>📅 เดือนนี้</option>
+                <option value="lastMonth">📅 เดือนก่อน</option>
+                <option value="30d">📅 30 วันล่าสุด</option>
+                <option value="year">📅 ปีนี้</option>
+                <option value="all">📅 ทั้งหมด</option>
+              </select>
+              <button class="btn btn-ghost" style="font-size:11px" onclick="renderDriverStats()" title="รีเฟรช">&#8635;</button>
+            </div>
           </div>
-          <div class="card" style="margin-bottom:0">
-            <div class="card-header"><span class="card-title">สถานะพนักงานขับ</span></div>
-            <div id="d-drivers"></div>
-          </div>
+          <div id="dash-driver-summary" style="font-size:11px;color:var(--text-3);margin-bottom:10px"></div>
+          <div id="dash-driver-list"></div>
         </div>
       
         <!-- ผลงานทีมงาน -->
-        <div class="dash-card" style="margin-top:16px">
+        <div class="dash-card" style="margin-top:0">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <div>
               <div style="font-size:15px;font-weight:700;color:var(--text)">👥 ผลงานทีมงาน</div>
@@ -15987,6 +16006,159 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ============================
 
 // ── ผลงานทีมงาน ──────────────────────────────────────────────
+// 🆕 v054 — Driver Performance Dashboard
+function _driverPeriodRange(period){
+  var now = new Date();
+  var year = now.getFullYear(), month = now.getMonth(), date = now.getDate();
+  var dayOfWeek = now.getDay();
+  var mondayOffset = dayOfWeek === 0 ? -6 : (1 - dayOfWeek);
+
+  function _fmt(d){
+    return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+  }
+
+  if(period === 'week'){
+    var monday = new Date(year, month, date + mondayOffset);
+    var sunday = new Date(year, month, date + mondayOffset + 6, 23, 59, 59);
+    return {from: monday, to: sunday, label: 'สัปดาห์นี้ ('+_fmt(monday)+' – '+_fmt(sunday)+')'};
+  }
+  if(period === 'lastWeek'){
+    var lastMon = new Date(year, month, date + mondayOffset - 7);
+    var lastSun = new Date(year, month, date + mondayOffset - 1, 23, 59, 59);
+    return {from: lastMon, to: lastSun, label: 'สัปดาห์ก่อน ('+_fmt(lastMon)+' – '+_fmt(lastSun)+')'};
+  }
+  if(period === '7d'){
+    var sevenAgo = new Date(year, month, date - 6);
+    var endToday = new Date(year, month, date, 23, 59, 59);
+    return {from: sevenAgo, to: endToday, label: '7 วันล่าสุด ('+_fmt(sevenAgo)+' – '+_fmt(endToday)+')'};
+  }
+  if(period === 'month'){
+    var monStart = new Date(year, month, 1);
+    var monEnd = new Date(year, month + 1, 0, 23, 59, 59);
+    return {from: monStart, to: monEnd, label: 'เดือนนี้ ('+_fmt(monStart)+' – '+_fmt(monEnd)+')'};
+  }
+  if(period === 'lastMonth'){
+    var lmStart = new Date(year, month - 1, 1);
+    var lmEnd = new Date(year, month, 0, 23, 59, 59);
+    return {from: lmStart, to: lmEnd, label: 'เดือนก่อน ('+_fmt(lmStart)+' – '+_fmt(lmEnd)+')'};
+  }
+  if(period === '30d'){
+    var thirtyAgo = new Date(year, month, date - 29);
+    var endToday2 = new Date(year, month, date, 23, 59, 59);
+    return {from: thirtyAgo, to: endToday2, label: '30 วันล่าสุด ('+_fmt(thirtyAgo)+' – '+_fmt(endToday2)+')'};
+  }
+  if(period === 'year'){
+    var yStart = new Date(year, 0, 1);
+    var yEnd = new Date(year, 11, 31, 23, 59, 59);
+    return {from: yStart, to: yEnd, label: 'ปีนี้ ('+year+')'};
+  }
+  return {from: null, to: null, label: 'ทั้งหมด'};
+}
+
+function renderDriverStats(){
+  var listEl = document.getElementById('dash-driver-list');
+  var sumEl = document.getElementById('dash-driver-summary');
+  if(!listEl) return;
+
+  var periodSel = document.getElementById('dash-driver-period');
+  var period = periodSel ? periodSel.value : 'month';
+  var range = _driverPeriodRange(period);
+
+  var filtered = (jobs||[]).filter(function(j){
+    if(j.status === 'ยกเลิก') return false;
+    if(!range.from) return true;
+    var jdStr = j.startdate || '';
+    if(!jdStr) return false;
+    var jd = new Date(jdStr);
+    if(isNaN(jd.getTime())) return false;
+    return jd >= range.from && jd <= range.to;
+  });
+
+  var byDriver = {};
+  filtered.forEach(function(j){
+    var name = (j.driver || '').trim();
+    if(!name) name = '— ยังไม่มอบหมาย —';
+    if(!byDriver[name]) byDriver[name] = 0;
+    byDriver[name]++;
+  });
+
+  var allDrivers = [];
+  if(typeof drivers !== 'undefined' && Array.isArray(drivers)){
+    drivers.forEach(function(d){
+      var dn = (d.name || d.fname || '').trim();
+      if(dn) allDrivers.push(dn);
+    });
+  }
+  Object.keys(byDriver).forEach(function(name){
+    if(name === '— ยังไม่มอบหมาย —') return;
+    if(allDrivers.indexOf(name) < 0) allDrivers.push(name);
+  });
+
+  var entries = allDrivers.map(function(name){
+    return {name: name, count: byDriver[name] || 0};
+  });
+  if(byDriver['— ยังไม่มอบหมาย —']){
+    entries.push({name: '— ยังไม่มอบหมาย —', count: byDriver['— ยังไม่มอบหมาย —'], unassigned: true});
+  }
+  entries.sort(function(a,b){ return b.count - a.count; });
+
+  var totalJobs = entries.reduce(function(sum, e){ return sum + e.count; }, 0);
+  var maxCount = entries.length ? Math.max.apply(null, entries.map(function(e){return e.count;})) : 1;
+  if(maxCount < 1) maxCount = 1;
+
+  if(sumEl){
+    sumEl.innerHTML = '<strong style="color:var(--green-d)">'+range.label+'</strong>'+
+      ' &nbsp;|&nbsp; รวม <strong>'+totalJobs.toLocaleString()+'</strong> ใบงาน'+
+      ' &nbsp;|&nbsp; พนักงาน <strong>'+entries.filter(function(e){return e.count>0;}).length+'</strong> คนขับงาน'+
+      ' (จากทั้งหมด '+entries.length+' คน)';
+  }
+
+  if(!entries.length){
+    listEl.innerHTML = '<div style="color:var(--text-3);font-size:13px;padding:20px;text-align:center">ไม่มีข้อมูลพนักงานขับ</div>';
+    return;
+  }
+
+  var medals = ['🥇','🥈','🥉'];
+  var html = entries.map(function(e, idx){
+    var pct = totalJobs > 0 ? (e.count / totalJobs * 100) : 0;
+    var barW = e.count / maxCount * 100;
+    var medal = (e.count > 0 && idx < 3) ? medals[idx] : '';
+    var rank = (e.count > 0) ? (idx + 1) : '–';
+    var nameColor = e.unassigned ? '#9CA3AF' : 'var(--text)';
+    var avatarBg = e.unassigned ? '#F3F4F6' : 'var(--green-l)';
+    var avatarColor = e.unassigned ? '#9CA3AF' : 'var(--green-d)';
+    var initial = e.unassigned ? '?' : (e.name.charAt(0) || '?');
+
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F3F4F6">'+
+      '<div style="width:24px;text-align:center;font-size:14px;font-weight:700;color:var(--text-3)">'+
+        (medal || rank)+
+      '</div>'+
+      '<div style="width:34px;height:34px;border-radius:50%;background:'+avatarBg+';color:'+avatarColor+
+        ';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">'+initial+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-weight:600;font-size:13px;color:'+nameColor+';margin-bottom:4px">'+
+          e.name+
+          (e.count === 0 ? ' <span style="font-size:10px;color:#9CA3AF;font-weight:400">(ไม่มีงาน)</span>' : '')+
+        '</div>'+
+        '<div style="background:#F3F4F6;border-radius:20px;height:7px;overflow:hidden">'+
+          '<div style="width:'+barW+'%;height:100%;background:'+
+            (e.unassigned ? 'linear-gradient(90deg,#9CA3AF,#6B7280)' : 'linear-gradient(90deg,var(--green),var(--green-d))')+
+            ';border-radius:20px;transition:width 0.5s"></div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="text-align:right;flex-shrink:0;min-width:90px">'+
+        '<div style="font-size:18px;font-weight:800;color:'+
+          (e.count > 0 ? 'var(--green-d)' : '#9CA3AF')+'">'+e.count+'</div>'+
+        '<div style="font-size:10px;color:var(--text-3)">'+
+          (totalJobs > 0 ? pct.toFixed(1)+'%' : '—')+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  listEl.innerHTML = html;
+}
+
 function renderTeamStats(){
   var wrap=document.getElementById('dash-team');
   if(!wrap)return;
@@ -16050,6 +16222,7 @@ function renderTeamStats(){
 
 function renderDashboard(){
   renderTeamStats();
+  try { renderDriverStats(); } catch(e){ console.warn('renderDriverStats failed:', e.message); }
   document.getElementById('d-total').textContent=jobs.length;
   document.getElementById('d-wait').textContent=jobs.filter(j=>j.status==='รอดำเนินการ').length;
   document.getElementById('d-go').textContent=jobs.filter(j=>j.status==='กำลังดำเนินการ').length;
@@ -16076,15 +16249,7 @@ function renderDashboard(){
       <td>${j.createdBy?`<div style="font-size:12px;font-weight:600">${j.createdBy}</div>${j.createdAt?`<div style="font-size:10px;color:var(--text-3)">${__fmtCreated(j.createdAt)}</div>`:''}`:'<span style="color:var(--text-3)">—</span>'}</td>
       <td>${badge(j.status)}</td>
     </tr>`).join('')}</tbody>`;
-  const drv=['สมชาย ดีใจ','วิชัย มั่นคง','ประสิทธิ์ ทำงาน','นิรันดร์ ขยัน'];
-  document.getElementById('d-drivers').innerHTML=drv.map(n=>{
-    const cnt=jobs.filter(j=>j.driver===n&&j.status!=='เสร็จสิ้น').length;
-    return`<div class="driver-row">
-      <div class="dr-av">${n[0]}${n[1]}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600">${n}</div><div style="font-size:11px;color:var(--text-3)">${cnt} งาน</div></div>
-      <div class="bar-track" style="width:70px"><div class="bar-fill" style="width:${Math.round(cnt/4*100)}%"></div></div>
-      <div style="font-size:11px;color:var(--text-3);min-width:22px;text-align:right;font-weight:600">${cnt}</div>
-    </div>`;}).join('');
+  // legacy d-drivers removed in v054 — replaced by renderDriverStats()
 }
 
 // ============================
@@ -19022,7 +19187,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.053';
+const APP_VERSION = '2026.04.29.054';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
