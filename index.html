@@ -4700,9 +4700,8 @@ function sdLocOpen(id){
 function sdLocBlur(id){
   sdTimers[id]=setTimeout(()=>{
     document.getElementById(id+'-list')?.classList.remove('open');
-    // save on blur if url exists
-    const urlId=id==='fj-origin'?'fj-origin-url':id==='fj-dest'?'fj-dest-url':'fj-return-url';
-    saveLocUrl(id, urlId);
+    // save on blur if url exists — generic prefix support (fj-/mc-)
+    saveLocUrl(id, id+'-url');
   },180);
 }
 function sdLocFilter(id){
@@ -4740,7 +4739,7 @@ function sdLocSelect(id,name,url){
   if(inp)inp.value=name;
   document.getElementById(id+'-list')?.classList.remove('open');
   // Fill URL
-  const urlId=id==='fj-origin'?'fj-origin-url':id==='fj-dest'?'fj-dest-url':'fj-return-url';
+  const urlId=id+'-url';  // generic — works for both fj-* and mc-*
   const urlEl=document.getElementById(urlId);
   if(urlEl&&url)urlEl.value=url;
   // update count
@@ -18888,7 +18887,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.043';
+const APP_VERSION = '2026.04.29.044';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -21813,16 +21812,37 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
     <!-- mc-type kept as hidden fallback for legacy code -->
     <input type="hidden" id="mc-type" value="">
     <div class="fg-row">
-      <div class="fg"><label class="fl">ต้นทาง *</label><input class="fi" id="mc-origin" placeholder="ท่าเรือแหลมฉบัง"></div>
-      <div class="fg"><label class="fl">ลิงก์ Map ต้นทาง</label><div class="fi-loc"><input class="fi" id="mc-origin-url" placeholder="https://maps.app.goo.gl/..."><button class="loc-btn" onclick="openMapUrl('mc-origin-url')">🗺</button></div></div>
+      <div class="fg"><label class="fl">ต้นทาง *</label>
+        <div class="sd-wrap">
+          <input class="sd-input" id="mc-origin" placeholder="พิมพ์หรือเลือกสถานที่ เช่น ท่าเรือแหลมฉบัง" autocomplete="off"
+            oninput="sdLocFilter('mc-origin')" onfocus="sdLocOpen('mc-origin')" onblur="sdLocBlur('mc-origin')" onchange="syncLocUrl('mc-origin','mc-origin-url')">
+          <span class="sd-arrow">&#9662;</span>
+          <div class="sd-list" id="mc-origin-list"></div>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">ลิงก์ Map ต้นทาง</label><div class="fi-loc"><input class="fi" id="mc-origin-url" placeholder="https://maps.app.goo.gl/..." oninput="saveLocUrl('mc-origin','mc-origin-url')"><button class="loc-btn" onclick="openMapUrl('mc-origin-url')">🗺</button></div></div>
     </div>
     <div class="fg-row">
-      <div class="fg"><label class="fl">เปิด/บรรจุ *</label><input class="fi" id="mc-dest" placeholder="โกดัง / โรงงาน / สถานที่เปิด-บรรจุสินค้า"></div>
-      <div class="fg"><label class="fl">ลิงก์ Map เปิด/บรรจุ</label><div class="fi-loc"><input class="fi" id="mc-dest-url" placeholder="https://maps.app.goo.gl/..."><button class="loc-btn" onclick="openMapUrl('mc-dest-url')">🗺</button></div></div>
+      <div class="fg"><label class="fl">เปิด/บรรจุ *</label>
+        <div class="sd-wrap">
+          <input class="sd-input" id="mc-dest" placeholder="พิมพ์หรือเลือกสถานที่ส่งสินค้า" autocomplete="off"
+            oninput="sdLocFilter('mc-dest')" onfocus="sdLocOpen('mc-dest')" onblur="sdLocBlur('mc-dest')" onchange="syncLocUrl('mc-dest','mc-dest-url')">
+          <span class="sd-arrow">&#9662;</span>
+          <div class="sd-list" id="mc-dest-list"></div>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">ลิงก์ Map เปิด/บรรจุ</label><div class="fi-loc"><input class="fi" id="mc-dest-url" placeholder="https://maps.app.goo.gl/..." oninput="saveLocUrl('mc-dest','mc-dest-url')"><button class="loc-btn" onclick="openMapUrl('mc-dest-url')">🗺</button></div></div>
     </div>
     <div class="fg-row">
-      <div class="fg"><label class="fl">ปลายทาง</label><input class="fi" id="mc-return" placeholder="ท่าเรือแหลมฉบัง (CY)"></div>
-      <div class="fg"><label class="fl">ลิงก์ Map ปลายทาง</label><div class="fi-loc"><input class="fi" id="mc-return-url" placeholder="https://maps.app.goo.gl/..."><button class="loc-btn" onclick="openMapUrl('mc-return-url')">🗺</button></div></div>
+      <div class="fg"><label class="fl">ปลายทาง</label>
+        <div class="sd-wrap">
+          <input class="sd-input" id="mc-return" placeholder="ท่าเรือ / ลาน CY / Empty Depot (ปลายทาง)" autocomplete="off"
+            oninput="sdLocFilter('mc-return')" onfocus="sdLocOpen('mc-return')" onblur="sdLocBlur('mc-return')" onchange="syncLocUrl('mc-return','mc-return-url')">
+          <span class="sd-arrow">&#9662;</span>
+          <div class="sd-list" id="mc-return-list"></div>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">ลิงก์ Map ปลายทาง</label><div class="fi-loc"><input class="fi" id="mc-return-url" placeholder="https://maps.app.goo.gl/..." oninput="saveLocUrl('mc-return','mc-return-url')"><button class="loc-btn" onclick="openMapUrl('mc-return-url')">🗺</button></div></div>
     </div>
 
     <div class="fg" style="margin-top:8px">
