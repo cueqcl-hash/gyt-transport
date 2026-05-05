@@ -18979,7 +18979,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.050';
+const APP_VERSION = '2026.04.29.051';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -21453,7 +21453,7 @@ function exportJobsExcel(){
 // ── AUTO LOGIN FROM SESSION ──────────────────────────────
 // ใช้ flow เดียวกับ doLogin() — set currentUser แล้วเรียก initApp()
 // (initApp จัดการ render sidebar, avatar, ?page= routing, loadFromSupabase ฯลฯ ให้เอง)
-(function(){
+(async function(){
   var raw = null;
   try {
     raw = localStorage.getItem('gyt_session');
@@ -21463,12 +21463,62 @@ function exportJobsExcel(){
       localStorage.removeItem('gyt_session');
       return;
     }
-    // หา user จาก id (ถ้าไม่เจอ → user ถูกลบออกจากระบบ → clear session)
-    var u = users.find(function(x){ return x.id === session.userId; });
+
+    // 🔧 v051 — หา user จากหลาย source (จัดลำดับความสำคัญ):
+    // 1) localStorage cached users (จาก login ครั้งก่อน — มี user ครบทุกคนรวมถึง PISOLN id=15)
+    // 2) HTML default users[] (fallback กรณี cache หาย)
+    // 3) Async fetch จาก Supabase (กรณี cache + default ไม่มี → ใช้สำหรับ user ที่เพิ่งเพิ่มใหม่)
+    var u = null;
+    try {
+      var cached = JSON.parse(localStorage.getItem('gyt_users') || '[]');
+      if(cached && cached.length > 0){
+        u = cached.find(function(x){ return x.id === session.userId; });
+        if(u){
+          // ใช้ users จาก cache แทน HTML default → ทำให้ initApp/saveUser/permissions ใช้ id ใหม่ได้
+          users = cached.map(function(x){ return Object.assign({}, x, {perms: x.perms||[]}); });
+          try {
+            var maxUid = users.reduce(function(m, x){ return Math.max(m, parseInt(x.id)||0); }, 0);
+            nextUID = maxUid + 1;
+          } catch(_){}
+          console.log('[AutoLogin] user found in cache: id='+u.id+' '+u.username);
+        }
+      }
+    } catch(e){ console.warn('[AutoLogin] cache parse failed:', e.message); }
+
+    // Fallback 1 → HTML default
+    if(!u){
+      u = users.find(function(x){ return x.id === session.userId; });
+      if(u) console.log('[AutoLogin] user found in HTML default');
+    }
+
+    // Fallback 2 → async fetch จาก Supabase (id ใหม่ที่เพิ่งเพิ่ม)
+    if(!u && typeof sbFetch === 'function'){
+      try {
+        console.log('[AutoLogin] fetching users from Supabase for session.userId='+session.userId);
+        var sbUsers = await sbFetch('gyt_users','GET',null,'?id=eq.'+session.userId);
+        if(sbUsers && sbUsers.length > 0){
+          // โหลดทุก user เข้า users[] เพื่อให้ initApp ใช้ได้
+          var allSb = await sbFetch('gyt_users','GET',null,'?order=id');
+          if(allSb && allSb.length > 0){
+            users = allSb.map(function(x){ return Object.assign({}, x, {perms: x.perms||[]}); });
+            try { localStorage.setItem('gyt_users', JSON.stringify(users)); } catch(_){}
+            try {
+              var maxUid = users.reduce(function(m, x){ return Math.max(m, parseInt(x.id)||0); }, 0);
+              nextUID = maxUid + 1;
+            } catch(_){}
+            u = users.find(function(x){ return x.id === session.userId; });
+          }
+          if(u) console.log('[AutoLogin] user found via Supabase fetch');
+        }
+      } catch(e){ console.warn('[AutoLogin] Supabase fetch failed:', e.message); }
+    }
+
     if (!u || u.status !== 'active') {
+      console.warn('[AutoLogin] user not found anywhere — clearing session');
       localStorage.removeItem('gyt_session');
       return;
     }
+
     // auto login — ทำเหมือน doLogin() ทุกอย่าง
     currentUser = u;
     var loginScr = document.getElementById('screen-login');
@@ -21480,7 +21530,6 @@ function exportJobsExcel(){
     if(typeof initApp === 'function') initApp();
   } catch(e) {
     // **อย่า** ลบ session เมื่อ error — แค่ log แล้วให้ user login ปกติแทน
-    // (การลบ session ทำให้ user ถูก force logout เพราะ bug เล็กๆ ครั้งก่อนเคยเกิดขึ้น)
     console.warn('auto-login failed, falling back to manual login:', e);
   }
 })();
