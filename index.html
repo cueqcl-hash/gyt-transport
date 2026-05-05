@@ -4039,19 +4039,18 @@ const ALL_COLS = [
   {id:'id',          label:'เลขใบงาน',               field:'id',           width:'88px', pinned:true},
 ];
 
-// Force default column order — always apply if stored < 18 cols
+// 🔧 v048 — Legacy global col-order init (ใช้เฉพาะตอนยังไม่ login)
+// IMPORTANT: ตรงนี้แก้เฉพาะ legacy global key (gyt_colOrder) เท่านั้น
+// ไม่แตะ per-user keys (gyt_colOrder_u<id>) → user prefs ปลอดภัย
 (function(){
-  var def=['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','customer','carrier','booking','status','id'];
+  var def=['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','cargo_type','customer','carrier','booking','status','id'];
   var stored=JSON.parse(localStorage.getItem('gyt_colOrder')||'[]');
-  var needReset=stored.length!==def.length;
-  if(!needReset){
-    var allOk=def.every(function(c){return stored.indexOf(c)>=0;});
-    if(!allOk)needReset=true;
-  }
-  if(needReset){
+  var needInit = stored.length === 0;
+  if(needInit){
     localStorage.setItem('gyt_colOrder',JSON.stringify(def));
-    localStorage.setItem('gyt_hiddenCols',JSON.stringify([]));
+    localStorage.setItem('gyt_hiddenCols',JSON.stringify(['cargo_type']));
   }
+  // ไม่ overwrite ของ user — user customize แล้วเก็บไว้เลย
 })();
 
 const _DEFAULT_COL_ORDER = ['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','cargo_type','customer','carrier','booking','status','id'];
@@ -4067,40 +4066,60 @@ function _colKey(base){ return currentUser?.id ? base+'_u'+currentUser.id : base
 
 function loadColPrefsForUser(){
   if(!currentUser?.id) return;
-  // ลำดับ: 1) cloud (currentUser.prefs) → 2) localStorage → 3) default
+  // 🔧 Fix v048 — ลำดับใหม่: localStorage ก่อน → cloud → default
+  // เหตุผล: localStorage เป็นสิ่งที่ user เพิ่งจัดบนเครื่องนี้ (อาจใหม่กว่า cloud)
+  // ใช้ timestamp เพื่อตัดสินถ้ามีทั้งสอง source
   var src = 'default';
-  if(currentUser.prefs && currentUser.prefs.colOrder){
-    colOrder = currentUser.prefs.colOrder.slice();
-    hiddenCols = new Set(currentUser.prefs.colHidden || []);
+  var localOrder = localStorage.getItem('gyt_colOrder_u'+currentUser.id);
+  var localHidden = localStorage.getItem('gyt_hiddenCols_u'+currentUser.id);
+  var localTs = parseInt(localStorage.getItem('gyt_colOrder_ts_u'+currentUser.id) || '0', 10);
+  var cloudOrder = (currentUser.prefs && currentUser.prefs.colOrder) ? currentUser.prefs.colOrder : null;
+  var cloudHidden = (currentUser.prefs && currentUser.prefs.colHidden) ? currentUser.prefs.colHidden : null;
+  var cloudTs = (currentUser.prefs && currentUser.prefs.colOrderTs) ? parseInt(currentUser.prefs.colOrderTs, 10) : 0;
+
+  // ถ้ามี local + cloud → เปรียบเทียบ timestamp
+  if(localOrder && cloudOrder){
+    if(localTs >= cloudTs){
+      colOrder = JSON.parse(localOrder);
+      hiddenCols = new Set(localHidden ? JSON.parse(localHidden) : []);
+      src = 'localStorage(newer)';
+    } else {
+      colOrder = cloudOrder.slice();
+      hiddenCols = new Set(cloudHidden || []);
+      src = 'cloud(newer)';
+    }
+  } else if(localOrder){
+    colOrder = JSON.parse(localOrder);
+    hiddenCols = new Set(localHidden ? JSON.parse(localHidden) : []);
+    src = 'localStorage';
+  } else if(cloudOrder){
+    colOrder = cloudOrder.slice();
+    hiddenCols = new Set(cloudHidden || []);
     src = 'cloud';
   } else {
-    var savedOrder = localStorage.getItem('gyt_colOrder_u'+currentUser.id);
-    var savedHidden = localStorage.getItem('gyt_hiddenCols_u'+currentUser.id);
-    if(savedOrder){
-      colOrder = JSON.parse(savedOrder);
-      hiddenCols = new Set(savedHidden ? JSON.parse(savedHidden) : []);
-      src = 'localStorage';
-    } else {
-      colOrder = [..._DEFAULT_COL_ORDER];
-      hiddenCols = new Set([]);
-    }
+    colOrder = [..._DEFAULT_COL_ORDER];
+    hiddenCols = new Set([]);
   }
-  // validate — ตัด col ที่ไม่มีอยู่จริง + เพิ่ม col ใหม่ที่ default มี
+
+  // validate — ตัด col ที่ไม่มีอยู่จริง + เพิ่ม col ใหม่ที่ default มี (ต่อท้าย)
   colOrder = colOrder.filter(function(id){return _DEFAULT_COL_ORDER.indexOf(id)>=0;});
   _DEFAULT_COL_ORDER.forEach(function(id){if(colOrder.indexOf(id)<0)colOrder.push(id);});
-  console.log('[ColPrefs] loaded from:', src);
+  console.log('[ColPrefs] loaded from:', src, '(localTs:', localTs, 'cloudTs:', cloudTs, ')');
 }
 
 function saveColPrefsForUser(){
   if(!currentUser?.id) return;
-  // 1. localStorage (เร็ว, ใช้งานได้แม้ออฟไลน์)
+  var ts = Date.now();
+  // 1. localStorage (เร็ว, ใช้งานได้แม้ออฟไลน์) + timestamp
   localStorage.setItem('gyt_colOrder_u'+currentUser.id, JSON.stringify(colOrder));
   localStorage.setItem('gyt_hiddenCols_u'+currentUser.id, JSON.stringify([...hiddenCols]));
-  // 2. Cloud sync (ข้ามเครื่อง — ต้องมี column 'prefs' ใน gyt_users)
+  localStorage.setItem('gyt_colOrder_ts_u'+currentUser.id, String(ts));
+  // 2. Cloud sync (ข้ามเครื่อง — ต้องมี column 'prefs' ใน gyt_users) + timestamp
   if(typeof _onlineMode !== 'undefined' && _onlineMode){
     if(!currentUser.prefs) currentUser.prefs = {};
     currentUser.prefs.colOrder = colOrder.slice();
     currentUser.prefs.colHidden = [...hiddenCols];
+    currentUser.prefs.colOrderTs = ts;
     var u = users.find(function(x){return x.id===currentUser.id;});
     if(u){ u.prefs = currentUser.prefs; }
     if(typeof syncUserSave === 'function'){
@@ -18929,7 +18948,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.047';
+const APP_VERSION = '2026.04.29.048';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19233,6 +19252,12 @@ async function loadFromSupabase() {
     }
     if(sbUsers !== null && sbUsers.length > 0) {
       users = sbUsers.map(function(u){ return Object.assign({},u,{perms:u.perms||[]}); });
+      // 🔧 Fix v048 — recompute nextUID เพื่อกัน id ชนกัน (เคยมี bug ที่ AOI ทับ PISOLN)
+      try {
+        var maxUid = users.reduce(function(m, u){ return Math.max(m, parseInt(u.id)||0); }, 0);
+        nextUID = maxUid + 1;
+        console.log('[Users] nextUID recomputed →', nextUID);
+      } catch(e){ console.warn('[Users] nextUID recompute failed:', e.message); }
       // Sync currentUser ให้ตรงกับข้อมูลล่าสุดของ user คนนั้น (admin เปลี่ยน role/perms ของ user แล้วต้อง reflect ทันที)
       if(currentUser && currentUser.id){
         var fresh = users.find(function(u){return u.id===currentUser.id;});
