@@ -1676,7 +1676,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     </div>
 
     <div class="fg-row">
-      <div class="fg"><label class="fl">Carrier Line/Agent</label><div class="sd-wrap"><input class="sd-input" id="fj-carrier" placeholder="พิมพ์หรือเลือก เช่น EVERGREEN..." autocomplete="off" oninput="sdCarrierFilter('fj-carrier')" onfocus="sdCarrierOpen('fj-carrier')" onblur="sdCarrierBlur('fj-carrier')" onkeydown="if(event.key==='Enter'){event.preventDefault();sdCarrierSelect('fj-carrier',this.value.trim());}"><span class="sd-arrow">&#9662;</span><div class="sd-list" id="fj-carrier-list"></div></div></div>
+      <div class="fg"><label class="fl">Carrier Line/Agent</label><div class="sd-wrap"><input class="sd-input" id="fj-carrier" placeholder="พิมพ์หรือเลือก เช่น EVERGREEN..." autocomplete="off" oninput="sdCarrierFilter('fj-carrier')" onfocus="sdCarrierOpen('fj-carrier')" onblur="sdCarrierBlur('fj-carrier')"><span class="sd-arrow">&#9662;</span><div class="sd-list" id="fj-carrier-list"></div></div></div>
       <div class="fg"><label class="fl">Booking No./B/L</label><input class="fi" id="fj-booking" placeholder="หมายเลข Booking"></div>
     </div>
 
@@ -4705,6 +4705,13 @@ function sdKeyDown(e, id){
       // จำลอง mousedown ของ item ที่ highlight
       const event = new MouseEvent('mousedown', {bubbles:true});
       items[cur].dispatchEvent(event);
+    } else if(id === 'fj-carrier' || id === 'mc-carrier'){
+      // 🔧 v053 — ไม่มี highlight + เป็น carrier input → add carrier ใหม่จากที่พิมพ์
+      e.preventDefault();
+      var inp = document.getElementById(id);
+      if(inp && typeof sdCarrierSelect === 'function'){
+        sdCarrierSelect(id, (inp.value||'').trim());
+      }
     }
   } else if(e.key === 'Escape'){
     e.preventDefault();
@@ -19015,7 +19022,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.052';
+const APP_VERSION = '2026.04.29.053';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -22121,7 +22128,7 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
     </div>
 
     <div class="fg-row">
-      <div class="fg"><label class="fl">Carrier Line/Agent</label><div class="sd-wrap"><input class="sd-input" id="mc-carrier" placeholder="พิมพ์หรือเลือก เช่น EVERGREEN..." autocomplete="off" oninput="sdCarrierFilter('mc-carrier')" onfocus="sdCarrierOpen('mc-carrier')" onblur="sdCarrierBlur('mc-carrier')" onkeydown="if(event.key==='Enter'){event.preventDefault();sdCarrierSelect('mc-carrier',this.value.trim());}"><span class="sd-arrow">&#9662;</span><div class="sd-list" id="mc-carrier-list"></div></div></div>
+      <div class="fg"><label class="fl">Carrier Line/Agent</label><div class="sd-wrap"><input class="sd-input" id="mc-carrier" placeholder="พิมพ์หรือเลือก เช่น EVERGREEN..." autocomplete="off" oninput="sdCarrierFilter('mc-carrier')" onfocus="sdCarrierOpen('mc-carrier')" onblur="sdCarrierBlur('mc-carrier')"><span class="sd-arrow">&#9662;</span><div class="sd-list" id="mc-carrier-list"></div></div></div>
       <div class="fg"><label class="fl">Booking/BL/JOB *</label><input class="fi" id="mc-booking" placeholder="BKKSJO0000125"></div>
     </div>
     <div class="fg-row">
