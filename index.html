@@ -18929,7 +18929,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.046';
+const APP_VERSION = '2026.04.29.047';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19037,6 +19037,32 @@ document.addEventListener('visibilitychange', function(){
 
 // ── REFRESH JOBS FROM CLOUD ────────────────────────────────
 // ดึงเฉพาะใบงานล่าสุดจาก cloud เพื่อให้เห็นที่ทีมแก้ไข (เร็วกว่า loadFromSupabase ที่โหลดทุก master)
+// ── Refresh Notice — persistent until user dismisses ──
+function showRefreshNotice(html){
+  var existing = document.getElementById('refresh-notice');
+  if(existing) existing.remove();
+  var notice = document.createElement('div');
+  notice.id = 'refresh-notice';
+  notice.style.cssText = 'position:fixed;top:80px;right:20px;width:360px;max-width:90vw;background:#fff;border:1px solid var(--green-m);border-left:4px solid var(--green);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:14px 18px;z-index:9999;font-family:var(--font);animation:slideInRight .3s ease-out';
+  notice.innerHTML = html +
+    '<button onclick="document.getElementById(\'refresh-notice\').remove()" '+
+    'style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3);width:28px;height:28px;border-radius:50%;line-height:1;display:flex;align-items:center;justify-content:center" title="ปิด">&times;</button>';
+  document.body.appendChild(notice);
+}
+// CSS animation injected once
+(function(){
+  if(document.getElementById('refresh-notice-style')) return;
+  var st = document.createElement('style');
+  st.id = 'refresh-notice-style';
+  st.textContent = '@keyframes slideInRight{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}#refresh-notice button:hover{background:#f0f0f0!important}';
+  document.head.appendChild(st);
+})();
+
+// Build job snapshot key — used to detect modifications
+function _jobSnapKey(j){
+  return (j.updatedAt || j.updated_at || j.startdate || '') + '|' + (j.status || '') + '|' + (j.plate || '') + '|' + (j.driver || '');
+}
+
 async function refreshJobsFromCloud(){
   if(!_onlineMode){
     showToast('⚠ ออฟไลน์ — โหลดข้อมูลใหม่ไม่ได้');
@@ -19047,6 +19073,10 @@ async function refreshJobsFromCloud(){
   if(btn) btn.disabled = true;
   if(icon){ icon.style.display='inline-block'; icon.style.animation='spin 0.6s linear infinite'; }
   setSyncStatus('syncing');
+
+  // Snapshot ก่อน refresh — จะใช้เปรียบเทียบหา added/modified/deleted
+  var oldByKey = {};
+  jobs.forEach(function(j){ oldByKey[j.id] = _jobSnapKey(j); });
 
   try {
     var sbJobs = await sbFetchAll('gyt_jobs', '?order=startdate.desc');
@@ -19060,14 +19090,50 @@ async function refreshJobsFromCloud(){
       if(typeof renderJobs === 'function') renderJobs();
       if(typeof renderDashboard === 'function') renderDashboard();
 
-      var diff = jobs.length - oldCount;
-      var msg = '🔄 รีเฟรชสำเร็จ — มี ' + jobs.length + ' ใบงาน';
-      if(diff > 0) msg += ' (เพิ่ม ' + diff + ')';
-      else if(diff < 0) msg += ' (ลด ' + Math.abs(diff) + ')';
-      showToast(msg);
+      // Diff
+      var newByKey = {};
+      jobs.forEach(function(j){ newByKey[j.id] = _jobSnapKey(j); });
+      var addedIds = [], deletedIds = [], modifiedIds = [];
+      Object.keys(newByKey).forEach(function(id){
+        if(!(id in oldByKey)) addedIds.push(id);
+        else if(oldByKey[id] !== newByKey[id]) modifiedIds.push(id);
+      });
+      Object.keys(oldByKey).forEach(function(id){
+        if(!(id in newByKey)) deletedIds.push(id);
+      });
+
+      // Build notice HTML
+      var nowStr = new Date().toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      var html = '<div style="font-weight:700;color:var(--green-d);margin-bottom:4px;font-size:14px">🔄 Refresh สำเร็จ</div>';
+      html += '<div style="font-size:11px;color:var(--text-3);margin-bottom:10px">' + nowStr + ' &nbsp;|&nbsp; ทั้งหมด <strong>' + jobs.length.toLocaleString() + '</strong> ใบงาน</div>';
+
+      var totalChanges = addedIds.length + modifiedIds.length + deletedIds.length;
+      if(totalChanges === 0){
+        html += '<div style="padding:6px 10px;background:#F0FDF4;border-radius:6px;font-size:12px;color:#065F46">ℹ ไม่มีการเปลี่ยนแปลง</div>';
+      } else {
+        var sample = function(arr){
+          if(arr.length === 0) return '';
+          var show = arr.slice(0, 3);
+          var more = arr.length - show.length;
+          return '<span style="color:var(--text-3);font-size:11px;margin-left:4px">(' + show.join(', ') + (more > 0 ? ' +' + more + ' อื่นๆ' : '') + ')</span>';
+        };
+        if(addedIds.length){
+          html += '<div style="margin:4px 0;padding:4px 8px;background:#ECFDF5;border-left:3px solid #10B981;border-radius:4px;font-size:12px">'+
+            '<strong style="color:#065F46">+ เพิ่มใหม่:</strong> ' + addedIds.length + ' ใบ' + sample(addedIds) + '</div>';
+        }
+        if(modifiedIds.length){
+          html += '<div style="margin:4px 0;padding:4px 8px;background:#FFFBEB;border-left:3px solid #F59E0B;border-radius:4px;font-size:12px">'+
+            '<strong style="color:#92400E">✎ แก้ไข:</strong> ' + modifiedIds.length + ' ใบ' + sample(modifiedIds) + '</div>';
+        }
+        if(deletedIds.length){
+          html += '<div style="margin:4px 0;padding:4px 8px;background:#FEF2F2;border-left:3px solid #EF4444;border-radius:4px;font-size:12px">'+
+            '<strong style="color:#991B1B">− ลบ:</strong> ' + deletedIds.length + ' ใบ' + sample(deletedIds) + '</div>';
+        }
+      }
+      showRefreshNotice(html);
       setSyncStatus('online');
     } else {
-      showToast('⚠ โหลดข้อมูลไม่ได้ — ลองใหม่อีกครั้ง');
+      showRefreshNotice('<div style="font-weight:700;color:#991B1B;margin-bottom:4px">⚠ Refresh ล้มเหลว</div><div style="font-size:12px;color:var(--text-2)">โหลดข้อมูลจาก Cloud ไม่ได้ — ลองใหม่อีกครั้ง</div>');
       setSyncStatus('error');
     }
   } catch(e){
