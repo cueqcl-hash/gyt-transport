@@ -4345,6 +4345,20 @@ function openMultiJob(){
   document.getElementById('modal-multi').classList.add('open');
 }
 
+// Q1: ตรวจ max + rebuild rows
+function onMcCountChange(){
+  var el = document.getElementById('mc-count');
+  if(!el) return;
+  var v = parseInt(el.value) || 1;
+  if(v < 1){ el.value = 1; v = 1; }
+  if(v > 50){
+    el.value = 50;
+    v = 50;
+    if(typeof showToast==='function') showToast('จำนวนตู้ไม่เกิน 50 ใบต่อครั้ง');
+  }
+  buildContainerRows();
+}
+
 function buildContainerRows(){
   const n=parseInt(document.getElementById('mc-count').value)||1;
   document.getElementById('mc-count-badge').textContent=n;
@@ -4375,6 +4389,27 @@ function buildContainerRows(){
       <td style="padding:4px 6px"><input class="fi" id="mc-r${i}-weight" placeholder="-" style="height:32px;font-size:12px;width:100px"></td>
       <td style="padding:4px 6px"><input class="fi" id="mc-r${i}-plate" placeholder="กข 1234" style="height:32px;font-size:12px"></td>
       <td style="padding:4px 6px"><input class="fi" id="mc-r${i}-driver" placeholder="ชื่อคนขับ" style="height:32px;font-size:12px"></td>
+      <td style="padding:4px 6px;background:#FFFBEB">
+        <div class="sd-wrap">
+          <input class="sd-input" id="mc-r${i}-origin" placeholder="(ใช้ default)" autocomplete="off" style="height:32px;font-size:12px"
+            oninput="sdLocFilter('mc-r${i}-origin')" onfocus="sdLocOpen('mc-r${i}-origin')" onblur="sdLocBlur('mc-r${i}-origin')">
+          <div class="sd-list" id="mc-r${i}-origin-list"></div>
+        </div>
+      </td>
+      <td style="padding:4px 6px;background:#FFFBEB">
+        <div class="sd-wrap">
+          <input class="sd-input" id="mc-r${i}-dest" placeholder="(ใช้ default)" autocomplete="off" style="height:32px;font-size:12px"
+            oninput="sdLocFilter('mc-r${i}-dest')" onfocus="sdLocOpen('mc-r${i}-dest')" onblur="sdLocBlur('mc-r${i}-dest')">
+          <div class="sd-list" id="mc-r${i}-dest-list"></div>
+        </div>
+      </td>
+      <td style="padding:4px 6px;background:#FFFBEB">
+        <div class="sd-wrap">
+          <input class="sd-input" id="mc-r${i}-return" placeholder="(ใช้ default)" autocomplete="off" style="height:32px;font-size:12px"
+            oninput="sdLocFilter('mc-r${i}-return')" onfocus="sdLocOpen('mc-r${i}-return')" onblur="sdLocBlur('mc-r${i}-return')">
+          <div class="sd-list" id="mc-r${i}-return-list"></div>
+        </div>
+      </td>
       <td style="padding:4px 6px">
         ${i>1?`<button style="height:28px;padding:0 8px;border-radius:5px;border:1px solid var(--border);background:#fff;font-size:11px;cursor:pointer;color:var(--text-2)" onclick="copyFromAbove(${i})" title="คัดลอกจากแถวบน">↑ คัดลอก</button>`:''}
       </td>`;
@@ -4392,7 +4427,7 @@ function buildContainerRows(){
 
 function copyFromAbove(rowIdx){
   const prev=rowIdx-1;
-  ['startdate','deliverdate','weight','plate','driver'].forEach(f=>{
+  ['startdate','deliverdate','weight','plate','driver','origin','dest','return'].forEach(f=>{
     const from=document.getElementById(`mc-r${prev}-${f}`);
     const to=document.getElementById(`mc-r${rowIdx}-${f}`);
     if(!from||!to)return;
@@ -4492,6 +4527,10 @@ function saveMulti(){
   const __mc_byName=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'ไม่ระบุ';
   const __mc_nowISO=new Date().toISOString();
   for(let i=1;i<=n;i++){
+    // Q2 (Option A): ใช้ override per-row ถ้ามี, ไม่งั้น fallback to shared
+    var rOrigin = (document.getElementById('mc-r'+i+'-origin')?.value || '').trim() || origin;
+    var rDest = (document.getElementById('mc-r'+i+'-dest')?.value || '').trim() || dest;
+    var rReturn = (document.getElementById('mc-r'+i+'-return')?.value || '').trim() || (shared.returnyard||'');
     const job={
       ...shared,
       id:`JOB-${nextJID++}`,
@@ -4502,6 +4541,9 @@ function saveMulti(){
       weight:document.getElementById(`mc-r${i}-weight`).value.trim(),
       plate:document.getElementById(`mc-r${i}-plate`).value.trim(),
       driver:document.getElementById(`mc-r${i}-driver`).value.trim(),
+      origin: rOrigin,
+      dest: rDest,
+      returnyard: rReturn,
       createdBy:__mc_byName,
       createdAt:__mc_nowISO,
     };
@@ -18887,7 +18929,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.044';
+const APP_VERSION = '2026.04.29.045';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -21096,6 +21138,76 @@ if(_origGoPage){
   window.addEventListener('resize', _repositionMcDropdowns);
 })();
 
+// ── SD-LOC DROPDOWN PORTAL — สำหรับ override location dropdowns ใน mc-r* rows ──
+(function(){
+  if(typeof sdLocOpen !== 'function') return;
+  var _origOpen = sdLocOpen;
+  var _origBlur = sdLocBlur;
+
+  function _portalOpen(id){
+    if(id.indexOf('mc-r') !== 0) return;
+    var list = document.getElementById(id+'-list');
+    var input = document.getElementById(id);
+    if(!list || !input) return;
+    if(!list._mcOrigParent){
+      list._mcOrigParent = list.parentNode;
+    }
+    document.body.appendChild(list);
+    var r = input.getBoundingClientRect();
+    list.style.position = 'fixed';
+    list.style.top = (r.bottom + 2) + 'px';
+    list.style.left = r.left + 'px';
+    list.style.width = Math.max(r.width, 250) + 'px';
+    list.style.maxHeight = '240px';
+    list.style.zIndex = '9999';
+  }
+  function _portalClose(id){
+    if(id.indexOf('mc-r') !== 0) return;
+    var list = document.getElementById(id+'-list');
+    if(!list || !list._mcOrigParent) return;
+    list._mcOrigParent.appendChild(list);
+    list.style.position = '';
+    list.style.top = '';
+    list.style.left = '';
+    list.style.width = '';
+    list.style.maxHeight = '';
+    list.style.zIndex = '';
+    list._mcOrigParent = null;
+  }
+
+  window.sdLocOpen = function(id){
+    _origOpen(id);
+    setTimeout(function(){ _portalOpen(id); }, 0);
+  };
+  window.sdLocBlur = function(id){
+    setTimeout(function(){ _portalClose(id); }, 200);
+    _origBlur(id);
+  };
+
+  // Reposition on scroll
+  function _reposLoc(){
+    document.querySelectorAll('[id^="mc-r"][id$="-list"].open').forEach(function(list){
+      if(list.style.position !== 'fixed') return;
+      var id = list.id.replace('-list','');
+      // Skip ctype-list (handled by other portal)
+      if(id.endsWith('-type')) return;
+      var input = document.getElementById(id);
+      if(!input) return;
+      var r = input.getBoundingClientRect();
+      if(r.bottom < 0 || r.top > window.innerHeight){
+        if(typeof sdLocBlur==='function') sdLocBlur(id);
+        return;
+      }
+      list.style.top = (r.bottom + 2) + 'px';
+      list.style.left = r.left + 'px';
+    });
+  }
+  window.addEventListener('scroll', _reposLoc, true);
+  window.addEventListener('resize', _reposLoc);
+})();
+
+
+
 // ════════════════════════════════════════════════════════════════════════
 // EXPORT JOBS TO EXCEL — ใช้ getFiltered() + ALL_COLS
 // ════════════════════════════════════════════════════════════════════════
@@ -21718,7 +21830,7 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
 
 <!-- MODAL: MULTI-CONTAINER -->
 <div class="modal-overlay" id="modal-multi">
-<div class="modal" style="max-width:680px">
+<div class="modal" style="max-width:1300px;width:95vw">
   <div class="modal-head">
     <div>
       <div class="modal-title">เพิ่มใบงานหลายตู้ (Multi-Container)</div>
@@ -21853,7 +21965,10 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">รายการตู้ทั้งหมด</div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
       <span style="font-size:12px;color:var(--text-2)">จำนวนตู้:</span>
-      <select class="tb-input" id="mc-count" onchange="buildContainerRows()" style="width:80px;height:32px"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option></select>
+      <input type="number" id="mc-count" min="1" max="50" value="5" onchange="onMcCountChange()" oninput="onMcCountChange()" list="mc-count-suggestions" style="width:80px;height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--mono);font-weight:600;text-align:center" title="กรอกจำนวน 1-50">
+      <datalist id="mc-count-suggestions">
+        <option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option><option value="5"></option><option value="10"></option><option value="15"></option><option value="20"></option><option value="25"></option><option value="30"></option><option value="40"></option><option value="50"></option>
+      </datalist>
       <span style="font-size:11px;color:var(--text-3)">กรอกหมายเลขตู้ / วันเวลา / ทะเบียน / คนขับ รายตู้ได้เลย</span>
     </div>
 
@@ -21863,12 +21978,15 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
         <tr style="background:#F2F7F4">
           <th style="padding:7px 8px;text-align:center;border-bottom:2px solid var(--border);width:36px">ตู้</th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:130px">หมายเลขตู้</th>
-          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:150px">ประเภทตู้ *</th>
-          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:150px">วันเริ่มปฏิบัติงาน *</th>
-          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:150px">วันเวลารับ/ส่งสินค้า</th>
-          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:110px">น้ำหนัก (กก.)</th>
+          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:140px">ประเภทตู้ *</th>
+          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:140px">วันเริ่มปฏิบัติงาน *</th>
+          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:140px">วันเวลารับ/ส่งสินค้า</th>
+          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:90px">น้ำหนัก (กก.)</th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:110px">ทะเบียนรถ</th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:120px">พนักงานขับ</th>
+          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:160px;background:#FFF8E1" title="ถ้าตู้นี้ใช้ที่อื่น กรอกที่นี่ — ถ้าเว้นว่าง = ใช้ค่าจากข้อมูลร่วม">🏷 ต้นทาง <span style="font-size:9px;color:var(--text-3);font-weight:400">(override)</span></th>
+          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:160px;background:#FFF8E1" title="ถ้าตู้นี้ส่งคนละที่ กรอกที่นี่ — เว้นว่าง = ใช้ค่าจากข้อมูลร่วม">🏷 เปิด/บรรจุ <span style="font-size:9px;color:var(--text-3);font-weight:400">(override)</span></th>
+          <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:160px;background:#FFF8E1" title="ถ้าตู้นี้ปลายทางต่าง กรอกที่นี่ — เว้นว่าง = ใช้ค่าจากข้อมูลร่วม">🏷 ปลายทาง <span style="font-size:9px;color:var(--text-3);font-weight:400">(override)</span></th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:80px">คัดลอก</th>
         </tr>
       </thead>
