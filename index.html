@@ -4681,11 +4681,37 @@ function sdRenderList(id,q){
   }
   const hi = sdHighlight[id] !== undefined ? sdHighlight[id] : -1;
   list.innerHTML=fl.map(function(d,i){
-    return `<div class="sd-item${i===hi?' highlighted':''}" data-idx="${i}" onmousedown="sdSelect('${id}','${d.label.replace(/'/g,"\\'")}','${(d.phone||'').replace(/'/g,"\\'")}')" onmouseenter="sdSetHighlight('${id}',${i})">
+    return `<div class="sd-item${i===hi?' highlighted':''}" data-idx="${i}" onmousedown="sdSelect('${id}','${d.label.replace(/'/g,"\\'")}','${(d.phone||'').replace(/'/g,"\\'")}')" onmouseenter="sdHover('${id}',${i})">
       <div style="font-weight:500">${d.label}</div>
       ${d.sub?`<div style="font-size:11px;color:var(--text-3)">${d.sub}</div>`:''}
     </div>`;
   }).join('');
+}
+
+// 🔧 v055 — Keyboard navigation guard: prevent mouseenter from overriding ArrowDown/Up
+var _sdKbMode = false;
+var _sdKbModeTimer = null;
+function _sdSetKbMode(){
+  _sdKbMode = true;
+  if(_sdKbModeTimer) clearTimeout(_sdKbModeTimer);
+  // safety auto-clear after 600ms (in case mousemove never fires)
+  _sdKbModeTimer = setTimeout(function(){ _sdKbMode = false; }, 600);
+}
+// real mouse movement clears kb mode
+document.addEventListener('mousemove', function(){
+  if(_sdKbMode){
+    _sdKbMode = false;
+    if(_sdKbModeTimer){ clearTimeout(_sdKbModeTimer); _sdKbModeTimer = null; }
+  }
+}, true);
+// Hover wrappers — silently no-op when keyboard navigation is active
+function sdHover(id, idx){
+  if(_sdKbMode) return;
+  sdSetHighlight(id, idx);
+}
+function ctypeHover(fp, idx){
+  if(_sdKbMode) return;
+  if(typeof ctypeSetHighlight === 'function') ctypeSetHighlight(fp, idx);
 }
 
 // Highlight item ที่ index นี้ + scroll into view
@@ -4712,10 +4738,12 @@ function sdKeyDown(e, id){
 
   if(e.key === 'ArrowDown'){
     e.preventDefault();
+    _sdSetKbMode();  // 🔧 v055 — กัน mouseenter override จาก scrollIntoView
     const next = cur < items.length - 1 ? cur + 1 : 0;  // wrap to top
     sdSetHighlight(id, next);
   } else if(e.key === 'ArrowUp'){
     e.preventDefault();
+    _sdSetKbMode();
     const next = cur > 0 ? cur - 1 : items.length - 1;  // wrap to bottom
     sdSetHighlight(id, next);
   } else if(e.key === 'Enter'){
@@ -16623,7 +16651,7 @@ function ctypeRender(fp,q){
     var active=t===cur?' active':'';
     var highlighted=i===hi?' highlighted':'';
     var safeT=t.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-    return '<div class="ctype-item'+active+highlighted+'" data-fp="'+fp+'" data-idx="'+i+'" data-val="'+safeT+'" onmousedown="ctypeSelectFromEl(this)" onmouseenter="ctypeSetHighlight(\''+fp+'\','+i+')">'+
+    return '<div class="ctype-item'+active+highlighted+'" data-fp="'+fp+'" data-idx="'+i+'" data-val="'+safeT+'" onmousedown="ctypeSelectFromEl(this)" onmouseenter="ctypeHover(\''+fp+'\','+i+')">'+
       '<span>'+t+'</span><span class="ctype-badge-sm '+cls+'">'+( isRed?'40ft/หนัก':'20ft')+'</span></div>';
   }).join('');
 }
@@ -16650,9 +16678,11 @@ function ctypeKeyDown(e, fp){
 
   if(e.key === 'ArrowDown'){
     e.preventDefault();
+    if(typeof _sdSetKbMode === 'function') _sdSetKbMode();
     ctypeSetHighlight(fp, cur < items.length - 1 ? cur + 1 : 0);
   } else if(e.key === 'ArrowUp'){
     e.preventDefault();
+    if(typeof _sdSetKbMode === 'function') _sdSetKbMode();
     ctypeSetHighlight(fp, cur > 0 ? cur - 1 : items.length - 1);
   } else if(e.key === 'Enter'){
     if(cur >= 0 && cur < items.length){
@@ -19187,7 +19217,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.054';
+const APP_VERSION = '2026.04.29.055';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
