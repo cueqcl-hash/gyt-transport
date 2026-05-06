@@ -18414,23 +18414,42 @@ function renderBinList(){
       ? '<button class="bin-del-btn" onclick="permanentDeleteJob('+idx+')">ลบถาวร</button>'
       : '<button class="bin-del-btn" disabled title="เฉพาะ PISOLN เท่านั้น" style="opacity:.5;cursor:not-allowed">🔒 ลบถาวร</button>';
 
-    return '<div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px">'+
+    // 🆕 v057 — Helper สำหรับ render row ของ field
+    var _esc = function(v){
+      if(v === undefined || v === null || v === '') return '<span style="color:#9CA3AF">—</span>';
+      return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    };
+    var _row = function(label, value, icon){
+      return '<div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5">'+
+        '<span style="color:var(--text-3);min-width:110px;flex-shrink:0">'+icon+' '+label+':</span>'+
+        '<span style="color:var(--text);font-weight:500;word-break:break-word">'+_esc(value)+'</span>'+
+      '</div>';
+    };
+
+    return '<div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px">'+
       '<div style="flex:1;min-width:0">'+
-        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px">'+
-          '<span style="font-weight:700;color:var(--green)">'+(j.id||'—')+'</span>'+
-          (j.type?'<span class="b-type">'+j.type+'</span>':'')+
-          (j.container?'<span style="font-size:11px;color:var(--text-3)">'+j.container+'</span>':'')+
+        // Header — JOB ID + tags
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'+
+          '<span style="font-weight:700;color:var(--green);font-size:14px">'+(j.id||'—')+'</span>'+
           '<span class="bin-reason-tag">เหตุผล: '+(entry.reason||'—')+'</span>'+
           expiredTag+
         '</div>'+
-        '<div style="font-size:12px;color:var(--text-2);margin-bottom:3px">'+
-          '&#128666; '+(j.plate||'ไม่ระบุทะเบียน')+' | '+(j.driver||'ไม่ระบุคนขับ')+
+        // Detail rows
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;padding:8px 12px;background:#FAFAF7;border-radius:6px;margin-bottom:6px">'+
+          _row('SHIPPER', j.shipper, '📦')+
+          _row('ลูกค้า (ตัวแทน)', j.customer, '🏢')+
+          _row('วันเริ่มปฏิบัติงาน', j.startdate?fmt(j.startdate):'', '📅')+
+          _row('ประเภทงาน', j.job_type, '🚛')+
+          _row('ประเภทตู้', j.type, '📦')+
+          _row('หมายเลขตู้', j.container, '🔢')+
         '</div>'+
-        '<div style="font-size:12px;color:var(--text-2);margin-bottom:3px">'+
-          '&#128197; '+(j.startdate?fmt(j.startdate):'—')+(j.shipper?' | &#128230; '+j.shipper:'')+
+        // Plate / driver (เก็บไว้ — useful info)
+        '<div style="font-size:11px;color:var(--text-3);margin-top:4px">'+
+          '🚚 '+(j.plate||'—')+' &nbsp;|&nbsp; 👤 '+(j.driver||'—')+
         '</div>'+
-        '<div style="font-size:11px;color:var(--text-3)">'+
-          '&#128465; ลบเมื่อ '+dtStr+(entry.deletedBy?' โดย '+entry.deletedBy:'')+
+        // Deletion meta
+        '<div style="font-size:11px;color:var(--text-3);margin-top:3px">'+
+          '🗑 ลบเมื่อ '+dtStr+(entry.deletedBy?' โดย '+entry.deletedBy:'')+
           ' &nbsp;·&nbsp; <strong>'+daysAgo+' วันก่อน</strong>'+
         '</div>'+
       '</div>'+
@@ -19281,7 +19300,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.056';
+const APP_VERSION = '2026.04.29.057';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
