@@ -4032,7 +4032,12 @@ let jobs = [
 }
 ];
 let nextJID = 100;
-let deletedJobs = []; // {job, reason, deletedAt, deletedBy}
+let deletedJobs = []; // {job, reason, deletedAt, deletedBy, cloudId}
+// 🔧 v056 — โหลด backup จาก localStorage ตอน init (รอ cloud ก็ทันใช้งาน)
+try {
+  var _cachedTrash = localStorage.getItem('gyt_deleted_jobs');
+  if(_cachedTrash){ deletedJobs = JSON.parse(_cachedTrash) || []; }
+} catch(_){}
 let editJID = null;
 let jPage = 1;
 const PAGE_SZ = 50;
@@ -18363,6 +18368,12 @@ function updateBinBadge(){
 
 function openBin(){
   if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์เข้าถังขยะ');return;}
+  // 🔧 v056 — ซ่อนปุ่ม "ล้างถังขยะทั้งหมด" ถ้าไม่ใช่ PISOLN
+  var purgeBtn = document.getElementById('bin-empty-all-btn');
+  if(purgeBtn){
+    var isPisoln = !!(currentUser && currentUser.username === 'PISOLN');
+    purgeBtn.style.display = isPisoln ? '' : 'none';
+  }
   renderBinList();
   document.getElementById('modal-bin').classList.add('open');
 }
@@ -18378,31 +18389,54 @@ function renderBinList(){
     return;
   }
   if(emptyEl)emptyEl.style.display='none';
+  // 🔧 v056 — เฉพาะ PISOLN เท่านั้นที่ลบถาวรได้
+  var _canPurge = !!(currentUser && currentUser.username === 'PISOLN');
+  var _now = Date.now();
+  var _RETENTION_MS = 30 * 24 * 60 * 60 * 1000;  // 30 วัน
+
   if(listEl)listEl.innerHTML=deletedJobs.map(function(entry,idx){
-    var j=entry.job;
+    var j=entry.job||{};
     var dt=entry.deletedAt?new Date(entry.deletedAt):null;
     var dtStr=dt?(dt.getDate().toString().padStart(2,'0')+'/'+(dt.getMonth()+1).toString().padStart(2,'0')+'/'+dt.getFullYear()+' '+dt.getHours().toString().padStart(2,'0')+':'+dt.getMinutes().toString().padStart(2,'0')):'';
+    // คำนวณวันที่หมดอายุ
+    var daysAgo = dt ? Math.floor((_now - dt.getTime()) / (24*60*60*1000)) : 0;
+    var daysLeft = 30 - daysAgo;
+    var expiredTag = '';
+    if(daysLeft > 14){
+      expiredTag = '<span style="font-size:10px;background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:10px;font-weight:600">⏱ เหลือ '+daysLeft+' วัน</span>';
+    } else if(daysLeft > 0){
+      expiredTag = '<span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:10px;font-weight:600">⚠ เหลือ '+daysLeft+' วัน</span>';
+    } else {
+      expiredTag = '<span style="font-size:10px;background:#FEE2E2;color:#991B1B;padding:2px 8px;border-radius:10px;font-weight:600">🔴 หมดอายุ ('+Math.abs(daysLeft)+' วันก่อน)</span>';
+    }
+
+    var purgeBtn = _canPurge
+      ? '<button class="bin-del-btn" onclick="permanentDeleteJob('+idx+')">ลบถาวร</button>'
+      : '<button class="bin-del-btn" disabled title="เฉพาะ PISOLN เท่านั้น" style="opacity:.5;cursor:not-allowed">🔒 ลบถาวร</button>';
+
     return '<div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px">'+
       '<div style="flex:1;min-width:0">'+
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px">'+
-          '<span style="font-weight:700;color:var(--green)">'+j.id+'</span>'+
-          '<span class="b-type">'+j.type+'</span>'+
+          '<span style="font-weight:700;color:var(--green)">'+(j.id||'—')+'</span>'+
+          (j.type?'<span class="b-type">'+j.type+'</span>':'')+
           (j.container?'<span style="font-size:11px;color:var(--text-3)">'+j.container+'</span>':'')+
-          '<span class="bin-reason-tag">เหตุผล: '+entry.reason+'</span>'+
+          '<span class="bin-reason-tag">เหตุผล: '+(entry.reason||'—')+'</span>'+
+          expiredTag+
         '</div>'+
         '<div style="font-size:12px;color:var(--text-2);margin-bottom:3px">'+
           '&#128666; '+(j.plate||'ไม่ระบุทะเบียน')+' | '+(j.driver||'ไม่ระบุคนขับ')+
         '</div>'+
         '<div style="font-size:12px;color:var(--text-2);margin-bottom:3px">'+
-          '&#128197; '+fmt(j.startdate)+(j.shipper?' | &#128230; '+j.shipper:'')+
+          '&#128197; '+(j.startdate?fmt(j.startdate):'—')+(j.shipper?' | &#128230; '+j.shipper:'')+
         '</div>'+
         '<div style="font-size:11px;color:var(--text-3)">'+
           '&#128465; ลบเมื่อ '+dtStr+(entry.deletedBy?' โดย '+entry.deletedBy:'')+
+          ' &nbsp;·&nbsp; <strong>'+daysAgo+' วันก่อน</strong>'+
         '</div>'+
       '</div>'+
       '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'+
         '<button class="restore-btn" onclick="restoreJob('+idx+')">&#8617; กู้คืน</button>'+
-        '<button class="bin-del-btn" onclick="permanentDeleteJob('+idx+')">ลบถาวร</button>'+
+        purgeBtn+
       '</div>'+
     '</div>';
   }).join('');
@@ -18414,35 +18448,60 @@ function restoreJob(idx){
   if(!entry)return;
   jobs.unshift(entry.job);
   deletedJobs.splice(idx,1);
-  // re-sync ใบงานที่กู้คืนกลับขึ้น cloud
+  saveDeletedJobsLocal();
+  // re-sync ใบงานที่กู้คืนกลับขึ้น cloud + ลบ entry ใน trash table
   if(typeof _onlineMode!=='undefined' && _onlineMode){
     try{ syncJobSave(entry.job); }catch(e){ console.warn('restoreJob sync error:', e); }
+    if(entry.cloudId) syncDeletedJobRemove(entry.cloudId);
   }
   renderBinList();
   renderJobs();
   updateBinBadge();
-  showToast('กู้คืนใบงาน '+entry.job.id+' เรียบร้อย');
+  showToast('กู้คืนใบงาน '+(entry.job.id||'—')+' เรียบร้อย');
 }
 
 function permanentDeleteJob(idx){
-  if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์');return;}
+  // 🔒 v056 — เฉพาะ PISOLN เท่านั้น
+  if(!currentUser || currentUser.username !== 'PISOLN'){
+    showToast('⛔ เฉพาะ PISOLN เท่านั้นที่ลบถาวรได้');
+    return;
+  }
   var entry=deletedJobs[idx];
   if(!entry)return;
-  if(!confirm('ยืนยันลบ '+entry.job.id+' ถาวร? ไม่สามารถกู้คืนได้อีก'))return;
+  var jid = (entry.job && entry.job.id) || '—';
+  if(!confirm('🔴 ยืนยันลบ '+jid+' ถาวร?\n\nไม่สามารถกู้คืนได้อีก — ข้อมูลจะหายจาก Cloud ด้วย'))return;
+  // ลบจาก cloud
+  if(_onlineMode && entry.cloudId) syncDeletedJobRemove(entry.cloudId);
   deletedJobs.splice(idx,1);
+  saveDeletedJobsLocal();
   renderBinList();
   updateBinBadge();
-  showToast('ลบ '+entry.job.id+' ถาวรแล้ว');
+  showToast('ลบ '+jid+' ถาวรแล้ว');
 }
 
 function confirmEmptyBin(){
-  if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์');return;}
+  // 🔒 v056 — เฉพาะ PISOLN เท่านั้น
+  if(!currentUser || currentUser.username !== 'PISOLN'){
+    showToast('⛔ เฉพาะ PISOLN เท่านั้นที่ล้างถังขยะได้');
+    return;
+  }
   if(!deletedJobs.length){showToast('ถังขยะว่างเปล่าอยู่แล้ว');return;}
-  if(!confirm('ยืนยันล้างถังขยะทั้งหมด '+deletedJobs.length+' รายการ? ไม่สามารถกู้คืนได้อีก'))return;
+  // double confirm
+  if(!confirm('🔴 ยืนยันล้างถังขยะทั้งหมด '+deletedJobs.length+' รายการ?\n\nไม่สามารถกู้คืนได้อีก — ข้อมูลจะหายจาก Cloud ด้วย'))return;
+  var typed = prompt('พิมพ์คำว่า "ลบทั้งหมด" เพื่อยืนยันอีกครั้ง:');
+  if(typed !== 'ลบทั้งหมด'){
+    showToast('ยกเลิกการลบ — ถังขยะยังอยู่ครบ');
+    return;
+  }
+  // ลบจาก cloud ทุก entry
+  if(_onlineMode){
+    deletedJobs.forEach(function(e){ if(e.cloudId) syncDeletedJobRemove(e.cloudId); });
+  }
   deletedJobs=[];
+  saveDeletedJobsLocal();
   renderBinList();
   updateBinBadge();
-  showToast('ล้างถังขยะเรียบร้อย');
+  showToast('ล้างถังขยะเรียบร้อย ('+'จาก Cloud ด้วย'+')');
 }
 
 // ============================
@@ -18533,7 +18592,11 @@ function executeBulkDelete(){
   var now=new Date().toISOString();
   var by=currentUser?currentUser.fname+' '+currentUser.lname:'';
   jobs.forEach(function(j){
-    if(selectedJobs.has(j.id)) deletedJobs.unshift({job:JSON.parse(JSON.stringify(j)),reason:reason,deletedAt:now,deletedBy:by});
+    if(selectedJobs.has(j.id)){
+      var _bEntry = {job:JSON.parse(JSON.stringify(j)),reason:reason,deletedAt:now,deletedBy:by};
+      deletedJobs.unshift(_bEntry);
+      if(_onlineMode) syncJobDelete(j.id, reason, by, _bEntry.job);
+    }
   });
   if(typeof _onlineMode!=='undefined' && _onlineMode){
     ids.forEach(function(jid){ try{ syncJobDelete(jid, reason, by); }catch(e){ console.warn('bulkDelete sync error:', e); } });
@@ -18581,8 +18644,9 @@ function executeDeleteJob(){
   }
   var j=jobs.find(function(x){return x.id===deleteJobID;});
   var jid=deleteJobID;
-  if(j) deletedJobs.unshift({job:JSON.parse(JSON.stringify(j)),reason:reason,deletedAt:new Date().toISOString(),deletedBy:currentUser?currentUser.fname+' '+currentUser.lname:''});
-  if(_onlineMode)syncJobDelete(deleteJobID, reason, currentUser?currentUser.fname+' '+currentUser.lname:'');
+  var _entry = j ? {job:JSON.parse(JSON.stringify(j)),reason:reason,deletedAt:new Date().toISOString(),deletedBy:currentUser?currentUser.fname+' '+currentUser.lname:''} : null;
+  if(_entry){ deletedJobs.unshift(_entry); saveDeletedJobsLocal(); }
+  if(_onlineMode && _entry) syncJobDelete(deleteJobID, reason, _entry.deletedBy, _entry.job);
   jobs=jobs.filter(function(x){return x.id!==deleteJobID;});
   deleteJobID=null;
   closeModal('modal-delete-job');
@@ -19217,7 +19281,7 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.055';
+const APP_VERSION = '2026.04.29.056';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19560,6 +19624,8 @@ async function loadFromSupabase() {
     _onlineMode = true;
     setSyncStatus('online');
     showToast('โหลดข้อมูลจาก Cloud สำเร็จ ✓');
+    // 🔧 v056 — โหลดถังขยะจาก cloud
+    try { await loadDeletedJobsFromCloud(); } catch(_){}
     renderJobs();
   } catch(e) {
     console.error('loadFromSupabase error:', e.message);
@@ -19621,12 +19687,60 @@ async function syncJobSave(job) {
   }
 }
 
-async function syncJobDelete(jobId, reason, deletedBy) {
+async function syncJobDelete(jobId, reason, deletedBy, fullJob) {
   if(!_onlineMode) return;
   setSyncStatus('syncing');
-  await sbFetch('gyt_jobs','DELETE',null,'?id=eq.'+encodeURIComponent(jobId));
-  await sbFetch('gyt_deleted_jobs','POST',{job:{id:jobId},reason,deleted_by:deletedBy,deleted_at:new Date().toISOString()});
-  setSyncStatus('online');
+  try {
+    await sbFetch('gyt_jobs','DELETE',null,'?id=eq.'+encodeURIComponent(jobId));
+    // 🔧 v056 — เก็บ FULL job เพื่อให้กู้คืนได้สมบูรณ์
+    var jobToStore = fullJob || {id: jobId};
+    await sbFetch('gyt_deleted_jobs','POST',{
+      job: jobToStore,
+      reason: reason,
+      deleted_by: deletedBy,
+      deleted_at: new Date().toISOString()
+    });
+    setSyncStatus('online');
+  } catch(e){
+    console.warn('syncJobDelete error:', e.message);
+    setSyncStatus('error');
+  }
+}
+
+// 🔧 v056 — โหลดถังขยะจาก cloud
+async function loadDeletedJobsFromCloud(){
+  if(!_onlineMode) return;
+  try {
+    var rows = await sbFetch('gyt_deleted_jobs','GET',null,'?order=deleted_at.desc&limit=2000');
+    if(!rows) return;
+    deletedJobs = rows.map(function(r){
+      // เก็บ row.id (จาก cloud) ไว้ด้วย เพื่อใช้ลบ/restore
+      return {
+        cloudId: r.id,
+        job: r.job || {},
+        reason: r.reason || '',
+        deletedAt: r.deleted_at,
+        deletedBy: r.deleted_by || ''
+      };
+    });
+    saveDeletedJobsLocal();
+    updateBinBadge();
+    console.log('[Trash] loaded '+deletedJobs.length+' deleted jobs from cloud');
+  } catch(e){
+    console.warn('loadDeletedJobsFromCloud error:', e.message);
+  }
+}
+
+// 🔧 v056 — ลบ row จาก cloud ตอน restore หรือ permanent delete
+async function syncDeletedJobRemove(cloudId){
+  if(!_onlineMode || !cloudId) return;
+  try {
+    await sbFetch('gyt_deleted_jobs','DELETE',null,'?id=eq.'+encodeURIComponent(cloudId));
+  } catch(e){ console.warn('syncDeletedJobRemove error:', e.message); }
+}
+
+function saveDeletedJobsLocal(){
+  try { localStorage.setItem('gyt_deleted_jobs', JSON.stringify(deletedJobs)); } catch(_){}
 }
 
 // Helper: upsert รายการเดียวขึ้น cloud (เร็วกว่า syncMasterData ที่ส่งทั้ง array)
@@ -22682,7 +22796,7 @@ if (typeof XLSX === 'undefined' && !window.xlsxLoading) {
   <div class="modal-body" style="padding:0">
     <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
       <span style="font-size:13px;color:var(--text-2);flex:1">รายการในถังขยะ: <strong id="bin-count-label">0</strong> รายการ</span>
-      <button class="bin-del-btn" onclick="confirmEmptyBin()">&#128465; ล้างถังขยะทั้งหมด</button>
+      <button class="bin-del-btn" id="bin-empty-all-btn" onclick="confirmEmptyBin()">&#128465; ล้างถังขยะทั้งหมด</button>
     </div>
     <div id="bin-list" style="max-height:480px;overflow-y:auto">
       <div id="bin-empty" class="no-data" style="padding:2.5rem">ถังขยะว่างเปล่า — ยังไม่มีงานที่ลบ</div>
