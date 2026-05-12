@@ -1950,6 +1950,7 @@ const ALL_PERMS = [
   {id:'view_customer',label:'ดูข้อมูลลูกค้า',       group:'ข้อมูลในใบงาน'},
   {id:'view_shipper', label:'ดูชื่อ Shipper',        group:'ข้อมูลในใบงาน'},
   {id:'view_carrier', label:'ดู Carrier/Booking',    group:'ข้อมูลในใบงาน'},
+  {id:'manage_finance', label:'จัดการการเงิน (น้ำมัน/ทางด่วน)', group:'การเงิน'},
   {id:'view_weight',  label:'ดูน้ำหนักสินค้า',      group:'ข้อมูลในใบงาน'},
   {id:'view_plate',   label:'ดูทะเบียน/คนขับ',      group:'ข้อมูลในใบงาน'},
   {id:'view_location',label:'ดูลิงก์ Map',           group:'ข้อมูลในใบงาน'},
@@ -19300,7 +19301,39 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.057';
+// 🧪 v058 — Staging Mode Detection
+// ถ้าอยู่บน Vercel preview URL (เช่น *-git-feature-finance-*.vercel.app)
+// → แสดง banner สีส้ม + ปิดฟีเจอร์ที่อาจกระทบ production data
+var IS_STAGING = (function(){
+  try {
+    var h = (location.hostname || '').toLowerCase();
+    return h.indexOf('git-') >= 0
+        || h.indexOf('-preview') >= 0
+        || h.indexOf('staging') >= 0
+        || h.indexOf('localhost') >= 0
+        || h.indexOf('127.0.0.1') >= 0;
+  } catch(e){ return false; }
+})();
+function _renderStagingBanner(){
+  if(!IS_STAGING) return;
+  if(document.getElementById('staging-banner')) return;
+  var bar = document.createElement('div');
+  bar.id = 'staging-banner';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#F97316,#EA580C);color:#fff;font-family:var(--font,sans-serif);font-size:13px;font-weight:700;text-align:center;padding:6px 12px;z-index:99998;box-shadow:0 2px 8px rgba(0,0,0,0.2);letter-spacing:0.5px';
+  bar.innerHTML = '🧪 STAGING / TEST — กำลังพัฒนา ไม่ใช่ระบบจริง — Production: <a href="https://gyt-transport.vercel.app" target="_blank" style="color:#fff;text-decoration:underline">gyt-transport.vercel.app</a>';
+  document.body.insertBefore(bar, document.body.firstChild);
+  // ดัน body padding ลงมา ให้ banner ไม่บัง
+  document.body.style.paddingTop = '32px';
+}
+if(typeof document !== 'undefined'){
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', _renderStagingBanner);
+  } else {
+    _renderStagingBanner();
+  }
+}
+
+const APP_VERSION = '2026.04.29.058';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
