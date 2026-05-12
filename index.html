@@ -829,7 +829,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
         <div class="toolbar">
           <input type="text" class="tb-input tb-search" id="u-search" placeholder="ค้นหาชื่อ / username...">
-          <select class="tb-input" id="u-frole"><option value="">Role ทั้งหมด</option><option value="admin">Admin</option><option value="supervisor">Supervisor</option><option value="staff">Staff</option></select>
+          <select class="tb-input" id="u-frole"><option value="">Role ทั้งหมด</option><option value="admin">Admin</option>
+              <option value="accounting">บัญชี (Accounting)</option><option value="supervisor">Supervisor</option><option value="staff">Staff (Operation)</option></select>
           <button class="btn btn-green" onclick="openAddUser()">+ เพิ่ม User</button>
         </div>
         <div class="tbl-wrap"><div class="tbl-scroll"><table>
@@ -1970,6 +1971,11 @@ const ALL_PERMS = [
 const DEFAULT_PERMS = {
   admin:      ALL_PERMS.map(function(p){return p.id;}),
   supervisor: ALL_PERMS.map(function(p){return p.id;}).filter(function(id){return id!=='manage_users';}), // supervisor ทำได้ทุกอย่างยกเว้นจัดการ user
+  // 🆕 v059 — บัญชี: focus งานการเงิน (เปิด manage_finance ให้, ดู jobs+vehicles+drivers ได้)
+  accounting: ['view_jobs','update_status',
+               'view_customer','view_shipper','view_carrier','view_weight','view_plate','view_location',
+               'dashboard','view_vehicles','view_drivers','view_settings',
+               'manage_finance','export'],
   staff:   ['view_jobs','add_jobs','edit_jobs','delete_jobs','update_status',
             'view_customer','view_shipper','view_carrier','view_weight','view_plate','view_location',
             'dashboard','view_vehicles','view_drivers','view_settings'],
@@ -19333,7 +19339,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.058';
+const APP_VERSION = '2026.04.29.059';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
