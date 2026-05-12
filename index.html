@@ -927,21 +927,37 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
 
         <div class="card" id="fin-table-card" style="padding:0;overflow-x:auto">
-          <table id="fin-table" style="width:100%;border-collapse:collapse;font-size:12px;min-width:1100px">
+          <table id="fin-table" style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:1800px">
             <thead style="background:var(--green-l);color:var(--green-d);position:sticky;top:0;z-index:5">
               <tr>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);text-align:center;width:32px">#</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);width:80px">วันที่งาน</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);min-width:150px">ลูกค้า</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);min-width:200px">จุดรับ-ส่ง</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);width:80px;background:#FEF3C7">ค่าเที่ยว</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);width:90px;background:#FEF3C7">วันเติม</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);min-width:150px;background:#FEF3C7">ปั้ม</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);width:75px;background:#FEF3C7">ราคา/L</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);width:75px;background:#FEF3C7">ลิตร</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);width:90px;background:#FEF3C7">ยอดน้ำมัน</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);width:80px;background:#FEF3C7">ทางด่วน</th>
-                <th style="padding:8px;border-bottom:2px solid var(--green-m);width:80px">ผู้บันทึก</th>
+                <!-- Info -->
+                <th rowspan="2" style="padding:6px;border-bottom:2px solid var(--green-m);text-align:center;width:32px">#</th>
+                <th rowspan="2" style="padding:6px;border-bottom:2px solid var(--green-m);width:72px">วันที่งาน</th>
+                <th colspan="5" style="padding:4px;border-bottom:1px solid var(--green-m);background:#F0FDF4;text-align:center;font-size:11px">📋 ข้อมูลใบงาน</th>
+                <th colspan="7" style="padding:4px;border-bottom:1px solid var(--green-m);background:#FEF3C7;text-align:center;font-size:11px">💵 ค่าใช้จ่ายงาน (guide + confirm)</th>
+                <th colspan="5" style="padding:4px;border-bottom:1px solid var(--green-m);background:#FFF7ED;text-align:center;font-size:11px">⛽ ค่าน้ำมัน</th>
+                <th rowspan="2" style="padding:6px;border-bottom:2px solid var(--green-m);width:80px">ผู้บันทึก</th>
+              </tr>
+              <tr>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);min-width:130px;background:#F0FDF4">ลูกค้า ✎</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);min-width:130px;background:#F0FDF4">SHIPPER</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);min-width:180px;background:#F0FDF4">จุดรับ-ส่ง ✎</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:60px;background:#F0FDF4">ตู้</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:90px;background:#F0FDF4">No.ตู้</th>
+                <!-- Costs (yellow) -->
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:80px;background:#FEF3C7">ค่าเที่ยว</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:80px;background:#FEF3C7">ทางด่วน</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:75px;background:#FEF3C7">รับตู้</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:75px;background:#FEF3C7">ยกตู้</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:75px;background:#FEF3C7">คืนตู้</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:75px;background:#FEF3C7">ผ่านท่า</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:75px;background:#FEF3C7">อื่นๆ</th>
+                <!-- Fuel (light orange) -->
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:80px;background:#FFF7ED">วันเติม</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);min-width:140px;background:#FFF7ED">ปั้ม</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:75px;background:#FFF7ED">ราคา/L</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:75px;background:#FFF7ED">ลิตร</th>
+                <th style="padding:6px;border-bottom:2px solid var(--green-m);width:90px;background:#FFF7ED">ยอดน้ำมัน</th>
               </tr>
             </thead>
             <tbody id="fin-tbody"></tbody>
@@ -16194,95 +16210,179 @@ function finRender(plate, dateFrom, dateTo){
 
   // build rows
   var rows = jobsInRange.map(function(j, i){
+    var c = j.costs || {};
+    // มี 2 ฟิลด์: guide (ของเดิม) + confirmed (ของ AOI)
     return {
       idx: i+1,
       type: 'job',
       jobId: j.id,
       date: j.startdate ? j.startdate.slice(0,10) : '',
-      customer: j.customer || '',
-      route: (j.origin||'') + ' - ' + (j.dest||''),
-      tripFee: (j.costs && j.costs.trip) || '',
+      job: j,
+      costs: c,
       fuel: fuelByJob[j.id] || null,
       toll: tollByJob[j.id] || null
     };
   });
 
-  // เพิ่ม "fuel-only" rows ที่ job_id ว่าง (ไม่ผูกใบงาน)
+  // เพิ่ม "fuel-only" rows
   _finFuelLogs.filter(function(f){return !f.job_id;}).forEach(function(f, k){
     rows.push({
       idx: 'F' + (k+1),
       type: 'fuel-only',
       jobId: null,
       date: f.fuel_date,
-      customer: '— (เติมน้ำมันอย่างเดียว) —',
-      route: '',
-      tripFee: '',
+      job: null,
+      costs: {},
       fuel: f,
       toll: null,
       cloudId: f.id
     });
   });
 
-  // render rows
   var tbody = document.getElementById('fin-tbody');
   if(!rows.length){
-    tbody.innerHTML = '<tr><td colspan="12" style="padding:30px;text-align:center;color:var(--text-3)">ไม่มีใบงานในเดือนนี้สำหรับ '+plate+'</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="20" style="padding:30px;text-align:center;color:var(--text-3)">ไม่มีใบงานในเดือนนี้สำหรับ '+plate+'</td></tr>';
     document.getElementById('fin-tfoot').innerHTML = '';
     document.getElementById('fin-summary').style.display = 'none';
     return;
   }
 
   var stationOptions = '<option value="">—</option>' + FUEL_STATIONS.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+
+  // helper สร้าง cost cell — รองรับ guide + confirm
+  function costCell(costs, field, width){
+    // guide = costs[field+'Amt'] (เช่น tripAmt), confirmed = costs[field+'AmtConfirmed']
+    var guideKey = field + 'Amt';
+    var confKey = field + 'AmtConfirmed';
+    var noteKey = field + 'Note';
+    var guide = costs[guideKey];
+    var conf = costs[confKey];
+    var note = costs[noteKey] || '';
+    var displayVal = (conf !== undefined && conf !== '' && conf !== null) ? conf : '';
+    var placeholder = (guide !== undefined && guide !== '' && guide !== null) ? String(guide) : '';
+    var isConfirmed = (displayVal !== '');
+    var bg = isConfirmed ? '#fff' : (placeholder ? '#FFFBEB' : '#fff');
+    var color = isConfirmed ? '#065F46' : '#9CA3AF';  // confirmed = green, guide = gray
+    var border = isConfirmed ? '1.5px solid #10B981' : '1px solid #FDE68A';
+    var titleAttr = note ? ' title="' + _finEsc(note) + '"' : (placeholder ? ' title="guide: '+placeholder+'"' : '');
+    return '<td style="padding:3px;background:#FEF3C7"'+titleAttr+'>'+
+      '<input type="number" step="1" placeholder="'+placeholder+'" value="'+(displayVal||'')+'" '+
+        'data-cost-field="'+field+'" oninput="finCostEdit(this)" '+
+        'style="width:100%;border:'+border+';border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:'+bg+';color:'+color+';font-weight:'+(isConfirmed?'700':'400')+'">'+
+      (isConfirmed ? '<span style="position:absolute;font-size:9px;color:#10B981;margin-left:-12px;margin-top:-22px;pointer-events:none">✓</span>' : '')+
+      '</td>';
+  }
+
+  // helper สำหรับ text override (customer, dest)
+  function textOverrideCell(costs, field, originalValue, minWidth){
+    var confKey = '_fin' + field.charAt(0).toUpperCase() + field.slice(1);  // e.g. _finCustomer
+    var conf = costs[confKey];
+    var hasOverride = (conf !== undefined && conf !== '' && conf !== null);
+    var displayVal = hasOverride ? conf : (originalValue || '');
+    var titleAttr = hasOverride ? ' title="ข้อมูลเดิม: '+_finEsc(originalValue||'')+'"' : '';
+    return '<td style="padding:3px;background:#F0FDF4"'+titleAttr+'>'+
+      '<input type="text" placeholder="'+_finEsc(originalValue||'—')+'" value="'+_finEsc(displayVal)+'" '+
+        'data-text-field="'+field+'" oninput="finTextEdit(this)" '+
+        'style="width:100%;border:'+(hasOverride?'1.5px solid #10B981':'1px solid #D1FAE5')+
+        ';border-radius:4px;padding:4px;font-size:11.5px;background:#fff;color:'+(hasOverride?'#065F46':'#374151')+'">'+
+      '</td>';
+  }
+
   tbody.innerHTML = rows.map(function(r){
     var fuel = r.fuel || {};
     var toll = r.toll || {};
     var amountAuto = (fuel.price_per_l && fuel.liters) ? (Number(fuel.price_per_l) * Number(fuel.liters)).toFixed(2) : '';
-    var stationSel = stationOptions.replace('value="'+(fuel.station||'')+'"', 'value="'+(fuel.station||'')+'" selected');
-    var rowKey = r.jobId || ('cloud-' + (r.cloudId||''));
+    var j = r.job || {};
+    var route = (j.origin||'') + ' → ' + (j.dest||'');
+
+    // toll confirmed = ใช้ตาราง gyt_toll_logs เป็นค่าจริง, guide = costs.tollAmt
+    var tollConfVal = (toll && toll.amount) ? toll.amount : '';
+    var tollGuide = (r.costs.tollAmt !== undefined && r.costs.tollAmt !== '') ? String(r.costs.tollAmt) : '';
+    var tollIsConfirmed = (tollConfVal !== '' && tollConfVal !== null);
+    var tollBg = tollIsConfirmed ? '#fff' : (tollGuide ? '#FFFBEB' : '#fff');
+    var tollColor = tollIsConfirmed ? '#1E40AF' : '#9CA3AF';
+    var tollBorder = tollIsConfirmed ? '1.5px solid #3B82F6' : '1px solid #FDE68A';
+
     return '<tr data-job-id="'+(r.jobId||'')+'" data-cloud-fuel-id="'+((fuel && fuel.id)||'')+'" data-cloud-toll-id="'+((toll && toll.id)||'')+'" data-date="'+r.date+'" style="border-bottom:1px solid #F3F4F6">'+
       '<td style="padding:6px 4px;text-align:center;color:var(--text-3);font-size:11px">'+r.idx+'</td>'+
-      '<td style="padding:6px;font-weight:600">'+_finFmtDate(r.date)+'</td>'+
-      '<td style="padding:6px;color:var(--text-2)">'+_finEsc(r.customer)+'</td>'+
-      '<td style="padding:6px;color:var(--text-2);font-size:11px">'+_finEsc(r.route)+'</td>'+
+      '<td style="padding:6px;font-weight:600;background:#F9FAFB">'+_finFmtDate(r.date)+'</td>'+
+      // ลูกค้า (editable)
+      textOverrideCell(r.costs, 'customer', j.customer, 130)+
+      // SHIPPER (read-only)
+      '<td style="padding:6px;background:#F0FDF4;font-size:11px;color:var(--text-2)" title="'+_finEsc(j.shipper||'')+'">'+_finEsc(j.shipper||'—')+'</td>'+
+      // จุดรับ-ส่ง (editable, combined)
+      textOverrideCell(r.costs, 'route', route, 180)+
+      // ประเภทตู้
+      '<td style="padding:6px;background:#F0FDF4;text-align:center;font-size:11px">'+_finEsc(j.type||'—')+'</td>'+
+      // หมายเลขตู้
+      '<td style="padding:6px;background:#F0FDF4;font-size:11px;font-family:monospace">'+_finEsc(j.container||'—')+'</td>'+
       // ค่าเที่ยว
-      '<td style="padding:4px;background:#FFFBEB"><input type="number" step="1" placeholder="—" value="'+(r.tripFee||'')+'" oninput="finCellEdit(this,\'trip\')" style="width:100%;border:1px solid #FDE68A;border-radius:4px;padding:4px;font-size:12px;text-align:right;background:#fff"></td>'+
+      costCell(r.costs, 'trip')+
+      // ทางด่วน — ใช้ confirmed จาก gyt_toll_logs
+      '<td style="padding:3px;background:#FEF3C7"'+(tollGuide?' title="guide: '+tollGuide+'"':'')+'>'+
+        '<input type="number" step="1" placeholder="'+tollGuide+'" value="'+(tollConfVal||'')+'" '+
+          'data-cost-field="toll" oninput="finCellEdit(this,\'toll\')" '+
+          'style="width:100%;border:'+tollBorder+';border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:'+tollBg+';color:'+tollColor+';font-weight:'+(tollIsConfirmed?'700':'400')+'">'+
+      '</td>'+
+      // ค่าใช้จ่ายอื่น
+      costCell(r.costs, 'recv')+
+      costCell(r.costs, 'box')+
+      costCell(r.costs, 'ret')+
+      costCell(r.costs, 'port')+
+      costCell(r.costs, 'misc')+
       // วันเติม
-      '<td style="padding:4px;background:#FFFBEB"><input type="text" placeholder="dd/mm" value="'+_finFmtDate(fuel.fuel_date||'')+'" oninput="finCellEdit(this,\'fuel_date\')" style="width:100%;border:1px solid #FDE68A;border-radius:4px;padding:4px;font-size:12px;text-align:center;background:#fff"></td>'+
+      '<td style="padding:3px;background:#FFF7ED"><input type="text" placeholder="dd/mm" value="'+_finFmtDate(fuel.fuel_date||'')+'" oninput="finCellEdit(this,\'fuel_date\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:center;background:#fff"></td>'+
       // ปั้ม
-      '<td style="padding:4px;background:#FFFBEB"><select onchange="finCellEdit(this,\'station\')" style="width:100%;border:1px solid #FDE68A;border-radius:4px;padding:4px;font-size:11px;background:#fff">'+stationOptions.replace('value="'+(fuel.station||'')+'"', 'value="'+(fuel.station||'')+'" selected')+'</select></td>'+
+      '<td style="padding:3px;background:#FFF7ED"><select onchange="finCellEdit(this,\'station\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:10.5px;background:#fff">'+stationOptions.replace('value="'+(fuel.station||'')+'"', 'value="'+(fuel.station||'')+'" selected')+'</select></td>'+
       // ราคา
-      '<td style="padding:4px;background:#FFFBEB"><input type="number" step="0.01" placeholder="—" value="'+(fuel.price_per_l||'')+'" oninput="finCellEdit(this,\'price_per_l\')" style="width:100%;border:1px solid #FDE68A;border-radius:4px;padding:4px;font-size:12px;text-align:right;background:#fff"></td>'+
+      '<td style="padding:3px;background:#FFF7ED"><input type="number" step="0.01" placeholder="—" value="'+(fuel.price_per_l||'')+'" oninput="finCellEdit(this,\'price_per_l\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff"></td>'+
       // ลิตร
-      '<td style="padding:4px;background:#FFFBEB"><input type="number" step="0.01" placeholder="—" value="'+(fuel.liters||'')+'" oninput="finCellEdit(this,\'liters\')" style="width:100%;border:1px solid #FDE68A;border-radius:4px;padding:4px;font-size:12px;text-align:right;background:#fff"></td>'+
-      // ยอดน้ำมัน (auto/override)
-      '<td style="padding:4px;background:#FFFBEB"><input type="number" step="0.01" placeholder="'+amountAuto+'" value="'+(fuel.amount||'')+'" oninput="finCellEdit(this,\'amount\')" style="width:100%;border:1px solid #FDE68A;border-radius:4px;padding:4px;font-size:12px;text-align:right;background:#fff"></td>'+
-      // ทางด่วน
-      '<td style="padding:4px;background:#FFFBEB"><input type="number" step="1" placeholder="—" value="'+(toll.amount||'')+'" oninput="finCellEdit(this,\'toll\')" style="width:100%;border:1px solid #FDE68A;border-radius:4px;padding:4px;font-size:12px;text-align:right;background:#fff"></td>'+
+      '<td style="padding:3px;background:#FFF7ED"><input type="number" step="0.01" placeholder="—" value="'+(fuel.liters||'')+'" oninput="finCellEdit(this,\'liters\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff"></td>'+
+      // ยอดน้ำมัน
+      '<td style="padding:3px;background:#FFF7ED"><input type="number" step="0.01" placeholder="'+amountAuto+'" value="'+(fuel.amount||'')+'" oninput="finCellEdit(this,\'amount\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff"></td>'+
       // ผู้บันทึก
       '<td style="padding:6px;font-size:10px;color:var(--text-3);text-align:center">'+(_finEsc(fuel.updated_by||fuel.created_by||toll.updated_by||toll.created_by||''))+'</td>'+
     '</tr>';
   }).join('');
 
   // summary
+  function n(v){return parseFloat(v)||0;}
+  function pickAmt(costs, field, fallback){
+    var conf = costs[field+'AmtConfirmed'];
+    if(conf !== undefined && conf !== '' && conf !== null) return n(conf);
+    return n(fallback !== undefined ? fallback : costs[field+'Amt']);
+  }
   var totals = rows.reduce(function(acc, r){
-    acc.trip += parseFloat(r.tripFee)||0;
-    var f = r.fuel||{};
-    acc.fuelLiters += parseFloat(f.liters)||0;
-    acc.fuelAmount += parseFloat(f.amount)||(parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0);
-    if(f.id || f.fuel_date) acc.fuelCount++;
+    var c = r.costs || {};
+    acc.trip += pickAmt(c, 'trip');
+    acc.recv += pickAmt(c, 'recv');
+    acc.box  += pickAmt(c, 'box');
+    acc.ret  += pickAmt(c, 'ret');
+    acc.port += pickAmt(c, 'port');
+    acc.misc += pickAmt(c, 'misc');
     var t = r.toll||{};
-    acc.toll += parseFloat(t.amount)||0;
+    acc.toll += n(t.amount);
+    var f = r.fuel||{};
+    acc.fuelLiters += n(f.liters);
+    acc.fuelAmount += n(f.amount) || (n(f.price_per_l)*n(f.liters));
+    if(f.id || f.fuel_date) acc.fuelCount++;
     return acc;
-  }, {trip:0, fuelLiters:0, fuelAmount:0, fuelCount:0, toll:0});
+  }, {trip:0,recv:0,box:0,ret:0,port:0,misc:0,toll:0,fuelLiters:0,fuelAmount:0,fuelCount:0});
 
   var sumEl = document.getElementById('fin-summary');
   sumEl.style.display = 'block';
+  var grandTotal = totals.trip+totals.recv+totals.box+totals.ret+totals.port+totals.misc+totals.toll+totals.fuelAmount;
   sumEl.innerHTML = '<strong style="color:var(--green-d)">'+plate+' · '+_finMonthLabel(_finCurrentMonth)+'</strong>'+
     ' &nbsp;|&nbsp; ใบงาน <strong>'+rows.filter(function(r){return r.type==="job";}).length+'</strong>'+
-    ' &nbsp;|&nbsp; ค่าเที่ยวรวม <strong>'+_finFmtNum(totals.trip)+'</strong>'+
-    ' &nbsp;|&nbsp; เติมน้ำมัน <strong>'+totals.fuelCount+'</strong> ครั้ง / <strong>'+_finFmtNum(totals.fuelLiters)+'</strong> ลิตร = <strong>'+_finFmtNum(totals.fuelAmount)+'</strong> บาท'+
-    ' &nbsp;|&nbsp; ทางด่วน <strong>'+_finFmtNum(totals.toll)+'</strong>'+
-    ' &nbsp;|&nbsp; <strong style="color:var(--green-d)">รวม '+_finFmtNum(totals.trip + totals.fuelAmount + totals.toll)+' บาท</strong>';
+    '<br>💵 ค่าเที่ยว <strong>'+_finFmtNum(totals.trip)+'</strong>'+
+    ' · ทางด่วน <strong>'+_finFmtNum(totals.toll)+'</strong>'+
+    ' · รับตู้ <strong>'+_finFmtNum(totals.recv)+'</strong>'+
+    ' · ยกตู้ <strong>'+_finFmtNum(totals.box)+'</strong>'+
+    ' · คืนตู้ <strong>'+_finFmtNum(totals.ret)+'</strong>'+
+    ' · ผ่านท่า <strong>'+_finFmtNum(totals.port)+'</strong>'+
+    ' · อื่นๆ <strong>'+_finFmtNum(totals.misc)+'</strong>'+
+    '<br>⛽ น้ำมัน <strong>'+totals.fuelCount+'</strong> ครั้ง / <strong>'+_finFmtNum(totals.fuelLiters)+'</strong> ลิตร = <strong>'+_finFmtNum(totals.fuelAmount)+'</strong>'+
+    ' &nbsp;|&nbsp; <strong style="color:var(--green-d);font-size:14px">รวม '+_finFmtNum(grandTotal)+' บาท</strong>';
 }
 
 function _finFmtNum(n){
@@ -16310,6 +16410,109 @@ function finCellEdit(input, field){
   }, 800);
 }
 
+// 🆕 v061 — cost field edit (trip/recv/box/ret/port/misc)
+function finCostEdit(input){
+  var tr = input.closest('tr');
+  if(!tr) return;
+  var field = input.dataset.costField;
+  var key = (tr.dataset.jobId||'_') + ':cost-' + field;
+  if(_finSavingTimers[key]) clearTimeout(_finSavingTimers[key]);
+  _finSavingTimers[key] = setTimeout(function(){
+    finSaveCost(tr, field, input.value);
+  }, 800);
+}
+
+// 🆕 v061 — text override edit (customer/route)
+function finTextEdit(input){
+  var tr = input.closest('tr');
+  if(!tr) return;
+  var field = input.dataset.textField;
+  var key = (tr.dataset.jobId||'_') + ':text-' + field;
+  if(_finSavingTimers[key]) clearTimeout(_finSavingTimers[key]);
+  _finSavingTimers[key] = setTimeout(function(){
+    finSaveTextOverride(tr, field, input.value);
+  }, 800);
+}
+
+// 🆕 v061 — save cost field (e.g., tripAmtConfirmed) to jobs.costs
+async function finSaveCost(tr, field, value){
+  var jobId = tr.dataset.jobId;
+  if(!jobId) return;
+  var j = jobs.find(function(x){return x.id===jobId;});
+  if(!j) return;
+  var by = currentUser ? (currentUser.fname + ' ' + currentUser.lname).trim() : '';
+  j.costs = j.costs || {};
+  var confKey = field + 'AmtConfirmed';
+  var oldVal = j.costs[confKey];
+  // ถ้าค่า value เป็น "" — ล้าง confirmed
+  if(value === '' || value === null){
+    delete j.costs[confKey];
+  } else {
+    j.costs[confKey] = String(value);
+  }
+  j.updatedAt = new Date().toISOString();
+  j.updatedBy = by;
+  try {
+    if(_onlineMode && typeof syncJobSave === 'function'){
+      await syncJobSave(j);
+    }
+    await finAuditLog('gyt_jobs', jobId, 'update', {[confKey]: oldVal}, {[confKey]: j.costs[confKey]}, by);
+    finFlash(tr, 'cost');
+    // ไม่ rerender ทั้งหมด แต่ update class ของ cell ที่กรอก
+    var input = tr.querySelector('input[data-cost-field="'+field+'"]');
+    if(input){
+      var isConf = j.costs[confKey] !== undefined && j.costs[confKey] !== '';
+      input.style.border = isConf ? '1.5px solid #10B981' : '1px solid #FDE68A';
+      input.style.color = isConf ? '#065F46' : '#9CA3AF';
+      input.style.fontWeight = isConf ? '700' : '400';
+    }
+  } catch(e){
+    console.warn('finSaveCost failed:', e.message);
+    finFlash(tr, 'error');
+  }
+}
+
+// 🆕 v061 — save text override (customer/route)
+async function finSaveTextOverride(tr, field, value){
+  var jobId = tr.dataset.jobId;
+  if(!jobId) return;
+  var j = jobs.find(function(x){return x.id===jobId;});
+  if(!j) return;
+  var by = currentUser ? (currentUser.fname + ' ' + currentUser.lname).trim() : '';
+  j.costs = j.costs || {};
+  var confKey = '_fin' + field.charAt(0).toUpperCase() + field.slice(1);
+  var oldVal = j.costs[confKey];
+  // ดู original value
+  var originalValue = '';
+  if(field === 'customer') originalValue = j.customer || '';
+  else if(field === 'route') originalValue = (j.origin||'') + ' → ' + (j.dest||'');
+  // ถ้า value === original หรือ "" → ล้าง override
+  if(!value || value === originalValue){
+    delete j.costs[confKey];
+  } else {
+    j.costs[confKey] = value;
+  }
+  j.updatedAt = new Date().toISOString();
+  j.updatedBy = by;
+  try {
+    if(_onlineMode && typeof syncJobSave === 'function'){
+      await syncJobSave(j);
+    }
+    await finAuditLog('gyt_jobs', jobId, 'update', {[confKey]: oldVal}, {[confKey]: j.costs[confKey]}, by);
+    finFlash(tr, 'cost');
+    var input = tr.querySelector('input[data-text-field="'+field+'"]');
+    if(input){
+      var hasOverride = j.costs[confKey] !== undefined && j.costs[confKey] !== '';
+      input.style.border = hasOverride ? '1.5px solid #10B981' : '1px solid #D1FAE5';
+      input.style.color = hasOverride ? '#065F46' : '#374151';
+    }
+  } catch(e){
+    console.warn('finSaveTextOverride failed:', e.message);
+    finFlash(tr, 'error');
+  }
+}
+
+
 async function finSaveRow(tr, field, value){
   var jobId = tr.dataset.jobId || null;
   var rowDate = tr.dataset.date;
@@ -16318,23 +16521,7 @@ async function finSaveRow(tr, field, value){
   var by = currentUser ? (currentUser.fname + ' ' + currentUser.lname).trim() : '';
 
   try {
-    if(field === 'trip'){
-      // sync ค่าเที่ยว → jobs.costs.trip
-      var j = jobs.find(function(x){return x.id === jobId;});
-      if(j){
-        j.costs = j.costs || {};
-        var oldVal = j.costs.trip;
-        j.costs.trip = parseFloat(value) || 0;
-        j.updatedAt = new Date().toISOString();
-        j.updatedBy = by;
-        if(_onlineMode && typeof syncJobSave === 'function'){
-          await syncJobSave(j);
-        }
-        // audit log
-        await finAuditLog('gyt_jobs', jobId, 'update', {trip: oldVal}, {trip: j.costs.trip}, by);
-        finFlash(tr, 'fuel');  // flash green
-      }
-    } else if(field === 'toll'){
+    if(field === 'toll'){
       // upsert toll
       var amt = parseFloat(value);
       var existingId = tr.dataset.cloudTollId || null;
@@ -19744,7 +19931,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.060';
+const APP_VERSION = '2026.04.29.061';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
