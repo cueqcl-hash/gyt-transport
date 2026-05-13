@@ -940,7 +940,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <input type="text" id="fin-date-to" placeholder="dd/mm/yyyy" maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
               <button type="button" onclick="finOpenDatePicker('fin-date-to')" title="เลือกวันที่จากปฏิทิน" style="padding:6px 10px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:#F9FAFB;cursor:pointer;font-size:14px">📅</button>
             </div>
-            <button class="btn btn-ghost" onclick="finLoad()" style="font-size:12px">&#8635; รีเฟรช</button>
+            <div style="display:inline-flex;align-items:center;gap:0;margin-left:6px"><input type="text" id="fin-search" placeholder="&#128269; ค้นหา (ลูกค้า, ตู้, JOB ID, ทะเบียน...)" oninput="finApplySearch(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:12px;font-family:var(--font);background:#fff;width:240px"><button type="button" onclick="finClearSearch()" title="ล้างคำค้นหา" style="padding:6px 10px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:#F9FAFB;cursor:pointer;font-size:12px;color:var(--text-3)">&times;</button></div><button class="btn btn-ghost" onclick="finLoad()" style="font-size:12px">&#8635; รีเฟรช</button>
             <button class="btn btn-ghost" onclick="finOpenColMgr()" style="font-size:12px" title="ปรับคอลัมน์">⚙ คอลัมน์</button>
             <button class="btn btn-ghost" onclick="finOpenAudit()" style="font-size:12px" title="ดูประวัติการแก้ไข">🕒 ประวัติ</button>
             <button class="btn btn-ghost" onclick="finExport()" style="font-size:12px">📤 Export</button>
@@ -16343,6 +16343,9 @@ async function finLoad(){
 
   _finRenderHead();
   finRender(plate, dateFrom, dateTo);
+  // 🆕 v067 — re-apply search query
+  var _q = document.getElementById('fin-search');
+  if(_q && _q.value) _finApplySearchNow(_q.value);
 }
 
 function _finFmtDate(iso){
@@ -16804,6 +16807,50 @@ function finExport(){
 }
 
 // ════════════════════════════════════════════════════════════════════
+// 🆕 v067 — Free-text search filter (client-side, debounced)
+var _finSearchDebounce = null;
+function finClearSearch(){
+  var el = document.getElementById('fin-search');
+  if(el) el.value = '';
+  _finApplySearchNow('');
+}
+function finApplySearch(query){
+  if(_finSearchDebounce) clearTimeout(_finSearchDebounce);
+  _finSearchDebounce = setTimeout(function(){
+    _finApplySearchNow(query);
+  }, 150);
+}
+function _finApplySearchNow(query){
+  var q = (query||'').toLowerCase().trim();
+  var rows = document.querySelectorAll('#fin-tbody tr');
+  var matched = 0, total = rows.length;
+  rows.forEach(function(tr){
+    if(!q){
+      tr.style.display = '';
+      matched++;
+      return;
+    }
+    var text = tr.textContent.toLowerCase();
+    tr.querySelectorAll('input, textarea, select').forEach(function(el){
+      if(el.value) text += ' ' + String(el.value).toLowerCase();
+      if(el.placeholder) text += ' ' + String(el.placeholder).toLowerCase();
+    });
+    if(tr.dataset.jobId) text += ' ' + tr.dataset.jobId.toLowerCase();
+    var hit = text.indexOf(q) >= 0;
+    tr.style.display = hit ? '' : 'none';
+    if(hit) matched++;
+  });
+  var sumEl = document.getElementById('fin-summary');
+  if(sumEl && q){
+    var orig = sumEl.dataset.origHtml;
+    if(!orig){ sumEl.dataset.origHtml = sumEl.innerHTML; orig = sumEl.innerHTML; }
+    sumEl.innerHTML = orig + '<br>&#128269; <strong style="color:#92400E">กำลังกรอง: "'+q+'"</strong> &nbsp; แสดง <strong>'+matched+'</strong> จาก '+total+' แถว';
+  } else if(sumEl && sumEl.dataset.origHtml){
+    sumEl.innerHTML = sumEl.dataset.origHtml;
+    delete sumEl.dataset.origHtml;
+  }
+}
+
 // 🆕 v066 — Phase 3 — Audit Log Modal
 // AOI (accounting) เห็นเฉพาะของตัวเอง, admin/supervisor เห็นทุกคน
 // ════════════════════════════════════════════════════════════════════
@@ -20404,7 +20451,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.066';
+const APP_VERSION = '2026.04.29.067';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
