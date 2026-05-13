@@ -16104,8 +16104,9 @@ document.addEventListener('DOMContentLoaded',()=>{
 // 🆕 v060 — FINANCE MODULE (Phase 2)
 // ค่าน้ำมัน + ค่าทางด่วน — Excel grid + auto-save
 // ════════════════════════════════════════════════════════════════════
-const FUEL_STATIONS = ['บางจาก กม.12', 'บางจาก กม.2', 'เชลล์ กิ่งแก้ว 29'];
+const FUEL_STATIONS = ['บางจาก กม.18', 'บางจาก กม.12', 'บางจาก กม.2', 'เชลล์ กิ่งแก้ว 29'];
 let _finFuelLogs = [];   // [{id, plate, fuel_date, station, price_per_l, liters, amount, job_id, ...}]
+let _finLegacyTrips = [];  // 🆕 v068 — gyt_trip_legacy rows
 let _finTollLogs = [];   // [{id, plate, toll_date, amount, job_id, ...}]
 let _finCurrentPlate = '';
 let _finCurrentMonth = '';
@@ -16326,19 +16327,33 @@ async function finLoad(){
 
   // 🆕 v063 — รองรับ "*" = ทุกทะเบียน
   var plateFilter = (plate === '*') ? '' : ('&plate=eq.' + encodeURIComponent(plate));
+  // 🆕 v068 — รองรับ plate format ทั้ง "65-3012" (legacy) และ "65-3012 กท." (current)
+  var legacyPlateFilter = '';
+  if(plate !== '*'){
+    var legacyShort = (plate.match(/(\d{2,3}-\d{4})/)||[])[0];
+    if(legacyShort){
+      legacyPlateFilter = '&plate=eq.' + encodeURIComponent(legacyShort);
+    } else {
+      legacyPlateFilter = plateFilter;
+    }
+  }
   try {
-    var qFuel = '?fuel_date=gte.' + dateFrom + '&fuel_date=lte.' + dateTo + plateFilter + '&order=fuel_date';
-    var qToll = '?toll_date=gte.' + dateFrom + '&toll_date=lte.' + dateTo + plateFilter + '&order=toll_date';
-    var [fuelRows, tollRows] = await Promise.all([
+    var qFuel = '?fuel_date=gte.' + dateFrom + '&fuel_date=lte.' + dateTo + legacyPlateFilter + '&order=fuel_date';
+    var qToll = '?toll_date=gte.' + dateFrom + '&toll_date=lte.' + dateTo + legacyPlateFilter + '&order=toll_date';
+    var qLegacy = '?trip_date=gte.' + dateFrom + '&trip_date=lte.' + dateTo + legacyPlateFilter + '&order=trip_date&limit=5000';
+    var [fuelRows, tollRows, legacyRows] = await Promise.all([
       sbFetch('gyt_fuel_logs','GET',null,qFuel),
-      sbFetch('gyt_toll_logs','GET',null,qToll)
+      sbFetch('gyt_toll_logs','GET',null,qToll),
+      sbFetch('gyt_trip_legacy','GET',null,qLegacy)
     ]);
     _finFuelLogs = fuelRows || [];
     _finTollLogs = tollRows || [];
+    _finLegacyTrips = legacyRows || [];
   } catch(e){
     console.warn('finLoad cloud error:', e.message);
     _finFuelLogs = [];
     _finTollLogs = [];
+    _finLegacyTrips = [];
   }
 
   _finRenderHead();
@@ -16390,6 +16405,55 @@ function finRender(plate, dateFrom, dateTo){
   });
   _finFuelLogs.filter(function(f){return !f.job_id;}).forEach(function(f, k){
     rows.push({idx:'F'+(k+1), type:'fuel-only', jobId:null, date:f.fuel_date, job:null, costs:{}, fuel:f, toll:null, cloudId:f.id});
+  });
+
+  // 🆕 v068 — เพิ่ม legacy trips จาก Excel (ถ้ายังไม่ตรงกับ job ใน jobsInRange)
+  // strategy: hash by plate+date+customer → ถ้ามีอยู่แล้วใน jobs ข้าม
+  var jobKeys = {};
+  jobsInRange.forEach(function(j){
+    var k = (j.plate||'') + '|' + (j.startdate||'').slice(0,10) + '|' + (j.customer||'').slice(0,20).toLowerCase();
+    jobKeys[k] = true;
+  });
+  // หา fuel/toll legacy ตาม trip_id → matches with same plate+date
+  var fuelByDate = {}, tollByDate = {};
+  _finFuelLogs.filter(function(f){return !f.job_id;}).forEach(function(f){
+    var k = f.plate + '|' + f.fuel_date;
+    if(!fuelByDate[k]) fuelByDate[k] = f;  // ใช้ first match
+  });
+  _finTollLogs.filter(function(t){return !t.job_id;}).forEach(function(t){
+    var k = t.plate + '|' + t.toll_date;
+    if(!tollByDate[k]) tollByDate[k] = t;
+  });
+
+  _finLegacyTrips.forEach(function(lt, k){
+    var dupKey = (lt.plate||'') + '|' + lt.trip_date + '|' + (lt.customer||'').slice(0,20).toLowerCase();
+    if(jobKeys[dupKey]) return; // skip — มี job ตรงกันอยู่แล้ว
+    // ลอง match fuel+toll ของวันเดียวกัน (best-effort)
+    var matchKey = lt.plate + '|' + lt.trip_date;
+    var fakeJob = {
+      id: 'L-'+lt.id,
+      plate: lt.plate,
+      startdate: lt.trip_date,
+      customer: lt.customer || '',
+      shipper: '',
+      origin: lt.route || '',
+      dest: '',
+      returnyard: lt.return_yard || '',
+      type: lt.container_size || '',
+      container: '',
+      costs: { tripAmt: lt.trip_fee || '' }
+    };
+    rows.push({
+      idx: 'H'+(k+1),
+      type: 'legacy',
+      jobId: null,
+      legacyId: lt.id,
+      date: lt.trip_date,
+      job: fakeJob,
+      costs: fakeJob.costs,
+      fuel: fuelByDate[matchKey] || null,
+      toll: tollByDate[matchKey] || null
+    });
   });
 
   var tbody = document.getElementById('fin-tbody');
@@ -16541,6 +16605,7 @@ function finRender(plate, dateFrom, dateTo){
   var grandTotal = totals.trip+totals.recv+totals.box+totals.move+totals.ret+totals.port+totals.misc+totals.toll+totals.fuelAmount;
   sumEl.innerHTML = '<strong style="color:var(--green-d)">'+plate+' · '+_finFmtDate(dateFrom)+'/'+dateFrom.slice(0,4)+' – '+_finFmtDate(dateTo)+'/'+dateTo.slice(0,4)+'</strong>'+
     ' &nbsp;|&nbsp; ใบงาน <strong>'+rows.filter(function(r){return r.type==="job";}).length+'</strong>'+
+    ' (legacy <strong>'+rows.filter(function(r){return r.type==="legacy";}).length+'</strong>)'+
     '<br>💵 ค่าเที่ยว <strong>'+_finFmtNum(totals.trip)+'</strong>'+
     ' · ทางด่วน <strong>'+_finFmtNum(totals.toll)+'</strong>'+
     ' · รับตู้ <strong>'+_finFmtNum(totals.recv)+'</strong>'+
@@ -20451,7 +20516,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.067';
+const APP_VERSION = '2026.04.29.068';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
