@@ -920,9 +920,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <option value="">— เลือกทะเบียนรถ —</option>
             </select>
             <span style="font-size:12px;color:var(--text-3)">จากวันที่</span>
-            <input type="text" id="fin-date-from" placeholder="dd/mm/yyyy" maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
+            <div style="display:inline-flex;align-items:center;gap:0">
+              <input type="text" id="fin-date-from" placeholder="dd/mm/yyyy" maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
+              <button type="button" onclick="finOpenDatePicker('fin-date-from')" title="เลือกวันที่จากปฏิทิน" style="padding:6px 10px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:#F9FAFB;cursor:pointer;font-size:14px">📅</button>
+            </div>
             <span style="font-size:12px;color:var(--text-3)">ถึง</span>
-            <input type="text" id="fin-date-to" placeholder="dd/mm/yyyy" maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
+            <div style="display:inline-flex;align-items:center;gap:0">
+              <input type="text" id="fin-date-to" placeholder="dd/mm/yyyy" maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
+              <button type="button" onclick="finOpenDatePicker('fin-date-to')" title="เลือกวันที่จากปฏิทิน" style="padding:6px 10px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:#F9FAFB;cursor:pointer;font-size:14px">📅</button>
+            </div>
             <button class="btn btn-ghost" onclick="finLoad()" style="font-size:12px">&#8635; รีเฟรช</button>
             <button class="btn btn-ghost" onclick="finOpenColMgr()" style="font-size:12px" title="ปรับคอลัมน์">⚙ คอลัมน์</button>
             <button class="btn btn-ghost" onclick="finExport()" style="font-size:12px">📤 Export</button>
@@ -16107,6 +16113,8 @@ function initFinance(){
   var sorted = Array.from(plates).filter(Boolean).sort();
   var prevValue = sel.value;
   sel.innerHTML = '<option value="">— เลือกทะเบียนรถ —</option>' +
+    '<option value="*">📋 ทุกทะเบียน ('+sorted.length+' คัน)</option>' +
+    '<option disabled style="color:#ccc">────────</option>' +
     sorted.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
   if(prevValue) sel.value = prevValue;
 
@@ -16130,6 +16138,7 @@ function initFinance(){
 // 🆕 v062 — Column Registry
 const _FIN_COLS = [
   {id:'date',         label:'วันที่งาน',     group:'info',  width:'72px',  visible:true},
+  {id:'plate',        label:'ทะเบียนรถ',     group:'info',  width:'100px', visible:false},  // v063 — auto-show เมื่อเลือก "ทุกทะเบียน"
   {id:'customer',     label:'ลูกค้า ✎',       group:'info',  width:'130px', visible:true},
   {id:'shipper',      label:'SHIPPER',       group:'info',  width:'130px', visible:true},
   {id:'route',        label:'จุดรับ-ส่ง ✎',  group:'info',  width:'220px', visible:true},
@@ -16231,6 +16240,37 @@ function finDateBlur(el){
     else if(p.length === 3 && p[2].length < 4) el.value = p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2];
   }
 }
+// 🆕 v063 — flatpickr สำหรับ finance date inputs
+var _finPickers = {};
+function _finInitDatePicker(inputId){
+  if(typeof flatpickr === 'undefined') return null;
+  if(_finPickers[inputId]) return _finPickers[inputId];
+  var input = document.getElementById(inputId);
+  if(!input) return null;
+  var fp = flatpickr(input, {
+    dateFormat: 'd/m/Y',
+    allowInput: true,
+    clickOpens: false,
+    locale: (flatpickr.l10ns && flatpickr.l10ns.th) ? 'th' : 'default',
+    disableMobile: true,
+    onChange: function(_, dateStr){
+      input.value = dateStr;
+      if(typeof finLoad === 'function') finLoad();
+    }
+  });
+  _finPickers[inputId] = fp;
+  return fp;
+}
+function finOpenDatePicker(inputId){
+  var fp = _finPickers[inputId] || _finInitDatePicker(inputId);
+  if(!fp){ alert('⏳ ปฏิทินกำลังโหลด รอสักครู่'); return; }
+  var input = document.getElementById(inputId);
+  if(input && input.value){
+    try { fp.setDate(input.value, false, 'd/m/Y'); } catch(e){}
+  }
+  fp.open();
+}
+
 function _finParseDateDDMM(s){
   if(!s) return null;
   var p = s.split('/');
@@ -16271,9 +16311,11 @@ async function finLoad(){
   _finCurrentPlate = plate;
   _finCurrentMonth = dateFrom.slice(0,7); // for label
 
+  // 🆕 v063 — รองรับ "*" = ทุกทะเบียน
+  var plateFilter = (plate === '*') ? '' : ('&plate=eq.' + encodeURIComponent(plate));
   try {
-    var qFuel = '?plate=eq.' + encodeURIComponent(plate) + '&fuel_date=gte.' + dateFrom + '&fuel_date=lte.' + dateTo + '&order=fuel_date';
-    var qToll = '?plate=eq.' + encodeURIComponent(plate) + '&toll_date=gte.' + dateFrom + '&toll_date=lte.' + dateTo + '&order=toll_date';
+    var qFuel = '?fuel_date=gte.' + dateFrom + '&fuel_date=lte.' + dateTo + plateFilter + '&order=fuel_date';
+    var qToll = '?toll_date=gte.' + dateFrom + '&toll_date=lte.' + dateTo + plateFilter + '&order=toll_date';
     var [fuelRows, tollRows] = await Promise.all([
       sbFetch('gyt_fuel_logs','GET',null,qFuel),
       sbFetch('gyt_toll_logs','GET',null,qToll)
@@ -16301,11 +16343,23 @@ function _finIsoMonth(iso){
 }
 
 function finRender(plate, dateFrom, dateTo){
+  // 🆕 v063 — auto-show plate column เมื่อเลือก "ทุกทะเบียน"
+  try {
+    var savedCols = JSON.parse(localStorage.getItem('gyt_fin_cols')||'null');
+    var plateCol = _FIN_COLS.find(function(c){return c.id==='plate';});
+    if(plateCol) plateCol.visible = (plate === '*');
+  } catch(_){}
+  // 🆕 v063 — '*' = ทุกทะเบียน, ไม่ filter by plate
   var jobsInRange = (jobs||[]).filter(function(j){
-    if(j.plate !== plate) return false;
+    if(plate !== '*' && j.plate !== plate) return false;
     var jd = (j.startdate||'').slice(0,10);
     return jd && jd >= dateFrom && jd <= dateTo;
-  }).sort(function(a,b){return (a.startdate||'').localeCompare(b.startdate||'');});
+  }).sort(function(a,b){
+    // เรียงตามวันที่ก่อน, ถ้าวันเดียวกัน เรียงตามทะเบียน
+    var dc = (a.startdate||'').localeCompare(b.startdate||'');
+    if(dc !== 0) return dc;
+    return (a.plate||'').localeCompare(b.plate||'');
+  });
 
   var fuelByJob = {}, tollByJob = {};
   _finFuelLogs.forEach(function(f){ if(f.job_id) fuelByJob[f.job_id] = f; });
@@ -16323,6 +16377,7 @@ function finRender(plate, dateFrom, dateTo){
   });
 
   var tbody = document.getElementById('fin-tbody');
+  _finRenderHead();  // v063 — re-render head ทุกครั้ง (รองรับ plate column toggle)
   var visibleCols = _finGetCols().filter(function(c){return c.visible;});
 
   if(!rows.length){
@@ -16392,6 +16447,7 @@ function finRender(plate, dateFrom, dateTo){
 
     var cellMap = {
       date:        '<td style="padding:6px;font-weight:600;background:#F9FAFB">'+_finFmtDate(r.date)+'</td>',
+      plate:       '<td style="padding:6px;background:#F0FDF4;font-weight:600;font-size:11px;font-family:monospace">'+_finEsc(j.plate||'—')+'</td>',
       customer:    textOverrideCell(r.costs, 'customer', j.customer),
       shipper:     infoCell(j.shipper),
       route:       textOverrideCell(r.costs, 'route', route),
@@ -20084,7 +20140,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.062';
+const APP_VERSION = '2026.04.29.063';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
