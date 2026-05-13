@@ -942,6 +942,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             </div>
             <button class="btn btn-ghost" onclick="finLoad()" style="font-size:12px">&#8635; รีเฟรช</button>
             <button class="btn btn-ghost" onclick="finOpenColMgr()" style="font-size:12px" title="ปรับคอลัมน์">⚙ คอลัมน์</button>
+            <button class="btn btn-ghost" onclick="finOpenAudit()" style="font-size:12px" title="ดูประวัติการแก้ไข">🕒 ประวัติ</button>
             <button class="btn btn-ghost" onclick="finExport()" style="font-size:12px">📤 Export</button>
           </div>
           <div id="fin-summary" style="font-size:12px;color:var(--text-3);margin-top:10px;padding:8px 12px;background:#F0FDF4;border-radius:6px;display:none"></div>
@@ -16802,6 +16803,242 @@ function finExport(){
   XLSX.writeFile(wb, 'finance_'+_finCurrentPlate.replace(/\s/g,'_')+'_'+_finCurrentMonth+'.xlsx');
 }
 
+// ════════════════════════════════════════════════════════════════════
+// 🆕 v066 — Phase 3 — Audit Log Modal
+// AOI (accounting) เห็นเฉพาะของตัวเอง, admin/supervisor เห็นทุกคน
+// ════════════════════════════════════════════════════════════════════
+var _finAuditRows = [];
+var _finAuditPage = 0;
+const _FIN_AUDIT_PAGESIZE = 50;
+
+function finOpenAudit(){
+  var modal = document.getElementById('fin-audit-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'fin-audit-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = '<div class="modal" style="max-width:1100px;width:96vw;background:#fff;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.3);max-height:90vh;display:flex;flex-direction:column">'+
+      '<div class="modal-header" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'+
+        '<div>'+
+          '<div class="modal-title" style="font-weight:700">🕒 ประวัติการแก้ไข (Audit Log)</div>'+
+          '<div class="modal-sub" id="fin-audit-sub" style="font-size:11px;color:var(--text-3);margin-top:3px">กำลังโหลด...</div>'+
+        '</div>'+
+        '<button onclick="finCloseAudit()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-3);padding:4px 12px">&times;</button>'+
+      '</div>'+
+      // Filter bar
+      '<div style="padding:10px 18px;border-bottom:1px solid var(--border);background:#FAFAF7;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+        '<span style="font-size:11px;color:var(--text-3)">จาก</span>'+
+        '<input type="text" id="fin-audit-from" placeholder="dd/mm/yyyy" maxlength="10" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--mono);width:100px;text-align:center">'+
+        '<span style="font-size:11px;color:var(--text-3)">ถึง</span>'+
+        '<input type="text" id="fin-audit-to" placeholder="dd/mm/yyyy" maxlength="10" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--mono);width:100px;text-align:center">'+
+        '<select id="fin-audit-user" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:#fff">'+
+          '<option value="">— ทุกคน —</option>'+
+        '</select>'+
+        '<select id="fin-audit-table" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:#fff">'+
+          '<option value="">— ทุกตาราง —</option>'+
+          '<option value="gyt_jobs">jobs (ค่าใช้จ่าย+ override)</option>'+
+          '<option value="gyt_fuel_logs">fuel_logs (ค่าน้ำมัน)</option>'+
+          '<option value="gyt_toll_logs">toll_logs (ค่าทางด่วน)</option>'+
+        '</select>'+
+        '<select id="fin-audit-action" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:#fff">'+
+          '<option value="">— ทุก action —</option>'+
+          '<option value="create">create</option>'+
+          '<option value="update">update</option>'+
+          '<option value="delete">delete</option>'+
+        '</select>'+
+        '<button class="btn btn-ghost" style="font-size:11px" onclick="finLoadAudit()">🔍 ค้นหา</button>'+
+        '<button class="btn btn-ghost" style="font-size:11px" onclick="finResetAuditFilter()">↺ ล้าง</button>'+
+      '</div>'+
+      // Body
+      '<div style="flex:1;overflow:auto;min-height:300px">'+
+        '<table id="fin-audit-tbl" style="width:100%;border-collapse:collapse;font-size:12px">'+
+          '<thead style="background:var(--green-l);color:var(--green-d);position:sticky;top:0;z-index:5">'+
+            '<tr>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m);width:140px">เวลา</th>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m);width:120px">ผู้แก้</th>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m);width:140px">ตาราง</th>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m);width:90px">Action</th>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m);width:100px">Record ID</th>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m)">การแก้ไข (before → after)</th>'+
+            '</tr>'+
+          '</thead>'+
+          '<tbody id="fin-audit-tbody"></tbody>'+
+        '</table>'+
+        '<div id="fin-audit-empty" style="padding:50px;text-align:center;color:var(--text-3);display:none">ไม่มีประวัติในช่วงเวลานี้</div>'+
+      '</div>'+
+      // Footer pagination
+      '<div style="padding:10px 18px;border-top:1px solid var(--border);background:#FAFAF7;display:flex;align-items:center;justify-content:space-between;font-size:12px">'+
+        '<div id="fin-audit-pageinfo" style="color:var(--text-3)"></div>'+
+        '<div style="display:flex;gap:6px">'+
+          '<button class="btn btn-ghost" style="font-size:12px" onclick="finAuditPage(-1)">‹ ก่อน</button>'+
+          '<button class="btn btn-ghost" style="font-size:12px" onclick="finAuditPage(1)">ถัดไป ›</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+    document.body.appendChild(modal);
+
+    // Default date range = 30 วันล่าสุด
+    var now = new Date();
+    var ago = new Date(now.getTime() - 30*24*60*60*1000);
+    var _fmt = function(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();};
+    document.getElementById('fin-audit-from').value = _fmt(ago);
+    document.getElementById('fin-audit-to').value = _fmt(now);
+
+    // Populate user dropdown
+    var userSel = document.getElementById('fin-audit-user');
+    var canSeeAll = currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor');
+    if(canSeeAll && Array.isArray(users)){
+      users.forEach(function(u){
+        var name = (u.fname + ' ' + u.lname).trim();
+        var opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name + ' (' + u.username + ')';
+        userSel.appendChild(opt);
+      });
+    } else {
+      // AOI / accounting / staff → filter เฉพาะตัวเอง + disable dropdown
+      var myName = currentUser ? (currentUser.fname + ' ' + currentUser.lname).trim() : '';
+      userSel.innerHTML = '<option value="'+myName+'" selected>'+myName+' (เฉพาะของฉัน)</option>';
+      userSel.disabled = true;
+    }
+  }
+  modal.classList.add('open');
+  finLoadAudit();
+}
+
+function finCloseAudit(){
+  var modal = document.getElementById('fin-audit-modal');
+  if(modal) modal.classList.remove('open');
+}
+
+function finResetAuditFilter(){
+  var now = new Date();
+  var ago = new Date(now.getTime() - 30*24*60*60*1000);
+  var _fmt = function(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();};
+  document.getElementById('fin-audit-from').value = _fmt(ago);
+  document.getElementById('fin-audit-to').value = _fmt(now);
+  var canSeeAll = currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor');
+  if(canSeeAll){ document.getElementById('fin-audit-user').value = ''; }
+  document.getElementById('fin-audit-table').value = '';
+  document.getElementById('fin-audit-action').value = '';
+  finLoadAudit();
+}
+
+async function finLoadAudit(){
+  _finAuditPage = 0;
+  var sub = document.getElementById('fin-audit-sub');
+  if(sub) sub.textContent = '⏳ กำลังโหลด...';
+
+  var fromIso = _finParseDateDDMM(document.getElementById('fin-audit-from').value);
+  var toIso = _finParseDateDDMM(document.getElementById('fin-audit-to').value);
+  var userFilter = document.getElementById('fin-audit-user').value;
+  var tableFilter = document.getElementById('fin-audit-table').value;
+  var actionFilter = document.getElementById('fin-audit-action').value;
+
+  // permission-based filter — accounting/staff เห็นเฉพาะตัวเอง
+  var canSeeAll = currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor');
+  if(!canSeeAll){
+    userFilter = currentUser ? (currentUser.fname + ' ' + currentUser.lname).trim() : '';
+  }
+
+  var q = '?order=changed_at.desc&limit=2000';
+  if(fromIso) q += '&changed_at=gte.' + fromIso + 'T00:00:00';
+  if(toIso) q += '&changed_at=lte.' + toIso + 'T23:59:59';
+  if(userFilter) q += '&changed_by=eq.' + encodeURIComponent(userFilter);
+  if(tableFilter) q += '&table_name=eq.' + tableFilter;
+  if(actionFilter) q += '&action=eq.' + actionFilter;
+
+  try {
+    var rows = await sbFetch('gyt_audit_log','GET',null,q);
+    _finAuditRows = rows || [];
+  } catch(e){
+    console.warn('[audit] load failed:', e.message);
+    _finAuditRows = [];
+  }
+
+  if(sub){
+    sub.textContent = canSeeAll
+      ? 'รวม ' + _finAuditRows.length.toLocaleString() + ' รายการ — ดูทุกคน (admin/supervisor)'
+      : 'รวม ' + _finAuditRows.length.toLocaleString() + ' รายการของคุณ';
+  }
+  finRenderAudit();
+}
+
+function finAuditPage(delta){
+  var maxPage = Math.max(0, Math.ceil(_finAuditRows.length / _FIN_AUDIT_PAGESIZE) - 1);
+  _finAuditPage = Math.max(0, Math.min(maxPage, _finAuditPage + delta));
+  finRenderAudit();
+}
+
+function finRenderAudit(){
+  var tbody = document.getElementById('fin-audit-tbody');
+  var emptyEl = document.getElementById('fin-audit-empty');
+  var pageInfo = document.getElementById('fin-audit-pageinfo');
+  if(!tbody) return;
+
+  if(!_finAuditRows.length){
+    tbody.innerHTML = '';
+    emptyEl.style.display = 'block';
+    pageInfo.textContent = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  var start = _finAuditPage * _FIN_AUDIT_PAGESIZE;
+  var end = Math.min(start + _FIN_AUDIT_PAGESIZE, _finAuditRows.length);
+  var pageRows = _finAuditRows.slice(start, end);
+
+  pageInfo.textContent = 'แสดง ' + (start+1) + '–' + end + ' จาก ' + _finAuditRows.length.toLocaleString() + ' รายการ (หน้า ' + (_finAuditPage+1) + ' / ' + Math.ceil(_finAuditRows.length / _FIN_AUDIT_PAGESIZE) + ')';
+
+  var actionColors = {
+    'create': '#D1FAE5;color:#065F46',
+    'update': '#FEF3C7;color:#92400E',
+    'delete': '#FEE2E2;color:#991B1B'
+  };
+  var tableLabels = {
+    'gyt_jobs': '📋 jobs',
+    'gyt_fuel_logs': '⛽ fuel_logs',
+    'gyt_toll_logs': '🛣 toll_logs'
+  };
+
+  tbody.innerHTML = pageRows.map(function(r){
+    var dt = new Date(r.changed_at);
+    var dtStr = dt.toLocaleString('th-TH', {dateStyle:'short', timeStyle:'medium'});
+    var actBg = actionColors[r.action] || '#E5E7EB;color:#374151';
+    var stagingTag = r.staging_mode ? '<span style="font-size:9px;color:#EA580C;margin-left:4px">[staging]</span>' : '';
+    return '<tr style="border-bottom:1px solid #F3F4F6;vertical-align:top">'+
+      '<td style="padding:8px;font-size:11px;color:var(--text-2);font-family:var(--mono)">'+dtStr+'</td>'+
+      '<td style="padding:8px;font-size:11px;font-weight:600">'+_finEsc(r.changed_by||'—')+stagingTag+'</td>'+
+      '<td style="padding:8px;font-size:11px;color:var(--text-2)">'+(tableLabels[r.table_name]||r.table_name)+'</td>'+
+      '<td style="padding:8px"><span style="font-size:10px;padding:3px 9px;border-radius:10px;font-weight:600;background:'+actBg+'">'+r.action+'</span></td>'+
+      '<td style="padding:8px;font-size:11px;font-family:var(--mono);color:var(--green-d)">'+_finEsc(r.record_id||'—')+'</td>'+
+      '<td style="padding:8px;font-size:11px">'+_finRenderDiff(r.before_data, r.after_data)+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function _finRenderDiff(before, after){
+  before = before || {};
+  after = after || {};
+  var keys = new Set();
+  Object.keys(before).forEach(function(k){keys.add(k);});
+  Object.keys(after).forEach(function(k){keys.add(k);});
+  if(!keys.size) return '<span style="color:var(--text-3)">—</span>';
+  var rows = [];
+  keys.forEach(function(k){
+    var b = before[k];
+    var a = after[k];
+    var bs = (b == null || b === '') ? '<span style="color:#9CA3AF">∅</span>' : _finEsc(JSON.stringify(b).replace(/^"|"$/g,''));
+    var as = (a == null || a === '') ? '<span style="color:#9CA3AF">∅</span>' : _finEsc(JSON.stringify(a).replace(/^"|"$/g,''));
+    rows.push('<div style="margin:2px 0;font-size:10.5px"><strong style="color:var(--text)">'+_finEsc(k)+':</strong> '+
+      '<span style="color:#991B1B;text-decoration:line-through;background:#FEE2E2;padding:1px 4px;border-radius:3px">'+bs+'</span>'+
+      ' → '+
+      '<span style="color:#065F46;background:#D1FAE5;padding:1px 4px;border-radius:3px">'+as+'</span>'+
+    '</div>');
+  });
+  return rows.join('');
+}
+
 // 🆕 v062 — Column Manager
 function finOpenColMgr(){
   var cols = _finGetCols();
@@ -20167,7 +20404,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.065';
+const APP_VERSION = '2026.04.29.066';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
