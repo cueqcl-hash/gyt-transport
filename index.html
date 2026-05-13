@@ -623,6 +623,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .date-cal-btn{height:32px;width:32px;display:inline-flex;align-items:center;justify-content:center;background:#fff;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:14px;color:var(--text-2);transition:.15s;padding:0;margin-left:-4px}
 .date-cal-btn:hover{border-color:var(--green);color:var(--green);background:var(--green-l)}
 </style>
+<style>
+/* 🆕 v065 — ซ่อน spinner ของ number input ในหน้า Finance */
+#pg-finance input[type="number"]::-webkit-outer-spin-button,
+#pg-finance input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#pg-finance input[type="number"] {
+  -moz-appearance: textfield;
+}
+</style>
 </head>
 <body>
 <!-- Global datalist สำหรับ autocomplete "สินค้าเป็น" — populate จาก CARGO_TYPES ใน JS -->
@@ -16148,6 +16159,7 @@ const _FIN_COLS = [
   {id:'toll',         label:'ทางด่วน',       group:'cost',  width:'80px',  visible:true},
   {id:'recv',         label:'รับตู้',         group:'cost',  width:'75px',  visible:true},
   {id:'box',          label:'ยกตู้',          group:'cost',  width:'75px',  visible:true},
+  {id:'move',         label:'ย้ายตู้',        group:'cost',  width:'75px',  visible:true},  // 🆕 v065
   {id:'ret',          label:'คืนตู้',         group:'cost',  width:'75px',  visible:true},
   {id:'port',         label:'ผ่านท่า',       group:'cost',  width:'75px',  visible:true},
   {id:'misc',         label:'อื่นๆ',          group:'cost',  width:'75px',  visible:true},
@@ -16473,6 +16485,7 @@ function finRender(plate, dateFrom, dateTo){
                    '</td>',
       recv:        costCell(r.costs, 'recv'),
       box:         costCell(r.costs, 'box'),
+      move:        costCell(r.costs, 'move'),
       ret:         costCell(r.costs, 'ret'),
       port:        costCell(r.costs, 'port'),
       misc:        costCell(r.costs, 'misc'),
@@ -16506,6 +16519,7 @@ function finRender(plate, dateFrom, dateTo){
     acc.trip += pickAmt(c, 'trip');
     acc.recv += pickAmt(c, 'recv');
     acc.box  += pickAmt(c, 'box');
+    acc.move += pickAmt(c, 'move');
     acc.ret  += pickAmt(c, 'ret');
     acc.port += pickAmt(c, 'port');
     acc.misc += pickAmt(c, 'misc');
@@ -16516,17 +16530,18 @@ function finRender(plate, dateFrom, dateTo){
     acc.fuelAmount += n(f.amount) || (n(f.price_per_l)*n(f.liters));
     if(f.id || f.fuel_date) acc.fuelCount++;
     return acc;
-  }, {trip:0,recv:0,box:0,ret:0,port:0,misc:0,toll:0,fuelLiters:0,fuelAmount:0,fuelCount:0});
+  }, {trip:0,recv:0,box:0,move:0,ret:0,port:0,misc:0,toll:0,fuelLiters:0,fuelAmount:0,fuelCount:0});
 
   var sumEl = document.getElementById('fin-summary');
   sumEl.style.display = 'block';
-  var grandTotal = totals.trip+totals.recv+totals.box+totals.ret+totals.port+totals.misc+totals.toll+totals.fuelAmount;
+  var grandTotal = totals.trip+totals.recv+totals.box+totals.move+totals.ret+totals.port+totals.misc+totals.toll+totals.fuelAmount;
   sumEl.innerHTML = '<strong style="color:var(--green-d)">'+plate+' · '+_finFmtDate(dateFrom)+'/'+dateFrom.slice(0,4)+' – '+_finFmtDate(dateTo)+'/'+dateTo.slice(0,4)+'</strong>'+
     ' &nbsp;|&nbsp; ใบงาน <strong>'+rows.filter(function(r){return r.type==="job";}).length+'</strong>'+
     '<br>💵 ค่าเที่ยว <strong>'+_finFmtNum(totals.trip)+'</strong>'+
     ' · ทางด่วน <strong>'+_finFmtNum(totals.toll)+'</strong>'+
     ' · รับตู้ <strong>'+_finFmtNum(totals.recv)+'</strong>'+
     ' · ยกตู้ <strong>'+_finFmtNum(totals.box)+'</strong>'+
+    ' · ย้ายตู้ <strong>'+_finFmtNum(totals.move)+'</strong>'+
     ' · คืนตู้ <strong>'+_finFmtNum(totals.ret)+'</strong>'+
     ' · ผ่านท่า <strong>'+_finFmtNum(totals.port)+'</strong>'+
     ' · อื่นๆ <strong>'+_finFmtNum(totals.misc)+'</strong>'+
@@ -20152,7 +20167,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.064';
+const APP_VERSION = '2026.04.29.065';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
