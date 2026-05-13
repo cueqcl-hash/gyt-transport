@@ -16141,7 +16141,7 @@ const _FIN_COLS = [
   {id:'plate',        label:'ทะเบียนรถ',     group:'info',  width:'100px', visible:false},  // v063 — auto-show เมื่อเลือก "ทุกทะเบียน"
   {id:'customer',     label:'ลูกค้า ✎',       group:'info',  width:'130px', visible:true},
   {id:'shipper',      label:'SHIPPER',       group:'info',  width:'130px', visible:true},
-  {id:'route',        label:'จุดรับ-ส่ง ✎',  group:'info',  width:'220px', visible:true},
+  {id:'route',        label:'จุดรับ-ส่ง ✎',  group:'info',  width:'240px', visible:true},
   {id:'type',         label:'ตู้',            group:'info',  width:'60px',  visible:true},
   {id:'container',    label:'No.ตู้',        group:'info',  width:'90px',  visible:true},
   {id:'trip',         label:'ค่าเที่ยว',     group:'cost',  width:'80px',  visible:true},
@@ -16410,17 +16410,27 @@ function finRender(plate, dateFrom, dateTo){
       '</td>';
   }
 
-  function textOverrideCell(costs, field, originalValue){
+  function textOverrideCell(costs, field, originalValue, multiline){
     var confKey = '_fin' + field.charAt(0).toUpperCase() + field.slice(1);
     var conf = costs[confKey];
     var hasOverride = (conf !== undefined && conf !== '' && conf !== null);
     var displayVal = hasOverride ? conf : (originalValue || '');
+    var border = hasOverride ? '1.5px solid #10B981' : '1px solid #D1FAE5';
+    var color = hasOverride ? '#065F46' : '#374151';
+    var titleAttr = ' title="ข้อมูลเดิม: '+_finEsc(originalValue||'').replace(/\n/g,' / ')+'"';
+    if(multiline){
+      // 🆕 v064 — textarea รองรับหลายบรรทัด
+      return '<td style="padding:3px;background:#F0FDF4;vertical-align:top">'+
+        '<textarea rows="3" placeholder="'+_finEsc(originalValue||'—')+'" '+
+          'data-text-field="'+field+'" oninput="finTextEdit(this)"'+titleAttr+' '+
+          'style="width:100%;border:'+border+';border-radius:4px;padding:4px 6px;font-size:11px;line-height:1.35;background:#fff;color:'+color+';resize:vertical;font-family:var(--font);min-height:54px">'+
+        _finEsc(displayVal)+
+      '</textarea></td>';
+    }
     return '<td style="padding:3px;background:#F0FDF4">'+
       '<input type="text" placeholder="'+_finEsc(originalValue||'—')+'" value="'+_finEsc(displayVal)+'" '+
-        'data-text-field="'+field+'" oninput="finTextEdit(this)" '+
-        'title="ข้อมูลเดิม: '+_finEsc(originalValue||'')+'" '+
-        'style="width:100%;border:'+(hasOverride?'1.5px solid #10B981':'1px solid #D1FAE5')+
-        ';border-radius:4px;padding:4px;font-size:11.5px;background:#fff;color:'+(hasOverride?'#065F46':'#374151')+'">'+
+        'data-text-field="'+field+'" oninput="finTextEdit(this)"'+titleAttr+' '+
+        'style="width:100%;border:'+border+';border-radius:4px;padding:4px;font-size:11.5px;background:#fff;color:'+color+'">'+
       '</td>';
   }
 
@@ -16436,7 +16446,9 @@ function finRender(plate, dateFrom, dateTo){
     var amountAuto = (fuel.price_per_l && fuel.liters) ? (Number(fuel.price_per_l) * Number(fuel.liters)).toFixed(2) : '';
     var j = r.job || {};
     // 🆕 v062: route = origin → dest → returnyard (3 จุด)
-    var route = [j.origin, j.dest, j.returnyard].filter(Boolean).join(' → ');
+    // 🆕 v064 — แต่ละจุดอยู่บรรทัดของตัวเอง (แสดงครบใน cell แคบ)
+    var routeParts = [j.origin, j.dest, j.returnyard].filter(Boolean);
+    var route = routeParts.map(function(p, i){ return (i===0 ? '' : '→ ') + p; }).join('\n');
 
     var tollConfVal = (toll && toll.amount) ? toll.amount : '';
     var tollGuide = (r.costs.tollAmt !== undefined && r.costs.tollAmt !== '') ? String(r.costs.tollAmt) : '';
@@ -16450,7 +16462,7 @@ function finRender(plate, dateFrom, dateTo){
       plate:       '<td style="padding:6px;background:#F0FDF4;font-weight:600;font-size:11px;font-family:monospace">'+_finEsc(j.plate||'—')+'</td>',
       customer:    textOverrideCell(r.costs, 'customer', j.customer),
       shipper:     infoCell(j.shipper),
-      route:       textOverrideCell(r.costs, 'route', route),
+      route:       textOverrideCell(r.costs, 'route', route, true),  // v064 multiline
       type:        infoCell(j.type, '#F0FDF4'),
       container:   infoCell(j.container, '#F0FDF4', true),
       trip:        costCell(r.costs, 'trip'),
@@ -20140,7 +20152,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.063';
+const APP_VERSION = '2026.04.29.064';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
