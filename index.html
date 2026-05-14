@@ -16340,11 +16340,12 @@ async function finLoad(){
   try {
     var qFuel = '?fuel_date=gte.' + dateFrom + '&fuel_date=lte.' + dateTo + legacyPlateFilter + '&order=fuel_date';
     var qToll = '?toll_date=gte.' + dateFrom + '&toll_date=lte.' + dateTo + legacyPlateFilter + '&order=toll_date';
-    var qLegacy = '?trip_date=gte.' + dateFrom + '&trip_date=lte.' + dateTo + legacyPlateFilter + '&order=trip_date&limit=5000';
+    var qLegacy = '?trip_date=gte.' + dateFrom + '&trip_date=lte.' + dateTo + legacyPlateFilter + '&order=trip_date';
+    // 🔧 v072 — ใช้ sbFetchAll (paginated) แทน sbFetch — แก้ bug ติด limit 1000 แถว
     var [fuelRows, tollRows, legacyRows] = await Promise.all([
-      sbFetch('gyt_fuel_logs','GET',null,qFuel),
-      sbFetch('gyt_toll_logs','GET',null,qToll),
-      sbFetch('gyt_trip_legacy','GET',null,qLegacy)
+      sbFetchAll('gyt_fuel_logs', qFuel),
+      sbFetchAll('gyt_toll_logs', qToll),
+      sbFetchAll('gyt_trip_legacy', qLegacy)
     ]);
     _finFuelLogs = fuelRows || [];
     _finTollLogs = tollRows || [];
@@ -20609,7 +20610,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.071';
+const APP_VERSION = '2026.04.29.072';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
