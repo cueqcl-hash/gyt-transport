@@ -16255,7 +16255,7 @@ function finDateBlur(el){
     else if(p.length === 3 && p[2].length < 4) el.value = p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2];
   }
 }
-// 🆕 v063 — flatpickr สำหรับ finance date inputs
+// 🆕 v063 / 🔧 v074 — flatpickr สำหรับ finance date inputs (รองรับ พ.ศ. เต็มระบบ)
 var _finPickers = {};
 function _finInitDatePicker(inputId){
   if(typeof flatpickr === 'undefined') return null;
@@ -16263,15 +16263,30 @@ function _finInitDatePicker(inputId){
   var input = document.getElementById(inputId);
   if(!input) return null;
   var fp = flatpickr(input, {
-    dateFormat: 'd/m/Y',
+    // 🔧 v074 — custom parse/format ให้ flatpickr เข้าใจ พ.ศ. → ไม่ "วิ่งมั่ว" อีก
+    parseDate: function(datestr){
+      // datestr = "วว/ดด/ปปปป(พ.ศ.)" → Date object (ค.ศ.)
+      var p = String(datestr).trim().split('/');
+      if(p.length !== 3) return undefined;
+      var d = parseInt(p[0],10), m = parseInt(p[1],10), y = parseInt(p[2],10);
+      if(isNaN(d)||isNaN(m)||isNaN(y)) return undefined;
+      if(y >= 2400) y -= 543;        // พ.ศ. → ค.ศ.
+      else if(y < 100) y += 2000;
+      return new Date(y, m-1, d);
+    },
+    formatDate: function(date){
+      // Date object (ค.ศ.) → "วว/ดด/ปปปป(พ.ศ.)"
+      return String(date.getDate()).padStart(2,'0') + '/' +
+             String(date.getMonth()+1).padStart(2,'0') + '/' +
+             (date.getFullYear() + 543);
+    },
     allowInput: true,
     clickOpens: false,
     locale: (flatpickr.l10ns && flatpickr.l10ns.th) ? 'th' : 'default',
     disableMobile: true,
     onChange: function(selectedDates, dateStr){
-      // 🔧 v073 — flatpickr คืน ค.ศ. → แปลงเป็น พ.ศ. ก่อนใส่ใน input
-      var pp = dateStr.split('/');
-      input.value = (pp.length===3) ? (pp[0]+'/'+pp[1]+'/'+(parseInt(pp[2],10)+543)) : dateStr;
+      // dateStr ถูก format เป็น พ.ศ. แล้วโดย formatDate → ใส่ใน input ได้เลย
+      input.value = dateStr;
       if(typeof finLoad === 'function') finLoad();
     }
   });
@@ -16281,11 +16296,10 @@ function _finInitDatePicker(inputId){
 function finOpenDatePicker(inputId){
   var fp = _finPickers[inputId] || _finInitDatePicker(inputId);
   if(!fp){ alert('⏳ ปฏิทินกำลังโหลด รอสักครู่'); return; }
+  // flatpickr มี parseDate custom แล้ว → setDate ด้วยค่า input ตรงๆ ได้
   var input = document.getElementById(inputId);
   if(input && input.value){
-    // 🔧 v073 — input เก็บ พ.ศ. → แปลงเป็น ค.ศ. ก่อนบอก flatpickr
-    var iso = _finParseDateDDMM(input.value);
-    try { if(iso) fp.setDate(iso, false, 'Y-m-d'); } catch(e){}
+    try { fp.setDate(input.value, false); } catch(e){}
   }
   fp.open();
 }
@@ -20634,7 +20648,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.073';
+const APP_VERSION = '2026.04.29.074';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
