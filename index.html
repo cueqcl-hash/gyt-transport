@@ -16596,31 +16596,40 @@ function finRender(plate, dateFrom, dateTo){
     return '<td style="padding:6px;background:'+(bg||'#F0FDF4')+';font-size:11px;color:var(--text-2)'+(mono?';font-family:monospace':'')+'" title="'+_finEsc(v||'')+'">'+safe+'</td>';
   }
 
-  // 🔧 v071 — toll cell: count===1 → editable, count>1 → แสดงผลรวม read-only + badge
-  function _finTollCellHtml(toll, tollGuide, tollConfVal, tollIsConfirmed, tollBg, tollColor, tollBorder){
-    var cnt = (toll && toll.count) || 0;
-    if(cnt > 1){
-      var breakdown = toll.records.map(function(t){return Number(t.amount).toLocaleString();}).join(' + ');
-      return '<td style="padding:3px;background:#FEF3C7" title="รวม '+cnt+' รายการ: '+breakdown+'">'+
-        '<div style="width:100%;border:1.5px solid #3B82F6;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#EFF6FF;color:#1E40AF;font-weight:700">'+
-        Number(toll.amount).toLocaleString()+
-        '<span style="font-size:9px;color:#3B82F6;font-weight:400;display:block;line-height:1">('+cnt+' ครั้ง)</span>'+
-        '</div></td>';
-    }
-    return '<td style="padding:3px;background:#FEF3C7"'+(tollGuide?' title="guide: '+tollGuide+'"':'')+'>'+
-      '<input type="number" step="1" placeholder="'+tollGuide+'" value="'+(tollConfVal||'')+'" '+
+  // 🔧 v076 — toll cell: render 1 cell ของ toll record เดียว (editable เสมอ) + ยอดรวม
+  function _finTollCell(tollRec, tollGuide, isFirst, isLast, tollTotal, tollCount){
+    tollRec = tollRec || {};
+    var val = (tollRec.amount !== undefined && tollRec.amount !== null && tollRec.amount !== '') ? tollRec.amount : '';
+    var isConfirmed = (val !== '');
+    var bg = isConfirmed ? '#fff' : (isFirst && tollGuide ? '#FFFBEB' : '#fff');
+    var color = isConfirmed ? '#1E40AF' : '#9CA3AF';
+    var border = isConfirmed ? '1.5px solid #3B82F6' : '1px solid #FDE68A';
+    var ph = (isFirst && tollGuide) ? tollGuide : '—';
+    var totalLine = (isLast && tollCount > 1)
+      ? '<div style="font-size:9px;color:#1E40AF;font-weight:700;text-align:right;margin-top:2px;border-top:1px dashed #93C5FD;padding-top:1px">รวม '+Number(tollTotal).toLocaleString()+'</div>'
+      : '';
+    return '<td style="padding:3px;background:#FEF3C7;vertical-align:top">'+
+      '<input type="number" step="1" placeholder="'+ph+'" value="'+(val||'')+'" '+
       'data-cost-field="toll" oninput="finCellEdit(this,\'toll\')" '+
-      'style="width:100%;border:'+tollBorder+';border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:'+tollBg+';color:'+tollColor+';font-weight:'+(tollIsConfirmed?'700':'400')+'">'+
+      'style="width:100%;border:'+border+';border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:'+bg+';color:'+color+';font-weight:'+(isConfirmed?'700':'400')+'">'+
+      totalLine +
       '</td>';
   }
 
   // 🔧 v075 — fuel cell: render 1 cell ของ fuel record เดียว (editable เสมอ) + data-fuel-field
-  function _finFuelCell(fuelRec, field, stationOptions, isLast){
+  function _finFuelCell(fuelRec, field, stationOptions, isLast, fuelTotal, fuelLitersTotal, fuelCount){
     fuelRec = fuelRec || {};
     var bg = '#FFF7ED';
     var amountAuto = (fuelRec.price_per_l && fuelRec.liters) ? (Number(fuelRec.price_per_l)*Number(fuelRec.liters)).toFixed(2) : '';
     var addBtn = isLast
-      ? '<div style="text-align:center;margin-top:2px"><button type="button" onclick="finAddFuelRow(this)" title="เพิ่มรายการเติมน้ำมัน" style="font-size:9px;color:#D97706;background:#FEF3C7;border:1px dashed #F59E0B;border-radius:4px;padding:1px 6px;cursor:pointer;line-height:1.3">➕ เพิ่มเติมน้ำมัน</button></div>'
+      ? '<div style="text-align:center;margin-top:2px"><button type="button" onclick="finAddSubRow(this)" title="เพิ่มแถวเติมน้ำมัน/ทางด่วน" style="font-size:9px;color:#D97706;background:#FEF3C7;border:1px dashed #F59E0B;border-radius:4px;padding:1px 6px;cursor:pointer;line-height:1.3">➕ เพิ่มแถว</button></div>'
+      : '';
+    // 🔧 v076 — ยอดรวมในแถวสุดท้าย (ถ้ามีหลายรายการ)
+    var litersTotalLine = (isLast && fuelCount > 1)
+      ? '<div style="font-size:9px;color:#92400E;font-weight:700;text-align:right;margin-top:2px;border-top:1px dashed #FCD34D;padding-top:1px">รวม '+Number(fuelLitersTotal||0).toLocaleString()+'</div>'
+      : '';
+    var amountTotalLine = (isLast && fuelCount > 1)
+      ? '<div style="font-size:9px;color:#92400E;font-weight:700;text-align:right;margin-top:2px;border-top:1px dashed #FCD34D;padding-top:1px">รวม '+Number(fuelTotal||0).toLocaleString()+'</div>'
       : '';
     if(field === 'fuel_date'){
       return '<td style="padding:3px;background:'+bg+';vertical-align:top">'+
@@ -16635,10 +16644,10 @@ function finRender(plate, dateFrom, dateTo){
       return '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="—" value="'+(fuelRec.price_per_l||'')+'" data-fuel-field="price" oninput="finCellEdit(this,\'price_per_l\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff"></td>';
     }
     if(field === 'liters'){
-      return '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="—" value="'+(fuelRec.liters||'')+'" data-fuel-field="liters" oninput="finCellEdit(this,\'liters\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff"></td>';
+      return '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="—" value="'+(fuelRec.liters||'')+'" data-fuel-field="liters" oninput="finCellEdit(this,\'liters\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff">'+litersTotalLine+'</td>';
     }
     // amount
-    return '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="'+amountAuto+'" value="'+(fuelRec.amount||'')+'" data-fuel-field="amount" oninput="finCellEdit(this,\'amount\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff"></td>';
+    return '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="'+amountAuto+'" value="'+(fuelRec.amount||'')+'" data-fuel-field="amount" oninput="finCellEdit(this,\'amount\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff">'+amountTotalLine+'</td>';
   }
 
   var _FIN_FUEL_COLS = ['fuel_date','station','price','liters','fuel_amount'];
@@ -16649,20 +16658,24 @@ function finRender(plate, dateFrom, dateTo){
     var routeParts = [j.origin, j.dest, j.returnyard].filter(Boolean);
     var route = routeParts.map(function(p, i){ return (i===0 ? '' : '→ ') + p; }).join('\n');
 
-    var tollConfVal = (toll && toll.amount) ? toll.amount : '';
     var tollGuide = (r.costs.tollAmt !== undefined && r.costs.tollAmt !== '') ? String(r.costs.tollAmt) : '';
-    var tollIsConfirmed = (tollConfVal !== '' && tollConfVal !== null);
-    var tollBg = tollIsConfirmed ? '#fff' : (tollGuide ? '#FFFBEB' : '#fff');
-    var tollColor = tollIsConfirmed ? '#1E40AF' : '#9CA3AF';
-    var tollBorder = tollIsConfirmed ? '1.5px solid #3B82F6' : '1px solid #FDE68A';
 
-    // 🔧 v075 — fuel records เป็น array
+    // 🔧 v075/v076 — fuel + toll records เป็น array
     var fuelRecords = [];
     if(r.fuel && r.fuel.records) fuelRecords = r.fuel.records.slice();
     else if(r.fuel && (r.fuel.id || r.fuel.fuel_date)) fuelRecords = [r.fuel];
-    var rowCount = Math.max(1, fuelRecords.length);
+    var tollRecords = [];
+    if(r.toll && r.toll.records) tollRecords = r.toll.records.slice();
+    else if(r.toll && (r.toll.id || r.toll.amount)) tollRecords = [r.toll];
 
-    // non-fuel cells (info / cost / meta) — ใช้ rowspan
+    var rowCount = Math.max(1, fuelRecords.length, tollRecords.length);
+
+    // totals
+    var fuelTotal = fuelRecords.reduce(function(a,f){return a + (Number(f.amount)|| (Number(f.price_per_l)||0)*(Number(f.liters)||0));},0);
+    var fuelLitersTotal = fuelRecords.reduce(function(a,f){return a + (Number(f.liters)||0);},0);
+    var tollTotal = tollRecords.reduce(function(a,t){return a + (Number(t.amount)||0);},0);
+
+    // non per-row cells (info / cost ยกเว้น toll / meta) — ใช้ rowspan
     var sharedCells = {
       date:        '<td style="padding:6px;font-weight:600;background:#F9FAFB">'+_finFmtDate(r.date)+'</td>',
       plate:       '<td style="padding:6px;background:#F0FDF4;font-weight:600;font-size:11px;font-family:monospace">'+_finEsc(j.plate||'—')+'</td>',
@@ -16672,44 +16685,47 @@ function finRender(plate, dateFrom, dateTo){
       type:        infoCell(j.type, '#F0FDF4'),
       container:   infoCell(j.container, '#F0FDF4', true),
       trip:        costCell(r.costs, 'trip'),
-      toll:        _finTollCellHtml(toll, tollGuide, tollConfVal, tollIsConfirmed, tollBg, tollColor, tollBorder),
       recv:        costCell(r.costs, 'recv'),
       box:         costCell(r.costs, 'box'),
       move:        costCell(r.costs, 'move'),
       ret:         costCell(r.costs, 'ret'),
       port:        costCell(r.costs, 'port'),
       misc:        costCell(r.costs, 'misc'),
-      updated_by:  '<td style="padding:6px;font-size:10px;color:var(--text-3);text-align:center">'+(_finEsc((fuelRecords[0]&&(fuelRecords[0].updated_by||fuelRecords[0].created_by))||toll.updated_by||toll.created_by||''))+'</td>'
+      updated_by:  '<td style="padding:6px;font-size:10px;color:var(--text-3);text-align:center">'+(_finEsc((fuelRecords[0]&&(fuelRecords[0].updated_by||fuelRecords[0].created_by))||(tollRecords[0]&&(tollRecords[0].updated_by||tollRecords[0].created_by))||''))+'</td>'
     };
-    // เพิ่ม rowspan ถ้ามีหลาย fuel sub-row
     function withRowspan(td){
       if(rowCount <= 1) return td;
       return td.replace(/^<td/, '<td rowspan="'+rowCount+'"');
     }
+    // per-row columns = toll + fuel group
+    function isPerRow(c){ return c.id === 'toll' || c.group === 'fuel'; }
 
     var html = '';
     for(var ri = 0; ri < rowCount; ri++){
       var fuelRec = fuelRecords[ri] || {};
+      var tollRec = tollRecords[ri] || {};
       var isLast = (ri === rowCount - 1);
       var trAttrs = 'data-job-id="'+(r.jobId||'')+'" data-cloud-fuel-id="'+(fuelRec.id||'')+'" '+
-                    'data-cloud-toll-id="'+((toll && toll.id)||'')+'" data-date="'+r.date+'" '+
+                    'data-cloud-toll-id="'+(tollRec.id||'')+'" data-date="'+r.date+'" '+
                     'data-fuel-subrow="'+ri+'"'+(ri===0?' data-job-first="1"':'');
       html += '<tr '+trAttrs+' style="border-bottom:1px solid '+(isLast?'#F3F4F6':'#FEF3E2')+'">';
       if(ri === 0){
-        // # cell (rowspan)
         html += withRowspan('<td style="padding:6px 4px;text-align:center;color:var(--text-3);font-size:11px">'+r.idx+'</td>');
         visibleCols.forEach(function(c){
-          if(c.group === 'fuel'){
-            html += _finFuelCell(fuelRec, c.id, stationOptions, isLast);
+          if(c.id === 'toll'){
+            html += _finTollCell(tollRec, tollGuide, true, isLast, tollTotal, tollRecords.length);
+          } else if(c.group === 'fuel'){
+            html += _finFuelCell(fuelRec, c.id, stationOptions, isLast, fuelTotal, fuelLitersTotal, fuelRecords.length);
           } else {
             html += withRowspan(sharedCells[c.id] || '<td></td>');
           }
         });
       } else {
-        // sub-row: เฉพาะ fuel columns
         visibleCols.forEach(function(c){
-          if(c.group === 'fuel'){
-            html += _finFuelCell(fuelRec, c.id, stationOptions, isLast);
+          if(c.id === 'toll'){
+            html += _finTollCell(tollRec, tollGuide, false, isLast, tollTotal, tollRecords.length);
+          } else if(c.group === 'fuel'){
+            html += _finFuelCell(fuelRec, c.id, stationOptions, isLast, fuelTotal, fuelLitersTotal, fuelRecords.length);
           }
         });
       }
@@ -16971,8 +16987,8 @@ async function finSaveRow(tr, field, value){
   }
 }
 
-// 🆕 v075 — เพิ่มแถวเติมน้ำมันใหม่ใต้ใบงานเดียวกัน
-function finAddFuelRow(btn){
+// 🆕 v075/v076 — เพิ่มแถว (น้ำมัน + ทางด่วน) ใหม่ใต้ใบงานเดียวกัน
+function finAddSubRow(btn){
   var tr = btn.closest('tr');
   if(!tr) return;
   var jobId = tr.dataset.jobId || '';
@@ -16993,12 +17009,17 @@ function finAddFuelRow(btn){
   var stationOpts = '<option value="">—</option>' + FUEL_STATIONS.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
   var cellsHtml = '';
   visCols.forEach(function(c){
+    // 🔧 v076 — toll cell ในแถวใหม่ (เปล่า editable)
+    if(c.id === 'toll'){
+      cellsHtml += '<td style="padding:3px;background:#FEF3C7;vertical-align:top"><input type="number" step="1" placeholder="—" data-cost-field="toll" oninput="finCellEdit(this,\'toll\')" style="width:100%;border:1px solid #FDE68A;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff;color:#1E40AF"></td>';
+      return;
+    }
     if(c.group !== 'fuel') return;
     var bg = '#FFF7ED';
     if(c.id === 'fuel_date'){
       cellsHtml += '<td style="padding:3px;background:'+bg+';vertical-align:top">'+
         '<input type="text" placeholder="dd/mm" value="" data-fuel-field="fuel_date" oninput="finCellEdit(this,\'fuel_date\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:center;background:#fff">'+
-        '<div style="text-align:center;margin-top:2px"><button type="button" onclick="finAddFuelRow(this)" style="font-size:9px;color:#D97706;background:#FEF3C7;border:1px dashed #F59E0B;border-radius:4px;padding:1px 6px;cursor:pointer;line-height:1.3">➕ เพิ่มเติมน้ำมัน</button></div>'+
+        '<div style="text-align:center;margin-top:2px"><button type="button" onclick="finAddSubRow(this)" style="font-size:9px;color:#D97706;background:#FEF3C7;border:1px dashed #F59E0B;border-radius:4px;padding:1px 6px;cursor:pointer;line-height:1.3">➕ เพิ่มแถว</button></div>'+
         '</td>';
     } else if(c.id === 'station'){
       cellsHtml += '<td style="padding:3px;background:'+bg+';vertical-align:top"><select data-fuel-field="station" onchange="finCellEdit(this,\'station\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:10.5px;background:#fff">'+stationOpts+'</select></td>';
@@ -17038,7 +17059,8 @@ function finAddFuelRow(btn){
       var tds = Array.from(firstTr.children);
       // tds = [#, ...cols...] — fuel cols เป็น 5 ตัวสุดท้ายก่อน meta? ไม่แน่นอน → ใช้ data-fuel-field
       tds.forEach(function(td){
-        if(!td.querySelector('[data-fuel-field]')){
+        // ข้าม fuel cells + toll cell (per-row) — เพิ่ม rowspan ให้ shared cells
+        if(!td.querySelector('[data-fuel-field]') && !td.querySelector('[data-cost-field="toll"]')){
           td.setAttribute('rowspan', '2');
         }
       });
@@ -20739,7 +20761,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.075';
+const APP_VERSION = '2026.04.29.076';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
