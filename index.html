@@ -932,12 +932,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             </select>
             <span style="font-size:12px;color:var(--text-3)">จากวันที่</span>
             <div style="display:inline-flex;align-items:center;gap:0">
-              <input type="text" id="fin-date-from" placeholder="dd/mm/yyyy" maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
+              <input type="text" id="fin-date-from" placeholder="วว/ดด/พ.ศ." maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
               <button type="button" onclick="finOpenDatePicker('fin-date-from')" title="เลือกวันที่จากปฏิทิน" style="padding:6px 10px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:#F9FAFB;cursor:pointer;font-size:14px">📅</button>
             </div>
             <span style="font-size:12px;color:var(--text-3)">ถึง</span>
             <div style="display:inline-flex;align-items:center;gap:0">
-              <input type="text" id="fin-date-to" placeholder="dd/mm/yyyy" maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
+              <input type="text" id="fin-date-to" placeholder="วว/ดด/พ.ศ." maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
               <button type="button" onclick="finOpenDatePicker('fin-date-to')" title="เลือกวันที่จากปฏิทิน" style="padding:6px 10px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:#F9FAFB;cursor:pointer;font-size:14px">📅</button>
             </div>
             <div style="display:inline-flex;align-items:center;gap:0;margin-left:6px"><input type="text" id="fin-search" placeholder="&#128269; ค้นหา (ลูกค้า, ตู้, JOB ID, ทะเบียน...)" oninput="finApplySearch(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:12px;font-family:var(--font);background:#fff;width:240px"><button type="button" onclick="finClearSearch()" title="ล้างคำค้นหา" style="padding:6px 10px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:#F9FAFB;cursor:pointer;font-size:12px;color:var(--text-3)">&times;</button></div><button class="btn btn-ghost" onclick="finLoad()" style="font-size:12px">&#8635; รีเฟรช</button>
@@ -16135,12 +16135,13 @@ function initFinance(){
   var fromEl = document.getElementById('fin-date-from');
   var toEl = document.getElementById('fin-date-to');
   if(fromEl && !fromEl.value){
+    // 🔧 v073 — default เป็น พ.ศ.
     var now = new Date();
-    var yy = now.getFullYear(), mm = String(now.getMonth()+1).padStart(2,'0');
+    var yyBE = now.getFullYear() + 543, mm = String(now.getMonth()+1).padStart(2,'0');
     var lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-    fromEl.value = '01/'+mm+'/'+yy;
+    fromEl.value = '01/'+mm+'/'+yyBE;
     if(toEl && !toEl.value){
-      toEl.value = String(lastDay).padStart(2,'0')+'/'+mm+'/'+yy;
+      toEl.value = String(lastDay).padStart(2,'0')+'/'+mm+'/'+yyBE;
     }
   }
 
@@ -16267,8 +16268,10 @@ function _finInitDatePicker(inputId){
     clickOpens: false,
     locale: (flatpickr.l10ns && flatpickr.l10ns.th) ? 'th' : 'default',
     disableMobile: true,
-    onChange: function(_, dateStr){
-      input.value = dateStr;
+    onChange: function(selectedDates, dateStr){
+      // 🔧 v073 — flatpickr คืน ค.ศ. → แปลงเป็น พ.ศ. ก่อนใส่ใน input
+      var pp = dateStr.split('/');
+      input.value = (pp.length===3) ? (pp[0]+'/'+pp[1]+'/'+(parseInt(pp[2],10)+543)) : dateStr;
       if(typeof finLoad === 'function') finLoad();
     }
   });
@@ -16280,16 +16283,35 @@ function finOpenDatePicker(inputId){
   if(!fp){ alert('⏳ ปฏิทินกำลังโหลด รอสักครู่'); return; }
   var input = document.getElementById(inputId);
   if(input && input.value){
-    try { fp.setDate(input.value, false, 'd/m/Y'); } catch(e){}
+    // 🔧 v073 — input เก็บ พ.ศ. → แปลงเป็น ค.ศ. ก่อนบอก flatpickr
+    var iso = _finParseDateDDMM(input.value);
+    try { if(iso) fp.setDate(iso, false, 'Y-m-d'); } catch(e){}
   }
   fp.open();
 }
 
 function _finParseDateDDMM(s){
+  // 🔧 v073 — รองรับ พ.ศ. (ปี >= 2400 → -543)
   if(!s) return null;
   var p = s.split('/');
   if(p.length !== 3) return null;
-  return p[2] + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+  var d = p[0], m = p[1], y = parseInt(p[2], 10);
+  if(isNaN(y)) return null;
+  if(y >= 2400) y -= 543;          // พ.ศ. → ค.ศ.
+  else if(y < 100) y += 2000;      // เลข 2 หลัก → 20xx
+  return String(y) + '-' + m.padStart(2,'0') + '-' + d.padStart(2,'0');
+}
+// 🆕 v073 — แปลง ISO (ค.ศ.) → dd/mm/yyyy(พ.ศ.) สำหรับแสดงผล
+function _finCE2BE(iso){
+  if(!iso) return '';
+  var p = String(iso).slice(0,10).split('-');
+  if(p.length !== 3) return iso;
+  return p[2] + '/' + p[1] + '/' + (parseInt(p[0],10) + 543);
+}
+// 🆕 v073 — วันนี้เป็น dd/mm/yyyy(พ.ศ.)
+function _finTodayBE(d){
+  d = d || new Date();
+  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + (d.getFullYear()+543);
 }
 
 async function finLoad(){
@@ -16301,16 +16323,17 @@ async function finLoad(){
 
   // ถ้ายังว่าง → ตั้ง default = ทั้งเดือนปัจจุบัน
   if(!fromEl.value || !toEl.value){
+    // 🔧 v073 — default พ.ศ. (input) + ค.ศ. (internal)
     var now = new Date();
-    var yy = now.getFullYear(), mm = String(now.getMonth()+1).padStart(2,'0');
+    var yyCE = now.getFullYear(), yyBE = yyCE + 543, mm = String(now.getMonth()+1).padStart(2,'0');
     var lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
     if(!fromEl.value){
-      fromEl.value = '01/'+mm+'/'+yy;
-      dateFrom = yy+'-'+mm+'-01';
+      fromEl.value = '01/'+mm+'/'+yyBE;
+      dateFrom = yyCE+'-'+mm+'-01';
     }
     if(!toEl.value){
-      toEl.value = String(lastDay).padStart(2,'0')+'/'+mm+'/'+yy;
-      dateTo = yy+'-'+mm+'-'+String(lastDay).padStart(2,'0');
+      toEl.value = String(lastDay).padStart(2,'0')+'/'+mm+'/'+yyBE;
+      dateTo = yyCE+'-'+mm+'-'+String(lastDay).padStart(2,'0');
     }
   }
 
@@ -16697,7 +16720,7 @@ function finRender(plate, dateFrom, dateTo){
   var sumEl = document.getElementById('fin-summary');
   sumEl.style.display = 'block';
   var grandTotal = totals.trip+totals.recv+totals.box+totals.move+totals.ret+totals.port+totals.misc+totals.toll+totals.fuelAmount;
-  sumEl.innerHTML = '<strong style="color:var(--green-d)">'+plate+' · '+_finFmtDate(dateFrom)+'/'+dateFrom.slice(0,4)+' – '+_finFmtDate(dateTo)+'/'+dateTo.slice(0,4)+'</strong>'+
+  sumEl.innerHTML = '<strong style="color:var(--green-d)">'+plate+' · '+_finCE2BE(dateFrom)+' – '+_finCE2BE(dateTo)+'</strong>'+
     ' &nbsp;|&nbsp; ใบงาน <strong>'+rows.filter(function(r){return r.type==="job";}).length+'</strong>'+
     ' (📜 ประวัติที่ยัง match ไม่ได้ <strong>'+rows.filter(function(r){return r.type==="legacy";}).length+'</strong>)'+
     '<br>💵 ค่าเที่ยว <strong>'+_finFmtNum(totals.trip)+'</strong>'+
@@ -17086,7 +17109,8 @@ function finOpenAudit(){
     // Default date range = 30 วันล่าสุด
     var now = new Date();
     var ago = new Date(now.getTime() - 30*24*60*60*1000);
-    var _fmt = function(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();};
+    // 🔧 v073 — audit date เป็น พ.ศ.
+    var _fmt = function(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+(d.getFullYear()+543);};
     document.getElementById('fin-audit-from').value = _fmt(ago);
     document.getElementById('fin-audit-to').value = _fmt(now);
 
@@ -20610,7 +20634,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.072';
+const APP_VERSION = '2026.04.29.073';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
