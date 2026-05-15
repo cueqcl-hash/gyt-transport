@@ -16602,7 +16602,7 @@ function finRender(plate, dateFrom, dateTo){
     var val = (tollRec.amount !== undefined && tollRec.amount !== null && tollRec.amount !== '') ? tollRec.amount : '';
     var isConfirmed = (val !== '');
     var bg = isConfirmed ? '#fff' : (isFirst && tollGuide ? '#FFFBEB' : '#fff');
-    var color = isConfirmed ? '#1E40AF' : '#9CA3AF';
+    var color = isConfirmed ? '#111827' : '#9CA3AF';  // 🔧 v077 — บันทึกแล้ว = ดำ
     var border = isConfirmed ? '1.5px solid #3B82F6' : '1px solid #FDE68A';
     var ph = (isFirst && tollGuide) ? tollGuide : '—';
     var totalLine = (isLast && tollCount > 1)
@@ -16796,6 +16796,8 @@ function _finEsc(v){
 function finCellEdit(input, field){
   var tr = input.closest('tr');
   if(!tr) return;
+  // 🔧 v077 — ระหว่างพิมพ์ (ยังไม่บันทึก) -> ตัวหนังสือสีน้ำเงิน
+  input.style.color = '#1E40AF';
   var key = (tr.dataset.jobId || tr.dataset.cloudFuelId || tr.dataset.cloudTollId || '_') + ':' + field;
   if(_finSavingTimers[key]) clearTimeout(_finSavingTimers[key]);
   _finSavingTimers[key] = setTimeout(function(){
@@ -16937,6 +16939,9 @@ async function finSaveRow(tr, field, value){
         }
       }
       finFlash(tr, 'toll');
+      // 🔧 v077 — บันทึกเสร็จ -> ตัวหนังสือกลับเป็นสีดำ
+      var _ti = tr.querySelector('input[data-cost-field="toll"]');
+      if(_ti) _ti.style.color = '#111827';
     } else {
       // 🔧 v075 — fuel fields: ดึงค่าจาก data-fuel-field (robust — ใช้กับ sub-rows ได้)
       var _gf = function(f){ var el = tr.querySelector('[data-fuel-field="'+f+'"]'); return el ? el.value : ''; };
@@ -16980,6 +16985,8 @@ async function finSaveRow(tr, field, value){
         }
       }
       finFlash(tr, 'fuel');
+      // 🔧 v077 — บันทึกเสร็จ -> ตัวหนังสือกลับเป็นสีดำ
+      tr.querySelectorAll('[data-fuel-field]').forEach(function(el){ el.style.color = '#111827'; });
     }
   } catch(e){
     console.warn('[fin] save failed:', e.message);
@@ -20761,7 +20768,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.076';
+const APP_VERSION = '2026.04.29.077';
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
