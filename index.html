@@ -623,6 +623,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .date-cal-btn{height:32px;width:32px;display:inline-flex;align-items:center;justify-content:center;background:#fff;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:14px;color:var(--text-2);transition:.15s;padding:0;margin-left:-4px}
 .date-cal-btn:hover{border-color:var(--green);color:var(--green);background:var(--green-l)}
 </style>
+<style>
+/* 🆕 v065 — ซ่อน spinner ของ number input ในหน้า Finance */
+#pg-finance input[type="number"]::-webkit-outer-spin-button,
+#pg-finance input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#pg-finance input[type="number"] {
+  -moz-appearance: textfield;
+}
+</style>
 </head>
 <body>
 <!-- Global datalist สำหรับ autocomplete "สินค้าเป็น" — populate จาก CARGO_TYPES ใน JS -->
@@ -829,7 +840,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
         <div class="toolbar">
           <input type="text" class="tb-input tb-search" id="u-search" placeholder="ค้นหาชื่อ / username...">
-          <select class="tb-input" id="u-frole"><option value="">Role ทั้งหมด</option><option value="admin">Admin</option><option value="supervisor">Supervisor</option><option value="staff">Staff</option></select>
+          <select class="tb-input" id="u-frole"><option value="">Role ทั้งหมด</option><option value="admin">Admin</option>
+              <option value="accounting">บัญชี (Accounting)</option><option value="supervisor">Supervisor</option><option value="staff">Staff (Operation)</option></select>
           <button class="btn btn-green" onclick="openAddUser()">+ เพิ่ม User</button>
         </div>
         <div class="tbl-wrap"><div class="tbl-scroll"><table>
@@ -908,6 +920,46 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       </div>
 
       <!-- VEHICLES -->
+      <!-- 🆕 v060 FINANCE — ค่าน้ำมัน + ทางด่วน -->
+      <div id="pg-finance" class="screen">
+        <div class="card" style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="font-size:16px;font-weight:700;color:var(--text)">💰 ค่าน้ำมัน + ทางด่วน</div>
+            <span style="font-size:11px;color:var(--text-3);background:#FEF3C7;padding:2px 8px;border-radius:6px">เฉพาะทีมบัญชี — auto-save</span>
+            <div style="flex:1"></div>
+            <select id="fin-plate" onchange="finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:var(--font);background:#fff;min-width:200px">
+              <option value="">— เลือกทะเบียนรถ —</option>
+            </select>
+            <span style="font-size:12px;color:var(--text-3)">จากวันที่</span>
+            <div style="display:inline-flex;align-items:center;gap:0">
+              <input type="text" id="fin-date-from" placeholder="วว/ดด/พ.ศ." maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
+              <button type="button" onclick="finOpenDatePicker('fin-date-from')" title="เลือกวันที่จากปฏิทิน" style="padding:6px 10px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:#F9FAFB;cursor:pointer;font-size:14px">📅</button>
+            </div>
+            <span style="font-size:12px;color:var(--text-3)">ถึง</span>
+            <div style="display:inline-flex;align-items:center;gap:0">
+              <input type="text" id="fin-date-to" placeholder="วว/ดด/พ.ศ." maxlength="10" oninput="finDateInput(this)" onblur="finDateBlur(this); finLoad()" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-family:var(--mono);background:#fff;width:115px;text-align:center">
+              <button type="button" onclick="finOpenDatePicker('fin-date-to')" title="เลือกวันที่จากปฏิทิน" style="padding:6px 10px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:#F9FAFB;cursor:pointer;font-size:14px">📅</button>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:0;margin-left:6px"><input type="text" id="fin-search" placeholder="&#128269; ค้นหา (ลูกค้า, ตู้, JOB ID, ทะเบียน...)" oninput="finApplySearch(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:12px;font-family:var(--font);background:#fff;width:240px"><button type="button" onclick="finClearSearch()" title="ล้างคำค้นหา" style="padding:6px 10px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:#F9FAFB;cursor:pointer;font-size:12px;color:var(--text-3)">&times;</button></div><button class="btn btn-ghost" onclick="finLoad()" style="font-size:12px">&#8635; รีเฟรช</button>
+            <button class="btn btn-ghost" onclick="finOpenColMgr()" style="font-size:12px" title="ปรับคอลัมน์">⚙ คอลัมน์</button>
+            <button class="btn btn-ghost" onclick="finOpenAudit()" style="font-size:12px" title="ดูประวัติการแก้ไข">🕒 ประวัติ</button>
+            <button class="btn btn-ghost" onclick="finExport()" style="font-size:12px">📤 Export</button>
+          </div>
+          <div id="fin-summary" style="font-size:12px;color:var(--text-3);margin-top:10px;padding:8px 12px;background:#F0FDF4;border-radius:6px;display:none"></div>
+        </div>
+
+        <div class="card" id="fin-table-card" style="padding:0;overflow-x:auto">
+          <table id="fin-table" style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:1800px">
+            <thead id="fin-thead" style="background:var(--green-l);color:var(--green-d);position:sticky;top:0;z-index:5"></thead>
+            <tbody id="fin-tbody"></tbody>
+            <tfoot id="fin-tfoot"></tfoot>
+          </table>
+          <div id="fin-empty" style="padding:40px;text-align:center;color:var(--text-3);font-size:13px;display:none">
+            🔍 เลือกทะเบียนรถ + เดือน เพื่อแสดงข้อมูล
+          </div>
+        </div>
+      </div>
+
       <div id="pg-vehicles" class="screen">
 
         <!-- หัวรถ -->
@@ -1950,6 +2002,7 @@ const ALL_PERMS = [
   {id:'view_customer',label:'ดูข้อมูลลูกค้า',       group:'ข้อมูลในใบงาน'},
   {id:'view_shipper', label:'ดูชื่อ Shipper',        group:'ข้อมูลในใบงาน'},
   {id:'view_carrier', label:'ดู Carrier/Booking',    group:'ข้อมูลในใบงาน'},
+  {id:'manage_finance', label:'จัดการการเงิน (น้ำมัน/ทางด่วน)', group:'การเงิน'},
   {id:'view_weight',  label:'ดูน้ำหนักสินค้า',      group:'ข้อมูลในใบงาน'},
   {id:'view_plate',   label:'ดูทะเบียน/คนขับ',      group:'ข้อมูลในใบงาน'},
   {id:'view_location',label:'ดูลิงก์ Map',           group:'ข้อมูลในใบงาน'},
@@ -1968,7 +2021,12 @@ const ALL_PERMS = [
 ];
 const DEFAULT_PERMS = {
   admin:      ALL_PERMS.map(function(p){return p.id;}),
-  supervisor: ALL_PERMS.map(function(p){return p.id;}).filter(function(id){return id!=='manage_users';}), // supervisor ทำได้ทุกอย่างยกเว้นจัดการ user
+  supervisor: ALL_PERMS.map(function(p){return p.id;}), // 🔧 v060 — supervisor ได้ทุก perm (รวม manage_users)
+  // 🆕 v059 — บัญชี: focus งานการเงิน (เปิด manage_finance ให้, ดู jobs+vehicles+drivers ได้)
+  accounting: ['view_jobs','update_status',
+               'view_customer','view_shipper','view_carrier','view_weight','view_plate','view_location',
+               'dashboard','view_vehicles','view_drivers','view_settings',
+               'manage_finance','export'],
   staff:   ['view_jobs','add_jobs','edit_jobs','delete_jobs','update_status',
             'view_customer','view_shipper','view_carrier','view_weight','view_plate','view_location',
             'dashboard','view_vehicles','view_drivers','view_settings'],
@@ -4271,7 +4329,7 @@ function initApp(){
   av.textContent=currentUser.fname[0]+currentUser.lname[0];
   av.className='sb-av '+r;
   document.getElementById('sb-name').textContent=currentUser.fname+' '+currentUser.lname;
-  document.getElementById('sb-role-label').textContent={admin:'ผู้บริหาร',supervisor:'ผู้ดูแลระบบ',staff:'ทีมงาน'}[r]||r;
+  document.getElementById('sb-role-label').textContent={admin:'ผู้บริหาร',supervisor:'ผู้ดูแลระบบ',accounting:'บัญชี',staff:'ทีมงาน'}[r]||r;
   document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
   // Sidebar menu — กรองตาม perm ของ user (ไม่ hard-code ตาม role อีกแล้ว)
@@ -4283,6 +4341,7 @@ function initApp(){
     {id:'drivers',  icon:'👤',label:'คนขับรถ',            perm:'view_drivers'},
     {id:'settings', icon:'⚙', label:'ตั้งค่าข้อมูลลูกค้า', perm:'view_settings'},
     {id:'ratecalc', icon:'⛽',label:'คำนวณราคาขนส่ง',     perm:'dashboard'}, // ใช้ dashboard เป็นเงื่อนไข (admin/supervisor เห็น)
+    {id:'finance', icon:'💰',label:'ค่าน้ำมัน + ทางด่วน',perm:'manage_finance'},  // 🆕 v060 — บัญชี
     {id:'maintenance',icon:'🛠',label:'ซ่อมบำรุงรถ',       perm:'view_maintenance'}, // Phase 1A
     {id:'inspection',icon:'✅',label:'ตรวจสภาพรถ',          perm:'view_inspection'},   // Phase 1A
     {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
@@ -4294,6 +4353,8 @@ function initApp(){
     <a class="nav-item" id="nav-${n.id}" href="?page=${n.id}" onclick="return navClick(event,'${n.id}')">
       <span style="font-size:14px">${n.icon}</span><span>${n.label}</span>
     </a>`).join('');
+  // 🆕 v060 — init finance dropdown
+  setTimeout(function(){ if(typeof initFinance === 'function') initFinance(); }, 200);
   // Phase 3: Update maintenance alert badge (delay so all data is loaded)
   setTimeout(function(){ if(typeof updateMaintenanceBadge==='function') updateMaintenanceBadge(); }, 100);
 
@@ -16039,6 +16100,1382 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ============================
 
 // ── ผลงานทีมงาน ──────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════
+// 🆕 v060 — FINANCE MODULE (Phase 2)
+// ค่าน้ำมัน + ค่าทางด่วน — Excel grid + auto-save
+// ════════════════════════════════════════════════════════════════════
+const FUEL_STATIONS = ['บางจาก กม.12', 'บางจาก กม.2', 'เชลล์ กิ่งแก้ว 29'];
+let _finFuelLogs = [];   // [{id, plate, fuel_date, station, price_per_l, liters, amount, job_id, ...}]
+let _finLegacyTrips = [];  // 🆕 v068 — gyt_trip_legacy rows
+let _finTollLogs = [];   // [{id, plate, toll_date, amount, job_id, ...}]
+let _finCurrentPlate = '';
+let _finCurrentMonth = '';
+let _finSavingTimers = {};
+
+function initFinance(){
+  // populate plate dropdown
+  var sel = document.getElementById('fin-plate');
+  if(!sel) return;
+  var plates = new Set();
+  if(typeof tractors !== 'undefined' && Array.isArray(tractors)){
+    tractors.forEach(function(t){ if(t.plate) plates.add(String(t.plate).trim()); });
+  }
+  if(typeof jobs !== 'undefined' && Array.isArray(jobs)){
+    jobs.forEach(function(j){ if(j.plate) plates.add(String(j.plate).trim()); });
+  }
+  var sorted = Array.from(plates).filter(Boolean).sort();
+  var prevValue = sel.value;
+  sel.innerHTML = '<option value="">— เลือกทะเบียนรถ —</option>' +
+    '<option value="*">📋 ทุกทะเบียน ('+sorted.length+' คัน)</option>' +
+    '<option disabled style="color:#ccc">────────</option>' +
+    sorted.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+  if(prevValue) sel.value = prevValue;
+
+  // 🆕 v062 — default date range = current month
+  var fromEl = document.getElementById('fin-date-from');
+  var toEl = document.getElementById('fin-date-to');
+  if(fromEl && !fromEl.value){
+    // 🔧 v073 — default เป็น พ.ศ.
+    var now = new Date();
+    var yyBE = now.getFullYear() + 543, mm = String(now.getMonth()+1).padStart(2,'0');
+    var lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    fromEl.value = '01/'+mm+'/'+yyBE;
+    if(toEl && !toEl.value){
+      toEl.value = String(lastDay).padStart(2,'0')+'/'+mm+'/'+yyBE;
+    }
+  }
+
+  // 🆕 v062 — render thead จาก column registry
+  _finRenderHead();
+}
+
+// 🆕 v062 — Column Registry
+const _FIN_COLS = [
+  {id:'date',         label:'วันที่งาน',     group:'info',  width:'72px',  visible:true},
+  {id:'plate',        label:'ทะเบียนรถ',     group:'info',  width:'100px', visible:false},  // v063 — auto-show เมื่อเลือก "ทุกทะเบียน"
+  {id:'customer',     label:'ลูกค้า ✎',       group:'info',  width:'130px', visible:true},
+  {id:'shipper',      label:'SHIPPER',       group:'info',  width:'130px', visible:true},
+  {id:'route',        label:'จุดรับ-ส่ง ✎',  group:'info',  width:'240px', visible:true},
+  {id:'type',         label:'ตู้',            group:'info',  width:'60px',  visible:true},
+  {id:'container',    label:'No.ตู้',        group:'info',  width:'90px',  visible:true},
+  {id:'trip',         label:'ค่าเที่ยว',     group:'cost',  width:'80px',  visible:true},
+  {id:'toll',         label:'ทางด่วน',       group:'cost',  width:'80px',  visible:true},
+  {id:'recv',         label:'รับตู้',         group:'cost',  width:'75px',  visible:true},
+  {id:'box',          label:'ยกตู้',          group:'cost',  width:'75px',  visible:true},
+  {id:'move',         label:'ย้ายตู้',        group:'cost',  width:'75px',  visible:true},  // 🆕 v065
+  {id:'ret',          label:'คืนตู้',         group:'cost',  width:'75px',  visible:true},
+  {id:'port',         label:'ผ่านท่า',       group:'cost',  width:'75px',  visible:true},
+  {id:'misc',         label:'อื่นๆ',          group:'cost',  width:'75px',  visible:true},
+  {id:'fuel_date',    label:'วันเติม',       group:'fuel',  width:'80px',  visible:true},
+  {id:'station',      label:'ปั้ม',           group:'fuel',  width:'140px', visible:true},
+  {id:'price',        label:'ราคา/L',        group:'fuel',  width:'75px',  visible:true},
+  {id:'liters',       label:'ลิตร',           group:'fuel',  width:'75px',  visible:true},
+  {id:'fuel_amount',  label:'ยอดน้ำมัน',     group:'fuel',  width:'90px',  visible:true},
+  {id:'updated_by',   label:'ผู้บันทึก',     group:'meta',  width:'80px',  visible:true},
+];
+const _FIN_GROUP_LABEL = {info:'📋 ข้อมูลใบงาน', cost:'💵 ค่าใช้จ่ายงาน', fuel:'⛽ ค่าน้ำมัน', meta:''};
+const _FIN_GROUP_BG = {info:'#F0FDF4', cost:'#FEF3C7', fuel:'#FFF7ED', meta:''};
+
+function _finGetCols(){
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem('gyt_fin_cols')||'null'); } catch(_){}
+  if(!saved){
+    return _FIN_COLS.slice();
+  }
+  // merge saved order/visibility with current registry (defensive)
+  var byId = {}; _FIN_COLS.forEach(function(c){ byId[c.id] = Object.assign({}, c); });
+  var result = [];
+  saved.forEach(function(sc){
+    if(byId[sc.id]){
+      byId[sc.id].visible = (sc.visible !== false);
+      result.push(byId[sc.id]);
+      delete byId[sc.id];
+    }
+  });
+  // append any new cols from registry not in saved (to end)
+  Object.values(byId).forEach(function(c){ result.push(c); });
+  return result;
+}
+function _finSaveCols(cols){
+  try { localStorage.setItem('gyt_fin_cols', JSON.stringify(cols.map(function(c){return {id:c.id, visible:c.visible};}))); } catch(_){}
+}
+
+function _finRenderHead(){
+  var thead = document.getElementById('fin-thead');
+  if(!thead) return;
+  var cols = _finGetCols().filter(function(c){return c.visible;});
+  // Group columns
+  var groups = [];
+  var lastGroup = null;
+  cols.forEach(function(c){
+    if(!lastGroup || lastGroup.id !== c.group){
+      lastGroup = {id: c.group, label: _FIN_GROUP_LABEL[c.group]||'', bg: _FIN_GROUP_BG[c.group]||'', cols:[]};
+      groups.push(lastGroup);
+    }
+    lastGroup.cols.push(c);
+  });
+  // Row 1 — group headers (rowspan=2 for # + ผู้บันทึก-only-group if no other)
+  var row1 = '<tr><th rowspan="2" style="padding:6px;border-bottom:2px solid var(--green-m);text-align:center;width:32px">#</th>';
+  groups.forEach(function(g){
+    if(g.label){
+      row1 += '<th colspan="'+g.cols.length+'" style="padding:4px;border-bottom:1px solid var(--green-m);background:'+g.bg+';text-align:center;font-size:11px">'+g.label+'</th>';
+    } else {
+      g.cols.forEach(function(c){
+        row1 += '<th rowspan="2" style="padding:6px;border-bottom:2px solid var(--green-m);width:'+c.width+'">'+c.label+'</th>';
+      });
+    }
+  });
+  row1 += '</tr>';
+  // Row 2 — column headers under groups
+  var row2 = '<tr>';
+  groups.forEach(function(g){
+    if(g.label){
+      g.cols.forEach(function(c){
+        row2 += '<th style="padding:6px;border-bottom:2px solid var(--green-m);width:'+c.width+';background:'+g.bg+'">'+c.label+'</th>';
+      });
+    }
+  });
+  row2 += '</tr>';
+  thead.innerHTML = row1 + row2;
+}
+
+// ── Date range filter helpers ──
+function finDateInput(el){
+  var v = el.value.replace(/[^0-9\/]/g,'');
+  if(v.length === 2 && el._prev && el._prev.length === 1) v += '/';
+  if(v.length === 5 && el._prev && el._prev.length === 4) v += '/';
+  el.value = v;
+  el._prev = v;
+}
+function finDateBlur(el){
+  var v = el.value;
+  if(v && v.length < 10){
+    var p = v.split('/');
+    if(p.length === 2) el.value = p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+new Date().getFullYear();
+    else if(p.length === 3 && p[2].length < 4) el.value = p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2];
+  }
+}
+// 🆕 v063 / 🔧 v074 — flatpickr สำหรับ finance date inputs (รองรับ พ.ศ. เต็มระบบ)
+var _finPickers = {};
+function _finInitDatePicker(inputId){
+  if(typeof flatpickr === 'undefined') return null;
+  if(_finPickers[inputId]) return _finPickers[inputId];
+  var input = document.getElementById(inputId);
+  if(!input) return null;
+  var fp = flatpickr(input, {
+    // 🔧 v074 — custom parse/format ให้ flatpickr เข้าใจ พ.ศ. → ไม่ "วิ่งมั่ว" อีก
+    parseDate: function(datestr){
+      // datestr = "วว/ดด/ปปปป(พ.ศ.)" → Date object (ค.ศ.)
+      var p = String(datestr).trim().split('/');
+      if(p.length !== 3) return undefined;
+      var d = parseInt(p[0],10), m = parseInt(p[1],10), y = parseInt(p[2],10);
+      if(isNaN(d)||isNaN(m)||isNaN(y)) return undefined;
+      if(y >= 2400) y -= 543;        // พ.ศ. → ค.ศ.
+      else if(y < 100) y += 2000;
+      return new Date(y, m-1, d);
+    },
+    formatDate: function(date){
+      // Date object (ค.ศ.) → "วว/ดด/ปปปป(พ.ศ.)"
+      return String(date.getDate()).padStart(2,'0') + '/' +
+             String(date.getMonth()+1).padStart(2,'0') + '/' +
+             (date.getFullYear() + 543);
+    },
+    allowInput: true,
+    clickOpens: false,
+    locale: (flatpickr.l10ns && flatpickr.l10ns.th) ? 'th' : 'default',
+    disableMobile: true,
+    onChange: function(selectedDates, dateStr){
+      // dateStr ถูก format เป็น พ.ศ. แล้วโดย formatDate → ใส่ใน input ได้เลย
+      input.value = dateStr;
+      if(typeof finLoad === 'function') finLoad();
+    }
+  });
+  _finPickers[inputId] = fp;
+  return fp;
+}
+function finOpenDatePicker(inputId){
+  var fp = _finPickers[inputId] || _finInitDatePicker(inputId);
+  if(!fp){ alert('⏳ ปฏิทินกำลังโหลด รอสักครู่'); return; }
+  // flatpickr มี parseDate custom แล้ว → setDate ด้วยค่า input ตรงๆ ได้
+  var input = document.getElementById(inputId);
+  if(input && input.value){
+    try { fp.setDate(input.value, false); } catch(e){}
+  }
+  fp.open();
+}
+
+function _finParseDateDDMM(s){
+  // 🔧 v073 — รองรับ พ.ศ. (ปี >= 2400 → -543)
+  if(!s) return null;
+  var p = s.split('/');
+  if(p.length !== 3) return null;
+  var d = p[0], m = p[1], y = parseInt(p[2], 10);
+  if(isNaN(y)) return null;
+  if(y >= 2400) y -= 543;          // พ.ศ. → ค.ศ.
+  else if(y < 100) y += 2000;      // เลข 2 หลัก → 20xx
+  return String(y) + '-' + m.padStart(2,'0') + '-' + d.padStart(2,'0');
+}
+// 🆕 v073 — แปลง ISO (ค.ศ.) → dd/mm/yyyy(พ.ศ.) สำหรับแสดงผล
+function _finCE2BE(iso){
+  if(!iso) return '';
+  var p = String(iso).slice(0,10).split('-');
+  if(p.length !== 3) return iso;
+  return p[2] + '/' + p[1] + '/' + (parseInt(p[0],10) + 543);
+}
+// 🆕 v073 — วันนี้เป็น dd/mm/yyyy(พ.ศ.)
+function _finTodayBE(d){
+  d = d || new Date();
+  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + (d.getFullYear()+543);
+}
+
+async function finLoad(){
+  var plate = document.getElementById('fin-plate').value;
+  var fromEl = document.getElementById('fin-date-from');
+  var toEl = document.getElementById('fin-date-to');
+  var dateFrom = _finParseDateDDMM(fromEl.value);
+  var dateTo = _finParseDateDDMM(toEl.value);
+
+  // ถ้ายังว่าง → ตั้ง default = ทั้งเดือนปัจจุบัน
+  if(!fromEl.value || !toEl.value){
+    // 🔧 v073 — default พ.ศ. (input) + ค.ศ. (internal)
+    var now = new Date();
+    var yyCE = now.getFullYear(), yyBE = yyCE + 543, mm = String(now.getMonth()+1).padStart(2,'0');
+    var lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    if(!fromEl.value){
+      fromEl.value = '01/'+mm+'/'+yyBE;
+      dateFrom = yyCE+'-'+mm+'-01';
+    }
+    if(!toEl.value){
+      toEl.value = String(lastDay).padStart(2,'0')+'/'+mm+'/'+yyBE;
+      dateTo = yyCE+'-'+mm+'-'+String(lastDay).padStart(2,'0');
+    }
+  }
+
+  if(!plate || !dateFrom || !dateTo){
+    document.getElementById('fin-tbody').innerHTML = '';
+    document.getElementById('fin-tfoot').innerHTML = '';
+    document.getElementById('fin-empty').style.display = 'block';
+    document.getElementById('fin-summary').style.display = 'none';
+    return;
+  }
+  document.getElementById('fin-empty').style.display = 'none';
+  _finCurrentPlate = plate;
+  _finCurrentMonth = dateFrom.slice(0,7); // for label
+
+  // 🆕 v063 — รองรับ "*" = ทุกทะเบียน
+  var plateFilter = (plate === '*') ? '' : ('&plate=eq.' + encodeURIComponent(plate));
+  // 🆕 v068 — รองรับ plate format ทั้ง "65-3012" (legacy) และ "65-3012 กท." (current)
+  var legacyPlateFilter = '';
+  if(plate !== '*'){
+    var legacyShort = (plate.match(/(\d{2,3}-\d{4})/)||[])[0];
+    if(legacyShort){
+      legacyPlateFilter = '&plate=eq.' + encodeURIComponent(legacyShort);
+    } else {
+      legacyPlateFilter = plateFilter;
+    }
+  }
+  try {
+    var qFuel = '?fuel_date=gte.' + dateFrom + '&fuel_date=lte.' + dateTo + legacyPlateFilter + '&order=fuel_date';
+    var qToll = '?toll_date=gte.' + dateFrom + '&toll_date=lte.' + dateTo + legacyPlateFilter + '&order=toll_date';
+    var qLegacy = '?trip_date=gte.' + dateFrom + '&trip_date=lte.' + dateTo + legacyPlateFilter + '&order=trip_date';
+    // 🔧 v072 — ใช้ sbFetchAll (paginated) แทน sbFetch — แก้ bug ติด limit 1000 แถว
+    var [fuelRows, tollRows, legacyRows] = await Promise.all([
+      sbFetchAll('gyt_fuel_logs', qFuel),
+      sbFetchAll('gyt_toll_logs', qToll),
+      sbFetchAll('gyt_trip_legacy', qLegacy)
+    ]);
+    _finFuelLogs = fuelRows || [];
+    _finTollLogs = tollRows || [];
+    _finLegacyTrips = legacyRows || [];
+  } catch(e){
+    console.warn('finLoad cloud error:', e.message);
+    _finFuelLogs = [];
+    _finTollLogs = [];
+    _finLegacyTrips = [];
+  }
+
+  _finRenderHead();
+  finRender(plate, dateFrom, dateTo);
+  // 🆕 v067 — re-apply search query
+  var _q = document.getElementById('fin-search');
+  if(_q && _q.value) _finApplySearchNow(_q.value);
+}
+
+function _finFmtDate(iso){
+  if(!iso) return '';
+  var d = String(iso).slice(0,10).split('-');
+  return d.length === 3 ? d[2]+'/'+d[1] : iso;
+}
+function _finIsoMonth(iso){
+  if(!iso) return '';
+  return String(iso).slice(0,7); // YYYY-MM
+}
+
+function finRender(plate, dateFrom, dateTo){
+  // 🆕 v063 — auto-show plate column เมื่อเลือก "ทุกทะเบียน"
+  try {
+    var savedCols = JSON.parse(localStorage.getItem('gyt_fin_cols')||'null');
+    var plateCol = _FIN_COLS.find(function(c){return c.id==='plate';});
+    if(plateCol) plateCol.visible = (plate === '*');
+  } catch(_){}
+  // 🆕 v063 — '*' = ทุกทะเบียน, ไม่ filter by plate
+  var jobsInRange = (jobs||[]).filter(function(j){
+    if(plate !== '*' && j.plate !== plate) return false;
+    var jd = (j.startdate||'').slice(0,10);
+    return jd && jd >= dateFrom && jd <= dateTo;
+  }).sort(function(a,b){
+    // เรียงตามวันที่ก่อน, ถ้าวันเดียวกัน เรียงตามทะเบียน
+    var dc = (a.startdate||'').localeCompare(b.startdate||'');
+    if(dc !== 0) return dc;
+    return (a.plate||'').localeCompare(b.plate||'');
+  });
+
+  // 🔧 v071 — aggregate (รวมยอด) ทุก record ของแต่ละ job_id (แก้ bug ยอดไม่ตรง)
+  var fuelByJob = {}, tollByJob = {};
+  _finFuelLogs.forEach(function(f){
+    if(!f.job_id) return;
+    if(!fuelByJob[f.job_id]){
+      fuelByJob[f.job_id] = {id:f.id, count:0, records:[], fuel_date:f.fuel_date,
+        station:f.station, price_per_l:f.price_per_l, liters:0, amount:0,
+        updated_by:f.updated_by, created_by:f.created_by};
+    }
+    var a = fuelByJob[f.job_id];
+    a.count++;
+    a.records.push(f);
+    a.liters += Number(f.liters)||0;
+    a.amount += (Number(f.amount) || (Number(f.price_per_l)||0)*(Number(f.liters)||0));
+  });
+  _finTollLogs.forEach(function(t){
+    if(!t.job_id) return;
+    if(!tollByJob[t.job_id]){
+      tollByJob[t.job_id] = {id:t.id, count:0, records:[], amount:0,
+        updated_by:t.updated_by, created_by:t.created_by};
+    }
+    var a = tollByJob[t.job_id];
+    a.count++;
+    a.records.push(t);
+    a.amount += Number(t.amount)||0;
+  });
+
+  // 🔧 v070 — build legacy-by-jobId map (สำหรับ inject trip_fee guide + dedup H rows)
+  var legacyByJobId = {};
+  _finLegacyTrips.forEach(function(lt){
+    if(lt.job_id) legacyByJobId[lt.job_id] = lt;
+  });
+
+  var rows = jobsInRange.map(function(j, i){
+    // copy costs เพื่อไม่แก้ของจริง — inject legacy trip_fee เป็น guide
+    var c = Object.assign({}, j.costs||{});
+    var lt = legacyByJobId[j.id];
+    if(lt && lt.trip_fee && (c.tripAmt === undefined || c.tripAmt === '' || c.tripAmt === null)){
+      c.tripAmt = lt.trip_fee;  // guide จาก Excel (AOI confirm ทับได้)
+    }
+    return {
+      idx: i+1, type:'job', jobId: j.id,
+      date: j.startdate ? j.startdate.slice(0,10) : '',
+      job: j, costs: c, fuel: fuelByJob[j.id]||null, toll: tollByJob[j.id]||null
+    };
+  });
+  _finFuelLogs.filter(function(f){return !f.job_id;}).forEach(function(f, k){
+    rows.push({idx:'F'+(k+1), type:'fuel-only', jobId:null, date:f.fuel_date, job:null, costs:{}, fuel:f, toll:null, cloudId:f.id});
+  });
+
+  // 🆕 v068 — เพิ่ม legacy trips จาก Excel (ถ้ายังไม่ตรงกับ job ใน jobsInRange)
+  // strategy: hash by plate+date+customer → ถ้ามีอยู่แล้วใน jobs ข้าม
+  var jobKeys = {};
+  jobsInRange.forEach(function(j){
+    var k = (j.plate||'') + '|' + (j.startdate||'').slice(0,10) + '|' + (j.customer||'').slice(0,20).toLowerCase();
+    jobKeys[k] = true;
+  });
+  // หา fuel/toll legacy ตาม trip_id → matches with same plate+date
+  var fuelByDate = {}, tollByDate = {};
+  _finFuelLogs.filter(function(f){return !f.job_id;}).forEach(function(f){
+    var k = f.plate + '|' + f.fuel_date;
+    if(!fuelByDate[k]) fuelByDate[k] = f;  // ใช้ first match
+  });
+  _finTollLogs.filter(function(t){return !t.job_id;}).forEach(function(t){
+    var k = t.plate + '|' + t.toll_date;
+    if(!tollByDate[k]) tollByDate[k] = t;
+  });
+
+  _finLegacyTrips.forEach(function(lt, k){
+    // 🔧 v070 — ถ้า legacy trip มี job_id (matched) → skip H row
+    // ข้อมูลถูก merge เข้า job row แล้ว (trip_fee → guide)
+    if(lt.job_id) return;
+    var dupKey = (lt.plate||'') + '|' + lt.trip_date + '|' + (lt.customer||'').slice(0,20).toLowerCase();
+    if(jobKeys[dupKey]) return; // skip — มี job ตรงกันอยู่แล้ว
+    // ลอง match fuel+toll ของวันเดียวกัน (best-effort)
+    var matchKey = lt.plate + '|' + lt.trip_date;
+    var fakeJob = {
+      id: 'L-'+lt.id,
+      plate: lt.plate,
+      startdate: lt.trip_date,
+      customer: lt.customer || '',
+      shipper: '',
+      origin: lt.route || '',
+      dest: '',
+      returnyard: lt.return_yard || '',
+      type: lt.container_size || '',
+      container: '',
+      costs: { tripAmt: lt.trip_fee || '' }
+    };
+    rows.push({
+      idx: 'H'+(k+1),
+      type: 'legacy',
+      jobId: null,
+      legacyId: lt.id,
+      date: lt.trip_date,
+      job: fakeJob,
+      costs: fakeJob.costs,
+      fuel: fuelByDate[matchKey] || null,
+      toll: tollByDate[matchKey] || null
+    });
+  });
+
+  var tbody = document.getElementById('fin-tbody');
+  _finRenderHead();  // v063 — re-render head ทุกครั้ง (รองรับ plate column toggle)
+  var visibleCols = _finGetCols().filter(function(c){return c.visible;});
+
+  if(!rows.length){
+    tbody.innerHTML = '<tr><td colspan="'+(visibleCols.length+1)+'" style="padding:30px;text-align:center;color:var(--text-3)">ไม่มีใบงานในช่วงเวลานี้สำหรับ '+plate+'</td></tr>';
+    document.getElementById('fin-tfoot').innerHTML = '';
+    document.getElementById('fin-summary').style.display = 'none';
+    return;
+  }
+
+  var stationOptions = '<option value="">—</option>' + FUEL_STATIONS.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+
+  function costCell(costs, field){
+    var guideKey = field + 'Amt';
+    var confKey = field + 'AmtConfirmed';
+    var noteKey = field + 'Note';
+    var guide = costs[guideKey];
+    var conf = costs[confKey];
+    var note = costs[noteKey] || '';
+    var displayVal = (conf !== undefined && conf !== '' && conf !== null) ? conf : '';
+    var placeholder = (guide !== undefined && guide !== '' && guide !== null) ? String(guide) : '';
+    var isConfirmed = (displayVal !== '');
+    var bg = isConfirmed ? '#fff' : (placeholder ? '#FFFBEB' : '#fff');
+    var color = isConfirmed ? '#065F46' : '#9CA3AF';
+    var border = isConfirmed ? '1.5px solid #10B981' : '1px solid #FDE68A';
+    var titleAttr = note ? ' title="' + _finEsc(note) + '"' : (placeholder ? ' title="guide: '+placeholder+'"' : '');
+    return '<td style="padding:3px;background:#FEF3C7"'+titleAttr+'>'+
+      '<input type="number" step="1" placeholder="'+placeholder+'" value="'+(displayVal||'')+'" '+
+        'data-cost-field="'+field+'" oninput="finCostEdit(this)" '+
+        'style="width:100%;border:'+border+';border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:'+bg+';color:'+color+';font-weight:'+(isConfirmed?'700':'400')+'">'+
+      '</td>';
+  }
+
+  function textOverrideCell(costs, field, originalValue, multiline){
+    var confKey = '_fin' + field.charAt(0).toUpperCase() + field.slice(1);
+    var conf = costs[confKey];
+    var hasOverride = (conf !== undefined && conf !== '' && conf !== null);
+    var displayVal = hasOverride ? conf : (originalValue || '');
+    var border = hasOverride ? '1.5px solid #10B981' : '1px solid #D1FAE5';
+    var color = hasOverride ? '#065F46' : '#374151';
+    var titleAttr = ' title="ข้อมูลเดิม: '+_finEsc(originalValue||'').replace(/\n/g,' / ')+'"';
+    if(multiline){
+      // 🆕 v064 — textarea รองรับหลายบรรทัด
+      return '<td style="padding:3px;background:#F0FDF4;vertical-align:top">'+
+        '<textarea rows="3" placeholder="'+_finEsc(originalValue||'—')+'" '+
+          'data-text-field="'+field+'" oninput="finTextEdit(this)"'+titleAttr+' '+
+          'style="width:100%;border:'+border+';border-radius:4px;padding:4px 6px;font-size:11px;line-height:1.35;background:#fff;color:'+color+';resize:vertical;font-family:var(--font);min-height:54px">'+
+        _finEsc(displayVal)+
+      '</textarea></td>';
+    }
+    return '<td style="padding:3px;background:#F0FDF4">'+
+      '<input type="text" placeholder="'+_finEsc(originalValue||'—')+'" value="'+_finEsc(displayVal)+'" '+
+        'data-text-field="'+field+'" oninput="finTextEdit(this)"'+titleAttr+' '+
+        'style="width:100%;border:'+border+';border-radius:4px;padding:4px;font-size:11.5px;background:#fff;color:'+color+'">'+
+      '</td>';
+  }
+
+  // helper สำหรับ cell ที่เป็น read-only text
+  function infoCell(v, bg, mono){
+    var safe = _finEsc(v||'—');
+    return '<td style="padding:6px;background:'+(bg||'#F0FDF4')+';font-size:11px;color:var(--text-2)'+(mono?';font-family:monospace':'')+'" title="'+_finEsc(v||'')+'">'+safe+'</td>';
+  }
+
+  // 🔧 v076 — toll cell: render 1 cell ของ toll record เดียว (editable เสมอ) + ยอดรวม
+  function _finTollCell(tollRec, tollGuide, isFirst, isLast, tollTotal, tollCount){
+    tollRec = tollRec || {};
+    var val = (tollRec.amount !== undefined && tollRec.amount !== null && tollRec.amount !== '') ? tollRec.amount : '';
+    var isConfirmed = (val !== '');
+    var bg = isConfirmed ? '#fff' : (isFirst && tollGuide ? '#FFFBEB' : '#fff');
+    var color = isConfirmed ? '#111827' : '#9CA3AF';  // 🔧 v077 — บันทึกแล้ว = ดำ
+    var border = isConfirmed ? '1px solid #D1D5DB' : '1px solid #FDE68A';  // 🔧 v078 — บันทึกแล้ว = กรอบเทา
+    var ph = (isFirst && tollGuide) ? tollGuide : '—';
+    var totalLine = (isLast && tollCount > 1)
+      ? '<div style="font-size:9px;color:#1E40AF;font-weight:700;text-align:right;margin-top:2px;border-top:1px dashed #93C5FD;padding-top:1px">รวม '+Number(tollTotal).toLocaleString()+'</div>'
+      : '';
+    return '<td style="padding:3px;background:#FEF3C7;vertical-align:top">'+
+      '<input type="number" step="1" placeholder="'+ph+'" value="'+(val||'')+'" '+
+      'data-cost-field="toll" oninput="finCellEdit(this,\'toll\')" '+
+      'style="width:100%;border:'+border+';border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:'+bg+';color:'+color+';font-weight:'+(isConfirmed?'700':'400')+'">'+
+      totalLine +
+      '</td>';
+  }
+
+  // 🔧 v075 — fuel cell: render 1 cell ของ fuel record เดียว (editable เสมอ) + data-fuel-field
+  function _finFuelCell(fuelRec, field, stationOptions, isLast, fuelTotal, fuelLitersTotal, fuelCount){
+    fuelRec = fuelRec || {};
+    var bg = '#FFF7ED';
+    var amountAuto = (fuelRec.price_per_l && fuelRec.liters) ? (Number(fuelRec.price_per_l)*Number(fuelRec.liters)).toFixed(2) : '';
+    var addBtn = isLast
+      ? '<div style="text-align:center;margin-top:2px"><button type="button" onclick="finAddSubRow(this)" title="เพิ่มแถวเติมน้ำมัน/ทางด่วน" style="font-size:9px;color:#D97706;background:#FEF3C7;border:1px dashed #F59E0B;border-radius:4px;padding:1px 6px;cursor:pointer;line-height:1.3">➕ เพิ่มแถว</button></div>'
+      : '';
+    // 🔧 v076 — ยอดรวมในแถวสุดท้าย (ถ้ามีหลายรายการ)
+    var litersTotalLine = (isLast && fuelCount > 1)
+      ? '<div style="font-size:9px;color:#92400E;font-weight:700;text-align:right;margin-top:2px;border-top:1px dashed #FCD34D;padding-top:1px">รวม '+Number(fuelLitersTotal||0).toLocaleString()+'</div>'
+      : '';
+    var amountTotalLine = (isLast && fuelCount > 1)
+      ? '<div style="font-size:9px;color:#92400E;font-weight:700;text-align:right;margin-top:2px;border-top:1px dashed #FCD34D;padding-top:1px">รวม '+Number(fuelTotal||0).toLocaleString()+'</div>'
+      : '';
+    if(field === 'fuel_date'){
+      return '<td style="padding:3px;background:'+bg+';vertical-align:top">'+
+        '<input type="text" placeholder="dd/mm" value="'+_finFmtDate(fuelRec.fuel_date||'')+'" data-fuel-field="fuel_date" oninput="finCellEdit(this,\'fuel_date\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:center;background:#fff">'+
+        addBtn +
+        '</td>';
+    }
+    if(field === 'station'){
+      return '<td style="padding:3px;background:'+bg+';vertical-align:top"><select data-fuel-field="station" onchange="finCellEdit(this,\'station\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:10.5px;background:#fff">'+stationOptions.replace('value="'+(fuelRec.station||'')+'"', 'value="'+(fuelRec.station||'')+'" selected')+'</select></td>';
+    }
+    if(field === 'price'){
+      return '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="—" value="'+(fuelRec.price_per_l||'')+'" data-fuel-field="price" oninput="finCellEdit(this,\'price_per_l\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff"></td>';
+    }
+    if(field === 'liters'){
+      return '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="—" value="'+(fuelRec.liters||'')+'" data-fuel-field="liters" oninput="finCellEdit(this,\'liters\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff">'+litersTotalLine+'</td>';
+    }
+    // amount
+    return '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="'+amountAuto+'" value="'+(fuelRec.amount||'')+'" data-fuel-field="amount" oninput="finCellEdit(this,\'amount\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff">'+amountTotalLine+'</td>';
+  }
+
+  var _FIN_FUEL_COLS = ['fuel_date','station','price','liters','fuel_amount'];
+
+  function renderRow(r){
+    var toll = r.toll || {};
+    var j = r.job || {};
+    var routeParts = [j.origin, j.dest, j.returnyard].filter(Boolean);
+    var route = routeParts.map(function(p, i){ return (i===0 ? '' : '→ ') + p; }).join('\n');
+
+    var tollGuide = (r.costs.tollAmt !== undefined && r.costs.tollAmt !== '') ? String(r.costs.tollAmt) : '';
+
+    // 🔧 v075/v076 — fuel + toll records เป็น array
+    var fuelRecords = [];
+    if(r.fuel && r.fuel.records) fuelRecords = r.fuel.records.slice();
+    else if(r.fuel && (r.fuel.id || r.fuel.fuel_date)) fuelRecords = [r.fuel];
+    var tollRecords = [];
+    if(r.toll && r.toll.records) tollRecords = r.toll.records.slice();
+    else if(r.toll && (r.toll.id || r.toll.amount)) tollRecords = [r.toll];
+
+    var rowCount = Math.max(1, fuelRecords.length, tollRecords.length);
+
+    // totals
+    var fuelTotal = fuelRecords.reduce(function(a,f){return a + (Number(f.amount)|| (Number(f.price_per_l)||0)*(Number(f.liters)||0));},0);
+    var fuelLitersTotal = fuelRecords.reduce(function(a,f){return a + (Number(f.liters)||0);},0);
+    var tollTotal = tollRecords.reduce(function(a,t){return a + (Number(t.amount)||0);},0);
+
+    // non per-row cells (info / cost ยกเว้น toll / meta) — ใช้ rowspan
+    var sharedCells = {
+      date:        '<td style="padding:6px;font-weight:600;background:#F9FAFB">'+_finFmtDate(r.date)+'</td>',
+      plate:       '<td style="padding:6px;background:#F0FDF4;font-weight:600;font-size:11px;font-family:monospace">'+_finEsc(j.plate||'—')+'</td>',
+      customer:    textOverrideCell(r.costs, 'customer', j.customer),
+      shipper:     infoCell(j.shipper),
+      route:       textOverrideCell(r.costs, 'route', route, true),
+      type:        infoCell(j.type, '#F0FDF4'),
+      container:   infoCell(j.container, '#F0FDF4', true),
+      trip:        costCell(r.costs, 'trip'),
+      recv:        costCell(r.costs, 'recv'),
+      box:         costCell(r.costs, 'box'),
+      move:        costCell(r.costs, 'move'),
+      ret:         costCell(r.costs, 'ret'),
+      port:        costCell(r.costs, 'port'),
+      misc:        costCell(r.costs, 'misc'),
+      updated_by:  '<td style="padding:6px;font-size:10px;color:var(--text-3);text-align:center">'+(_finEsc((fuelRecords[0]&&(fuelRecords[0].updated_by||fuelRecords[0].created_by))||(tollRecords[0]&&(tollRecords[0].updated_by||tollRecords[0].created_by))||''))+'</td>'
+    };
+    function withRowspan(td){
+      if(rowCount <= 1) return td;
+      return td.replace(/^<td/, '<td rowspan="'+rowCount+'"');
+    }
+    // per-row columns = toll + fuel group
+    function isPerRow(c){ return c.id === 'toll' || c.group === 'fuel'; }
+
+    var html = '';
+    for(var ri = 0; ri < rowCount; ri++){
+      var fuelRec = fuelRecords[ri] || {};
+      var tollRec = tollRecords[ri] || {};
+      var isLast = (ri === rowCount - 1);
+      var trAttrs = 'data-job-id="'+(r.jobId||'')+'" data-cloud-fuel-id="'+(fuelRec.id||'')+'" '+
+                    'data-cloud-toll-id="'+(tollRec.id||'')+'" data-date="'+r.date+'" '+
+                    'data-fuel-subrow="'+ri+'"'+(ri===0?' data-job-first="1"':'');
+      html += '<tr '+trAttrs+' style="border-bottom:1px solid '+(isLast?'#F3F4F6':'#FEF3E2')+'">';
+      if(ri === 0){
+        html += withRowspan('<td style="padding:6px 4px;text-align:center;color:var(--text-3);font-size:11px">'+r.idx+'</td>');
+        visibleCols.forEach(function(c){
+          if(c.id === 'toll'){
+            html += _finTollCell(tollRec, tollGuide, true, isLast, tollTotal, tollRecords.length);
+          } else if(c.group === 'fuel'){
+            html += _finFuelCell(fuelRec, c.id, stationOptions, isLast, fuelTotal, fuelLitersTotal, fuelRecords.length);
+          } else {
+            html += withRowspan(sharedCells[c.id] || '<td></td>');
+          }
+        });
+      } else {
+        visibleCols.forEach(function(c){
+          if(c.id === 'toll'){
+            html += _finTollCell(tollRec, tollGuide, false, isLast, tollTotal, tollRecords.length);
+          } else if(c.group === 'fuel'){
+            html += _finFuelCell(fuelRec, c.id, stationOptions, isLast, fuelTotal, fuelLitersTotal, fuelRecords.length);
+          }
+        });
+      }
+      html += '</tr>';
+    }
+    return html;
+  }
+
+  tbody.innerHTML = rows.map(renderRow).join('');
+
+  function n(v){return parseFloat(v)||0;}
+  function pickAmt(costs, field){
+    var conf = costs[field+'AmtConfirmed'];
+    if(conf !== undefined && conf !== '' && conf !== null) return n(conf);
+    return n(costs[field+'Amt']);
+  }
+  var totals = rows.reduce(function(acc, r){
+    var c = r.costs || {};
+    acc.trip += pickAmt(c, 'trip');
+    acc.recv += pickAmt(c, 'recv');
+    acc.box  += pickAmt(c, 'box');
+    acc.move += pickAmt(c, 'move');
+    acc.ret  += pickAmt(c, 'ret');
+    acc.port += pickAmt(c, 'port');
+    acc.misc += pickAmt(c, 'misc');
+    var t = r.toll||{};
+    acc.toll += n(t.amount);
+    var f = r.fuel||{};
+    acc.fuelLiters += n(f.liters);
+    acc.fuelAmount += n(f.amount) || (n(f.price_per_l)*n(f.liters));
+    if(f.count) acc.fuelCount += f.count; else if(f.id || f.fuel_date) acc.fuelCount++;
+    return acc;
+  }, {trip:0,recv:0,box:0,move:0,ret:0,port:0,misc:0,toll:0,fuelLiters:0,fuelAmount:0,fuelCount:0});
+
+  var sumEl = document.getElementById('fin-summary');
+  sumEl.style.display = 'block';
+  var grandTotal = totals.trip+totals.recv+totals.box+totals.move+totals.ret+totals.port+totals.misc+totals.toll+totals.fuelAmount;
+  sumEl.innerHTML = '<strong style="color:var(--green-d)">'+plate+' · '+_finCE2BE(dateFrom)+' – '+_finCE2BE(dateTo)+'</strong>'+
+    ' &nbsp;|&nbsp; ใบงาน <strong>'+rows.filter(function(r){return r.type==="job";}).length+'</strong>'+
+    ' (📜 ประวัติที่ยัง match ไม่ได้ <strong>'+rows.filter(function(r){return r.type==="legacy";}).length+'</strong>)'+
+    '<br>💵 ค่าเที่ยว <strong>'+_finFmtNum(totals.trip)+'</strong>'+
+    ' · ทางด่วน <strong>'+_finFmtNum(totals.toll)+'</strong>'+
+    ' · รับตู้ <strong>'+_finFmtNum(totals.recv)+'</strong>'+
+    ' · ยกตู้ <strong>'+_finFmtNum(totals.box)+'</strong>'+
+    ' · ย้ายตู้ <strong>'+_finFmtNum(totals.move)+'</strong>'+
+    ' · คืนตู้ <strong>'+_finFmtNum(totals.ret)+'</strong>'+
+    ' · ผ่านท่า <strong>'+_finFmtNum(totals.port)+'</strong>'+
+    ' · อื่นๆ <strong>'+_finFmtNum(totals.misc)+'</strong>'+
+    '<br>⛽ น้ำมัน <strong>'+totals.fuelCount+'</strong> ครั้ง / <strong>'+_finFmtNum(totals.fuelLiters)+'</strong> ลิตร = <strong>'+_finFmtNum(totals.fuelAmount)+'</strong>'+
+    ' &nbsp;|&nbsp; <strong style="color:var(--green-d);font-size:14px">รวม '+_finFmtNum(grandTotal)+' บาท</strong>';
+}
+
+function _finFmtNum(n){
+  return Number(n||0).toLocaleString('th-TH', {minimumFractionDigits:0, maximumFractionDigits:2});
+}
+function _finMonthLabel(yyyymm){
+  if(!yyyymm) return '';
+  var p = yyyymm.split('-');
+  var months = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return (months[parseInt(p[1])]||p[1]) + ' ' + p[0];
+}
+function _finEsc(v){
+  if(v == null) return '';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Auto-save handler — debounced 800ms
+function finCellEdit(input, field){
+  var tr = input.closest('tr');
+  if(!tr) return;
+  // 🔧 v077/v078 — ระหว่างพิมพ์ (ยังไม่บันทึก) -> ตัวหนังสือ + กรอบสีน้ำเงิน
+  input.style.color = '#1E40AF';
+  input.style.borderColor = '#3B82F6';
+  var key = (tr.dataset.jobId || tr.dataset.cloudFuelId || tr.dataset.cloudTollId || '_') + ':' + field;
+  if(_finSavingTimers[key]) clearTimeout(_finSavingTimers[key]);
+  _finSavingTimers[key] = setTimeout(function(){
+    finSaveRow(tr, field, input.value);
+  }, 800);
+}
+
+// 🆕 v061 — cost field edit (trip/recv/box/ret/port/misc)
+function finCostEdit(input){
+  var tr = input.closest('tr');
+  if(!tr) return;
+  var field = input.dataset.costField;
+  var key = (tr.dataset.jobId||'_') + ':cost-' + field;
+  if(_finSavingTimers[key]) clearTimeout(_finSavingTimers[key]);
+  _finSavingTimers[key] = setTimeout(function(){
+    finSaveCost(tr, field, input.value);
+  }, 800);
+}
+
+// 🆕 v061 — text override edit (customer/route)
+function finTextEdit(input){
+  var tr = input.closest('tr');
+  if(!tr) return;
+  var field = input.dataset.textField;
+  var key = (tr.dataset.jobId||'_') + ':text-' + field;
+  if(_finSavingTimers[key]) clearTimeout(_finSavingTimers[key]);
+  _finSavingTimers[key] = setTimeout(function(){
+    finSaveTextOverride(tr, field, input.value);
+  }, 800);
+}
+
+// 🆕 v061 — save cost field (e.g., tripAmtConfirmed) to jobs.costs
+async function finSaveCost(tr, field, value){
+  var jobId = tr.dataset.jobId;
+  if(!jobId) return;
+  var j = jobs.find(function(x){return x.id===jobId;});
+  if(!j) return;
+  var by = currentUser ? (currentUser.fname + ' ' + currentUser.lname).trim() : '';
+  j.costs = j.costs || {};
+  var confKey = field + 'AmtConfirmed';
+  var oldVal = j.costs[confKey];
+  // ถ้าค่า value เป็น "" — ล้าง confirmed
+  if(value === '' || value === null){
+    delete j.costs[confKey];
+  } else {
+    j.costs[confKey] = String(value);
+  }
+  j.updatedAt = new Date().toISOString();
+  j.updatedBy = by;
+  try {
+    if(_onlineMode && typeof syncJobSave === 'function'){
+      await syncJobSave(j);
+    }
+    await finAuditLog('gyt_jobs', jobId, 'update', {[confKey]: oldVal}, {[confKey]: j.costs[confKey]}, by);
+    finFlash(tr, 'cost');
+    // ไม่ rerender ทั้งหมด แต่ update class ของ cell ที่กรอก
+    var input = tr.querySelector('input[data-cost-field="'+field+'"]');
+    if(input){
+      var isConf = j.costs[confKey] !== undefined && j.costs[confKey] !== '';
+      input.style.border = isConf ? '1.5px solid #10B981' : '1px solid #FDE68A';
+      input.style.color = isConf ? '#065F46' : '#9CA3AF';
+      input.style.fontWeight = isConf ? '700' : '400';
+    }
+  } catch(e){
+    console.warn('finSaveCost failed:', e.message);
+    finFlash(tr, 'error');
+  }
+}
+
+// 🆕 v061 — save text override (customer/route)
+async function finSaveTextOverride(tr, field, value){
+  var jobId = tr.dataset.jobId;
+  if(!jobId) return;
+  var j = jobs.find(function(x){return x.id===jobId;});
+  if(!j) return;
+  var by = currentUser ? (currentUser.fname + ' ' + currentUser.lname).trim() : '';
+  j.costs = j.costs || {};
+  var confKey = '_fin' + field.charAt(0).toUpperCase() + field.slice(1);
+  var oldVal = j.costs[confKey];
+  // ดู original value
+  var originalValue = '';
+  if(field === 'customer') originalValue = j.customer || '';
+  else if(field === 'route') originalValue = (j.origin||'') + ' → ' + (j.dest||'');
+  // ถ้า value === original หรือ "" → ล้าง override
+  if(!value || value === originalValue){
+    delete j.costs[confKey];
+  } else {
+    j.costs[confKey] = value;
+  }
+  j.updatedAt = new Date().toISOString();
+  j.updatedBy = by;
+  try {
+    if(_onlineMode && typeof syncJobSave === 'function'){
+      await syncJobSave(j);
+    }
+    await finAuditLog('gyt_jobs', jobId, 'update', {[confKey]: oldVal}, {[confKey]: j.costs[confKey]}, by);
+    finFlash(tr, 'cost');
+    var input = tr.querySelector('input[data-text-field="'+field+'"]');
+    if(input){
+      var hasOverride = j.costs[confKey] !== undefined && j.costs[confKey] !== '';
+      input.style.border = hasOverride ? '1.5px solid #10B981' : '1px solid #D1FAE5';
+      input.style.color = hasOverride ? '#065F46' : '#374151';
+    }
+  } catch(e){
+    console.warn('finSaveTextOverride failed:', e.message);
+    finFlash(tr, 'error');
+  }
+}
+
+
+async function finSaveRow(tr, field, value){
+  var jobId = tr.dataset.jobId || null;
+  var rowDate = tr.dataset.date;
+  var plate = _finCurrentPlate;
+  if(!plate || !rowDate){ console.warn('[fin] missing plate/date'); return; }
+  var by = currentUser ? (currentUser.fname + ' ' + currentUser.lname).trim() : '';
+
+  try {
+    if(field === 'toll'){
+      // upsert toll
+      var amt = parseFloat(value);
+      var existingId = tr.dataset.cloudTollId || null;
+      if(!amt && !existingId) return;  // ไม่ต้อง save
+      var payload = {plate: plate, toll_date: rowDate, amount: amt, job_id: jobId, updated_by: by, updated_at: new Date().toISOString()};
+      if(existingId){
+        // PATCH
+        var url = SUPA_URL + '/rest/v1/gyt_toll_logs?id=eq.' + existingId;
+        var r = await fetch(url, {method:'PATCH', headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'return=representation'}, body: JSON.stringify(payload)});
+        if(r.ok){ await finAuditLog('gyt_toll_logs', existingId, 'update', null, payload, by); }
+      } else {
+        // POST
+        payload.created_by = by;
+        var url = SUPA_URL + '/rest/v1/gyt_toll_logs';
+        var r = await fetch(url, {method:'POST', headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'return=representation'}, body: JSON.stringify([payload])});
+        if(r.ok){
+          var data = await r.json();
+          if(data && data[0]) tr.dataset.cloudTollId = data[0].id;
+          await finAuditLog('gyt_toll_logs', (data && data[0] && data[0].id) || '?', 'create', null, payload, by);
+        }
+      }
+      finFlash(tr, 'toll');
+      // 🔧 v077/v078 — บันทึกเสร็จ -> ตัวหนังสือดำ + กรอบเทา
+      var _ti = tr.querySelector('input[data-cost-field="toll"]');
+      if(_ti){ _ti.style.color = '#111827'; _ti.style.borderColor = '#D1D5DB'; }
+    } else {
+      // 🔧 v075 — fuel fields: ดึงค่าจาก data-fuel-field (robust — ใช้กับ sub-rows ได้)
+      var _gf = function(f){ var el = tr.querySelector('[data-fuel-field="'+f+'"]'); return el ? el.value : ''; };
+      var fuelDateRaw = (_gf('fuel_date')||'').trim();
+      var station = _gf('station');
+      var price = parseFloat(_gf('price'))||null;
+      var liters = parseFloat(_gf('liters'))||null;
+      var amount = parseFloat(_gf('amount'))||null;
+      // parse fuel date dd/mm → YYYY-MM-DD
+      var fuelDateIso = null;
+      if(fuelDateRaw){
+        var dm = fuelDateRaw.split('/');
+        if(dm.length >= 2){
+          var d = dm[0].padStart(2,'0');
+          var m = dm[1].padStart(2,'0');
+          var y = dm[2] || _finCurrentMonth.split('-')[0];
+          fuelDateIso = y + '-' + m + '-' + d;
+        }
+      }
+      // ถ้าไม่มีอะไรกรอกเลย → ไม่ต้อง save
+      if(!fuelDateIso && !station && !price && !liters && !amount){
+        var existingFuelId = tr.dataset.cloudFuelId;
+        if(!existingFuelId) return;
+      }
+      // amount auto-calc ถ้าไม่ได้กรอก
+      if(!amount && price && liters) amount = price * liters;
+      var existingId = tr.dataset.cloudFuelId || null;
+      var payload = {plate: plate, fuel_date: fuelDateIso || rowDate, station: station || null, price_per_l: price, liters: liters, amount: amount, job_id: jobId, updated_by: by, updated_at: new Date().toISOString()};
+      if(existingId){
+        var url = SUPA_URL + '/rest/v1/gyt_fuel_logs?id=eq.' + existingId;
+        var r = await fetch(url, {method:'PATCH', headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'return=representation'}, body: JSON.stringify(payload)});
+        if(r.ok){ await finAuditLog('gyt_fuel_logs', existingId, 'update', null, payload, by); }
+      } else {
+        payload.created_by = by;
+        var url = SUPA_URL + '/rest/v1/gyt_fuel_logs';
+        var r = await fetch(url, {method:'POST', headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'return=representation'}, body: JSON.stringify([payload])});
+        if(r.ok){
+          var data = await r.json();
+          if(data && data[0]) tr.dataset.cloudFuelId = data[0].id;
+          await finAuditLog('gyt_fuel_logs', (data && data[0] && data[0].id) || '?', 'create', null, payload, by);
+        }
+      }
+      finFlash(tr, 'fuel');
+      // 🔧 v077/v078 — บันทึกเสร็จ -> ตัวหนังสือดำ + กรอบส้มปกติ
+      tr.querySelectorAll('[data-fuel-field]').forEach(function(el){ el.style.color = '#111827'; el.style.borderColor = '#FED7AA'; });
+    }
+  } catch(e){
+    console.warn('[fin] save failed:', e.message);
+    finFlash(tr, 'error');
+  }
+}
+
+// 🆕 v075/v076 — เพิ่มแถว (น้ำมัน + ทางด่วน) ใหม่ใต้ใบงานเดียวกัน
+function finAddSubRow(btn){
+  var tr = btn.closest('tr');
+  if(!tr) return;
+  var jobId = tr.dataset.jobId || '';
+  var jobDate = tr.dataset.date || '';
+  // หาแถวแรกของ job นี้ (data-job-first=1) เพื่ออัปเดต rowspan
+  var firstTr = jobId
+    ? document.querySelector('#fin-tbody tr[data-job-id="'+jobId+'"][data-job-first="1"]')
+    : null;
+  // หาแถวสุดท้ายของ job นี้
+  var groupRows = jobId
+    ? Array.from(document.querySelectorAll('#fin-tbody tr[data-job-id="'+jobId+'"]'))
+    : [tr];
+  var lastTr = groupRows[groupRows.length - 1];
+  var subIdx = groupRows.length;  // index ของแถวใหม่
+
+  // สร้าง fuel cells เปล่า (เฉพาะ fuel columns)
+  var visCols = (typeof _finGetCols === 'function') ? _finGetCols().filter(function(c){return c.visible;}) : [];
+  var stationOpts = '<option value="">—</option>' + FUEL_STATIONS.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+  var cellsHtml = '';
+  visCols.forEach(function(c){
+    // 🔧 v076 — toll cell ในแถวใหม่ (เปล่า editable)
+    if(c.id === 'toll'){
+      cellsHtml += '<td style="padding:3px;background:#FEF3C7;vertical-align:top"><input type="number" step="1" placeholder="—" data-cost-field="toll" oninput="finCellEdit(this,\'toll\')" style="width:100%;border:1px solid #FDE68A;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff;color:#1E40AF"></td>';
+      return;
+    }
+    if(c.group !== 'fuel') return;
+    var bg = '#FFF7ED';
+    if(c.id === 'fuel_date'){
+      cellsHtml += '<td style="padding:3px;background:'+bg+';vertical-align:top">'+
+        '<input type="text" placeholder="dd/mm" value="" data-fuel-field="fuel_date" oninput="finCellEdit(this,\'fuel_date\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:center;background:#fff">'+
+        '<div style="text-align:center;margin-top:2px"><button type="button" onclick="finAddSubRow(this)" style="font-size:9px;color:#D97706;background:#FEF3C7;border:1px dashed #F59E0B;border-radius:4px;padding:1px 6px;cursor:pointer;line-height:1.3">➕ เพิ่มแถว</button></div>'+
+        '</td>';
+    } else if(c.id === 'station'){
+      cellsHtml += '<td style="padding:3px;background:'+bg+';vertical-align:top"><select data-fuel-field="station" onchange="finCellEdit(this,\'station\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:10.5px;background:#fff">'+stationOpts+'</select></td>';
+    } else if(c.id === 'price'){
+      cellsHtml += '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="—" data-fuel-field="price" oninput="finCellEdit(this,\'price_per_l\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff"></td>';
+    } else if(c.id === 'liters'){
+      cellsHtml += '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="—" data-fuel-field="liters" oninput="finCellEdit(this,\'liters\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff"></td>';
+    } else if(c.id === 'fuel_amount'){
+      cellsHtml += '<td style="padding:3px;background:'+bg+';vertical-align:top"><input type="number" step="0.01" placeholder="—" data-fuel-field="amount" oninput="finCellEdit(this,\'amount\')" style="width:100%;border:1px solid #FED7AA;border-radius:4px;padding:4px;font-size:11.5px;text-align:right;background:#fff"></td>';
+    }
+  });
+
+  // ลบปุ่ม "+" ออกจากแถวเดิม (ย้ายไปแถวใหม่)
+  var oldBtnWrap = btn.parentElement;
+  if(oldBtnWrap) oldBtnWrap.remove();
+
+  // สร้าง <tr> ใหม่
+  var newTr = document.createElement('tr');
+  newTr.setAttribute('data-job-id', jobId);
+  newTr.setAttribute('data-cloud-fuel-id', '');
+  newTr.setAttribute('data-date', jobDate);
+  newTr.setAttribute('data-fuel-subrow', subIdx);
+  newTr.style.borderBottom = '1px solid #F3F4F6';
+  newTr.innerHTML = cellsHtml;
+  lastTr.parentNode.insertBefore(newTr, lastTr.nextSibling);
+
+  // อัปเดต rowspan ของ shared cells ในแถวแรก
+  if(firstTr){
+    firstTr.querySelectorAll('td[rowspan]').forEach(function(td){
+      td.setAttribute('rowspan', String(parseInt(td.getAttribute('rowspan')||'1',10) + 1));
+    });
+    // ถ้าแถวแรกไม่มี rowspan เลย (เดิม rowCount=1) → ต้องใส่ rowspan=2 ให้ทุก non-fuel td
+    var hasRowspan = firstTr.querySelector('td[rowspan]');
+    if(!hasRowspan){
+      // นับ fuel columns เพื่อข้าม
+      var fuelColCount = visCols.filter(function(c){return c.group==='fuel';}).length;
+      var tds = Array.from(firstTr.children);
+      // tds = [#, ...cols...] — fuel cols เป็น 5 ตัวสุดท้ายก่อน meta? ไม่แน่นอน → ใช้ data-fuel-field
+      tds.forEach(function(td){
+        // ข้าม fuel cells + toll cell (per-row) — เพิ่ม rowspan ให้ shared cells
+        if(!td.querySelector('[data-fuel-field]') && !td.querySelector('[data-cost-field="toll"]')){
+          td.setAttribute('rowspan', '2');
+        }
+      });
+    }
+  }
+
+  // focus ช่องวันที่ของแถวใหม่
+  var dateInput = newTr.querySelector('[data-fuel-field="fuel_date"]');
+  if(dateInput) dateInput.focus();
+}
+
+function finFlash(tr, type){
+  if(!tr) return;
+  var color = type === 'error' ? '#FEE2E2' : (type === 'toll' ? '#DBEAFE' : '#D1FAE5');
+  var orig = tr.style.background;
+  tr.style.background = color;
+  tr.style.transition = 'background 0.6s';
+  setTimeout(function(){ tr.style.background = orig; }, 600);
+}
+
+async function finAuditLog(table, recordId, action, beforeData, afterData, by){
+  try {
+    var url = SUPA_URL + '/rest/v1/gyt_audit_log';
+    await fetch(url, {method:'POST', headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json'}, body: JSON.stringify([{
+      table_name: table, record_id: String(recordId), action: action,
+      before_data: beforeData, after_data: afterData,
+      changed_by: by, staging_mode: !!IS_STAGING
+    }])});
+  } catch(e){ console.warn('[audit] log failed:', e.message); }
+}
+
+function finExport(){
+  if(!_finCurrentPlate || !_finCurrentMonth){ showToast('กรุณาเลือกทะเบียน + เดือนก่อน'); return; }
+  if(typeof XLSX === 'undefined'){ showToast('XLSX library not loaded'); return; }
+  var rows = [['#','วันที่','ลูกค้า','จุดรับ-ส่ง','ค่าเที่ยว','วันเติม','ปั้ม','ราคา/L','ลิตร','ยอดน้ำมัน','ทางด่วน','ผู้บันทึก']];
+  document.querySelectorAll('#fin-tbody tr').forEach(function(tr){
+    var cells = tr.querySelectorAll('td');
+    if(cells.length < 12) return;
+    var inputs = tr.querySelectorAll('input, select');
+    rows.push([
+      cells[0].textContent.trim(),
+      cells[1].textContent.trim(),
+      cells[2].textContent.trim(),
+      cells[3].textContent.trim(),
+      inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value, inputs[5].value, inputs[6].value,
+      cells[11].textContent.trim()
+    ]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, _finCurrentPlate.slice(0,30));
+  XLSX.writeFile(wb, 'finance_'+_finCurrentPlate.replace(/\s/g,'_')+'_'+_finCurrentMonth+'.xlsx');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 🆕 v067 — Free-text search filter (client-side, debounced)
+var _finSearchDebounce = null;
+function finClearSearch(){
+  var el = document.getElementById('fin-search');
+  if(el) el.value = '';
+  _finApplySearchNow('');
+}
+function finApplySearch(query){
+  if(_finSearchDebounce) clearTimeout(_finSearchDebounce);
+  _finSearchDebounce = setTimeout(function(){
+    _finApplySearchNow(query);
+  }, 150);
+}
+function _finApplySearchNow(query){
+  var q = (query||'').toLowerCase().trim();
+  var rows = document.querySelectorAll('#fin-tbody tr');
+  var matched = 0, total = rows.length;
+  rows.forEach(function(tr){
+    if(!q){
+      tr.style.display = '';
+      matched++;
+      return;
+    }
+    var text = tr.textContent.toLowerCase();
+    tr.querySelectorAll('input, textarea, select').forEach(function(el){
+      if(el.value) text += ' ' + String(el.value).toLowerCase();
+      if(el.placeholder) text += ' ' + String(el.placeholder).toLowerCase();
+    });
+    if(tr.dataset.jobId) text += ' ' + tr.dataset.jobId.toLowerCase();
+    var hit = text.indexOf(q) >= 0;
+    tr.style.display = hit ? '' : 'none';
+    if(hit) matched++;
+  });
+  var sumEl = document.getElementById('fin-summary');
+  if(sumEl && q){
+    var orig = sumEl.dataset.origHtml;
+    if(!orig){ sumEl.dataset.origHtml = sumEl.innerHTML; orig = sumEl.innerHTML; }
+    sumEl.innerHTML = orig + '<br>&#128269; <strong style="color:#92400E">กำลังกรอง: "'+q+'"</strong> &nbsp; แสดง <strong>'+matched+'</strong> จาก '+total+' แถว';
+  } else if(sumEl && sumEl.dataset.origHtml){
+    sumEl.innerHTML = sumEl.dataset.origHtml;
+    delete sumEl.dataset.origHtml;
+  }
+}
+
+// 🆕 v066 — Phase 3 — Audit Log Modal
+// AOI (accounting) เห็นเฉพาะของตัวเอง, admin/supervisor เห็นทุกคน
+// ════════════════════════════════════════════════════════════════════
+var _finAuditRows = [];
+var _finAuditPage = 0;
+const _FIN_AUDIT_PAGESIZE = 50;
+
+function finOpenAudit(){
+  var modal = document.getElementById('fin-audit-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'fin-audit-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = '<div class="modal" style="max-width:1100px;width:96vw;background:#fff;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.3);max-height:90vh;display:flex;flex-direction:column">'+
+      '<div class="modal-header" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'+
+        '<div>'+
+          '<div class="modal-title" style="font-weight:700">🕒 ประวัติการแก้ไข (Audit Log)</div>'+
+          '<div class="modal-sub" id="fin-audit-sub" style="font-size:11px;color:var(--text-3);margin-top:3px">กำลังโหลด...</div>'+
+        '</div>'+
+        '<button onclick="finCloseAudit()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-3);padding:4px 12px">&times;</button>'+
+      '</div>'+
+      // Filter bar
+      '<div style="padding:10px 18px;border-bottom:1px solid var(--border);background:#FAFAF7;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+        '<span style="font-size:11px;color:var(--text-3)">จาก</span>'+
+        '<input type="text" id="fin-audit-from" placeholder="dd/mm/yyyy" maxlength="10" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--mono);width:100px;text-align:center">'+
+        '<span style="font-size:11px;color:var(--text-3)">ถึง</span>'+
+        '<input type="text" id="fin-audit-to" placeholder="dd/mm/yyyy" maxlength="10" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--mono);width:100px;text-align:center">'+
+        '<select id="fin-audit-user" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:#fff">'+
+          '<option value="">— ทุกคน —</option>'+
+        '</select>'+
+        '<select id="fin-audit-table" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:#fff">'+
+          '<option value="">— ทุกตาราง —</option>'+
+          '<option value="gyt_jobs">jobs (ค่าใช้จ่าย+ override)</option>'+
+          '<option value="gyt_fuel_logs">fuel_logs (ค่าน้ำมัน)</option>'+
+          '<option value="gyt_toll_logs">toll_logs (ค่าทางด่วน)</option>'+
+        '</select>'+
+        '<select id="fin-audit-action" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:#fff">'+
+          '<option value="">— ทุก action —</option>'+
+          '<option value="create">create</option>'+
+          '<option value="update">update</option>'+
+          '<option value="delete">delete</option>'+
+        '</select>'+
+        '<button class="btn btn-ghost" style="font-size:11px" onclick="finLoadAudit()">🔍 ค้นหา</button>'+
+        '<button class="btn btn-ghost" style="font-size:11px" onclick="finResetAuditFilter()">↺ ล้าง</button>'+
+      '</div>'+
+      // Body
+      '<div style="flex:1;overflow:auto;min-height:300px">'+
+        '<table id="fin-audit-tbl" style="width:100%;border-collapse:collapse;font-size:12px">'+
+          '<thead style="background:var(--green-l);color:var(--green-d);position:sticky;top:0;z-index:5">'+
+            '<tr>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m);width:140px">เวลา</th>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m);width:120px">ผู้แก้</th>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m);width:140px">ตาราง</th>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m);width:90px">Action</th>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m);width:100px">Record ID</th>'+
+              '<th style="padding:8px;text-align:left;border-bottom:2px solid var(--green-m)">การแก้ไข (before → after)</th>'+
+            '</tr>'+
+          '</thead>'+
+          '<tbody id="fin-audit-tbody"></tbody>'+
+        '</table>'+
+        '<div id="fin-audit-empty" style="padding:50px;text-align:center;color:var(--text-3);display:none">ไม่มีประวัติในช่วงเวลานี้</div>'+
+      '</div>'+
+      // Footer pagination
+      '<div style="padding:10px 18px;border-top:1px solid var(--border);background:#FAFAF7;display:flex;align-items:center;justify-content:space-between;font-size:12px">'+
+        '<div id="fin-audit-pageinfo" style="color:var(--text-3)"></div>'+
+        '<div style="display:flex;gap:6px">'+
+          '<button class="btn btn-ghost" style="font-size:12px" onclick="finAuditPage(-1)">‹ ก่อน</button>'+
+          '<button class="btn btn-ghost" style="font-size:12px" onclick="finAuditPage(1)">ถัดไป ›</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+    document.body.appendChild(modal);
+
+    // Default date range = 30 วันล่าสุด
+    var now = new Date();
+    var ago = new Date(now.getTime() - 30*24*60*60*1000);
+    // 🔧 v073 — audit date เป็น พ.ศ.
+    var _fmt = function(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+(d.getFullYear()+543);};
+    document.getElementById('fin-audit-from').value = _fmt(ago);
+    document.getElementById('fin-audit-to').value = _fmt(now);
+
+    // Populate user dropdown
+    var userSel = document.getElementById('fin-audit-user');
+    var canSeeAll = currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor');
+    if(canSeeAll && Array.isArray(users)){
+      users.forEach(function(u){
+        var name = (u.fname + ' ' + u.lname).trim();
+        var opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name + ' (' + u.username + ')';
+        userSel.appendChild(opt);
+      });
+    } else {
+      // AOI / accounting / staff → filter เฉพาะตัวเอง + disable dropdown
+      var myName = currentUser ? (currentUser.fname + ' ' + currentUser.lname).trim() : '';
+      userSel.innerHTML = '<option value="'+myName+'" selected>'+myName+' (เฉพาะของฉัน)</option>';
+      userSel.disabled = true;
+    }
+  }
+  modal.classList.add('open');
+  finLoadAudit();
+}
+
+function finCloseAudit(){
+  var modal = document.getElementById('fin-audit-modal');
+  if(modal) modal.classList.remove('open');
+}
+
+function finResetAuditFilter(){
+  var now = new Date();
+  var ago = new Date(now.getTime() - 30*24*60*60*1000);
+  var _fmt = function(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();};
+  document.getElementById('fin-audit-from').value = _fmt(ago);
+  document.getElementById('fin-audit-to').value = _fmt(now);
+  var canSeeAll = currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor');
+  if(canSeeAll){ document.getElementById('fin-audit-user').value = ''; }
+  document.getElementById('fin-audit-table').value = '';
+  document.getElementById('fin-audit-action').value = '';
+  finLoadAudit();
+}
+
+async function finLoadAudit(){
+  _finAuditPage = 0;
+  var sub = document.getElementById('fin-audit-sub');
+  if(sub) sub.textContent = '⏳ กำลังโหลด...';
+
+  var fromIso = _finParseDateDDMM(document.getElementById('fin-audit-from').value);
+  var toIso = _finParseDateDDMM(document.getElementById('fin-audit-to').value);
+  var userFilter = document.getElementById('fin-audit-user').value;
+  var tableFilter = document.getElementById('fin-audit-table').value;
+  var actionFilter = document.getElementById('fin-audit-action').value;
+
+  // permission-based filter — accounting/staff เห็นเฉพาะตัวเอง
+  var canSeeAll = currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor');
+  if(!canSeeAll){
+    userFilter = currentUser ? (currentUser.fname + ' ' + currentUser.lname).trim() : '';
+  }
+
+  var q = '?order=changed_at.desc&limit=2000';
+  if(fromIso) q += '&changed_at=gte.' + fromIso + 'T00:00:00';
+  if(toIso) q += '&changed_at=lte.' + toIso + 'T23:59:59';
+  if(userFilter) q += '&changed_by=eq.' + encodeURIComponent(userFilter);
+  if(tableFilter) q += '&table_name=eq.' + tableFilter;
+  if(actionFilter) q += '&action=eq.' + actionFilter;
+
+  try {
+    var rows = await sbFetch('gyt_audit_log','GET',null,q);
+    _finAuditRows = rows || [];
+  } catch(e){
+    console.warn('[audit] load failed:', e.message);
+    _finAuditRows = [];
+  }
+
+  if(sub){
+    sub.textContent = canSeeAll
+      ? 'รวม ' + _finAuditRows.length.toLocaleString() + ' รายการ — ดูทุกคน (admin/supervisor)'
+      : 'รวม ' + _finAuditRows.length.toLocaleString() + ' รายการของคุณ';
+  }
+  finRenderAudit();
+}
+
+function finAuditPage(delta){
+  var maxPage = Math.max(0, Math.ceil(_finAuditRows.length / _FIN_AUDIT_PAGESIZE) - 1);
+  _finAuditPage = Math.max(0, Math.min(maxPage, _finAuditPage + delta));
+  finRenderAudit();
+}
+
+function finRenderAudit(){
+  var tbody = document.getElementById('fin-audit-tbody');
+  var emptyEl = document.getElementById('fin-audit-empty');
+  var pageInfo = document.getElementById('fin-audit-pageinfo');
+  if(!tbody) return;
+
+  if(!_finAuditRows.length){
+    tbody.innerHTML = '';
+    emptyEl.style.display = 'block';
+    pageInfo.textContent = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  var start = _finAuditPage * _FIN_AUDIT_PAGESIZE;
+  var end = Math.min(start + _FIN_AUDIT_PAGESIZE, _finAuditRows.length);
+  var pageRows = _finAuditRows.slice(start, end);
+
+  pageInfo.textContent = 'แสดง ' + (start+1) + '–' + end + ' จาก ' + _finAuditRows.length.toLocaleString() + ' รายการ (หน้า ' + (_finAuditPage+1) + ' / ' + Math.ceil(_finAuditRows.length / _FIN_AUDIT_PAGESIZE) + ')';
+
+  var actionColors = {
+    'create': '#D1FAE5;color:#065F46',
+    'update': '#FEF3C7;color:#92400E',
+    'delete': '#FEE2E2;color:#991B1B'
+  };
+  var tableLabels = {
+    'gyt_jobs': '📋 jobs',
+    'gyt_fuel_logs': '⛽ fuel_logs',
+    'gyt_toll_logs': '🛣 toll_logs'
+  };
+
+  tbody.innerHTML = pageRows.map(function(r){
+    var dt = new Date(r.changed_at);
+    var dtStr = dt.toLocaleString('th-TH', {dateStyle:'short', timeStyle:'medium'});
+    var actBg = actionColors[r.action] || '#E5E7EB;color:#374151';
+    var stagingTag = r.staging_mode ? '<span style="font-size:9px;color:#EA580C;margin-left:4px">[staging]</span>' : '';
+    return '<tr style="border-bottom:1px solid #F3F4F6;vertical-align:top">'+
+      '<td style="padding:8px;font-size:11px;color:var(--text-2);font-family:var(--mono)">'+dtStr+'</td>'+
+      '<td style="padding:8px;font-size:11px;font-weight:600">'+_finEsc(r.changed_by||'—')+stagingTag+'</td>'+
+      '<td style="padding:8px;font-size:11px;color:var(--text-2)">'+(tableLabels[r.table_name]||r.table_name)+'</td>'+
+      '<td style="padding:8px"><span style="font-size:10px;padding:3px 9px;border-radius:10px;font-weight:600;background:'+actBg+'">'+r.action+'</span></td>'+
+      '<td style="padding:8px;font-size:11px;font-family:var(--mono);color:var(--green-d)">'+_finEsc(r.record_id||'—')+'</td>'+
+      '<td style="padding:8px;font-size:11px">'+_finRenderDiff(r.before_data, r.after_data)+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function _finRenderDiff(before, after){
+  before = before || {};
+  after = after || {};
+  var keys = new Set();
+  Object.keys(before).forEach(function(k){keys.add(k);});
+  Object.keys(after).forEach(function(k){keys.add(k);});
+  if(!keys.size) return '<span style="color:var(--text-3)">—</span>';
+  var rows = [];
+  keys.forEach(function(k){
+    var b = before[k];
+    var a = after[k];
+    var bs = (b == null || b === '') ? '<span style="color:#9CA3AF">∅</span>' : _finEsc(JSON.stringify(b).replace(/^"|"$/g,''));
+    var as = (a == null || a === '') ? '<span style="color:#9CA3AF">∅</span>' : _finEsc(JSON.stringify(a).replace(/^"|"$/g,''));
+    rows.push('<div style="margin:2px 0;font-size:10.5px"><strong style="color:var(--text)">'+_finEsc(k)+':</strong> '+
+      '<span style="color:#991B1B;text-decoration:line-through;background:#FEE2E2;padding:1px 4px;border-radius:3px">'+bs+'</span>'+
+      ' → '+
+      '<span style="color:#065F46;background:#D1FAE5;padding:1px 4px;border-radius:3px">'+as+'</span>'+
+    '</div>');
+  });
+  return rows.join('');
+}
+
+// 🆕 v062 — Column Manager
+function finOpenColMgr(){
+  var cols = _finGetCols();
+  var modal = document.getElementById('fin-colmgr-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'fin-colmgr-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = '<div class="modal" style="max-width:480px;background:#fff;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.3);max-height:80vh;overflow-y:auto">'+
+      '<div class="modal-header" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'+
+        '<div><div class="modal-title" style="font-weight:700">⚙ ปรับคอลัมน์</div><div class="modal-sub" style="font-size:11px;color:var(--text-3)">ลาก ⋮⋮ เพื่อเรียง · ติ๊กเพื่อแสดง/ซ่อน</div></div>'+
+        '<button onclick="finCloseColMgr()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3)">&times;</button>'+
+      '</div>'+
+      '<div id="fin-colmgr-list" style="padding:10px"></div>'+
+      '<div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">'+
+        '<button class="btn btn-ghost" onclick="finResetCols()" style="font-size:12px">↺ คืนค่าเริ่มต้น</button>'+
+        '<button class="btn" onclick="finApplyCols()" style="background:var(--green);color:#fff;border-color:var(--green);font-size:12px">💾 บันทึก</button>'+
+      '</div>'+
+    '</div>';
+    document.body.appendChild(modal);
+  }
+  _finTempCols = cols.map(function(c){return Object.assign({}, c);});
+  _finRenderColMgrList();
+  modal.classList.add('open');
+}
+var _finTempCols = [];
+function _finRenderColMgrList(){
+  var list = document.getElementById('fin-colmgr-list');
+  if(!list) return;
+  list.innerHTML = _finTempCols.map(function(c, idx){
+    return '<div class="fin-col-row" data-idx="'+idx+'" draggable="true" '+
+      'ondragstart="finColDragStart(event,'+idx+')" '+
+      'ondragover="finColDragOver(event)" '+
+      'ondrop="finColDrop(event,'+idx+')" '+
+      'style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:#fafafa;cursor:grab">'+
+      '<span style="color:var(--text-3);cursor:grab;font-size:14px">⋮⋮</span>'+
+      '<input type="checkbox" '+(c.visible!==false?'checked':'')+' onchange="_finToggleCol('+idx+',this.checked)" style="cursor:pointer">'+
+      '<span style="flex:1;font-size:13px">'+c.label+'</span>'+
+      '<span style="font-size:10px;color:var(--text-3);background:#fff;padding:2px 6px;border-radius:4px">'+c.group+'</span>'+
+    '</div>';
+  }).join('');
+}
+function _finToggleCol(idx, checked){
+  if(_finTempCols[idx]) _finTempCols[idx].visible = checked;
+}
+var _finDragIdx = null;
+function finColDragStart(e, idx){ _finDragIdx = idx; e.dataTransfer.effectAllowed = 'move'; }
+function finColDragOver(e){ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function finColDrop(e, toIdx){
+  e.preventDefault();
+  if(_finDragIdx === null || _finDragIdx === toIdx) return;
+  var item = _finTempCols.splice(_finDragIdx, 1)[0];
+  _finTempCols.splice(toIdx, 0, item);
+  _finDragIdx = null;
+  _finRenderColMgrList();
+}
+function finApplyCols(){
+  _finSaveCols(_finTempCols);
+  finCloseColMgr();
+  // re-render
+  _finRenderHead();
+  finLoad();
+}
+function finResetCols(){
+  _finTempCols = _FIN_COLS.slice().map(function(c){return Object.assign({}, c);});
+  _finRenderColMgrList();
+}
+function finCloseColMgr(){
+  var modal = document.getElementById('fin-colmgr-modal');
+  if(modal) modal.classList.remove('open');
+}
+
 // 🆕 v054 — Driver Performance Dashboard
 function _driverPeriodRange(period){
   var now = new Date();
@@ -19243,6 +20680,33 @@ document.addEventListener('keydown',function(e){
 const SUPA_URL = 'https://djdzhepbejsghetbsrmw.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqZHpoZXBiZWpzZ2hldGJzcm13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNjIwNTQsImV4cCI6MjA5MjgzODA1NH0.MmXpTzaioKeUc4W44a3z9ys6qTTnwIAu1VEWgW7s6XU';
 
+// 🆕 v080 — localStorage cache layer (ลด Supabase egress)
+var _SB_CACHE_TTL_MS = 3 * 60 * 1000;
+var _SB_CACHE_KEY = 'gyt_sb_cache_v1';
+function _sbCacheGet(){
+  try {
+    var raw = localStorage.getItem(_SB_CACHE_KEY);
+    if(!raw) return null;
+    var p = JSON.parse(raw);
+    if(!p || typeof p.ts !== 'number') return null;
+    var age = Date.now() - p.ts;
+    if(age > _SB_CACHE_TTL_MS) return null;
+    return { age: age, data: p.data };
+  } catch(e){ return null; }
+}
+function _sbCacheSet(data){
+  try {
+    localStorage.setItem(_SB_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data }));
+    return true;
+  } catch(e){
+    console.warn('[cache] set failed (quota?):', e.message);
+    return false;
+  }
+}
+function _sbCacheClear(){
+  try { localStorage.removeItem(_SB_CACHE_KEY); } catch(e){}
+}
+
 async function sbFetch(table, method='GET', body=null, query='') {
   // ตรวจสอบว่าสามารถเชื่อมต่อ Supabase ได้ไหม
   // file://, Claude preview, localhost ที่ไม่ได้ตั้งค่า → ข้ามทั้งหมด
@@ -19269,6 +20733,8 @@ async function sbFetch(table, method='GET', body=null, query='') {
   try {
     const r = await fetch(url, opts);
     if(!r.ok) return null;
+    // 🆕 v080 — write success -> invalidate cache (next load fetches fresh)
+    if(method !== 'GET' && method !== 'HEAD') _sbCacheClear();
     const text = await r.text();
     return text ? JSON.parse(text) : [];
   } catch(e) {
@@ -19300,7 +20766,47 @@ const sb = {
 };
 
 // ── APP VERSION (BUMP เมื่อ deploy เพื่อ force ทุกคน logout) ───
-const APP_VERSION = '2026.04.29.057';
+// 🧪 v058 — Staging Mode Detection
+// ถ้าอยู่บน Vercel preview URL (เช่น *-git-feature-finance-*.vercel.app)
+// → แสดง banner สีส้ม + ปิดฟีเจอร์ที่อาจกระทบ production data
+var IS_STAGING = (function(){
+  try {
+    var h = (location.hostname || '').toLowerCase();
+    return h.indexOf('git-') >= 0
+        || h.indexOf('-preview') >= 0
+        || h.indexOf('staging') >= 0
+        || h.indexOf('localhost') >= 0
+        || h.indexOf('127.0.0.1') >= 0;
+  } catch(e){ return false; }
+})();
+function _renderStagingBanner(){
+  if(!IS_STAGING) return;
+  if(document.getElementById('staging-banner')) return;
+  var bar = document.createElement('div');
+  bar.id = 'staging-banner';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#F97316,#EA580C);color:#fff;font-family:var(--font,sans-serif);font-size:13px;font-weight:700;text-align:center;padding:6px 12px;z-index:99998;box-shadow:0 2px 8px rgba(0,0,0,0.2);letter-spacing:0.5px';
+  bar.innerHTML = '🧪 STAGING / TEST — กำลังพัฒนา ไม่ใช่ระบบจริง — Production: <a href="https://gyt-transport.vercel.app" target="_blank" style="color:#fff;text-decoration:underline">gyt-transport.vercel.app</a>';
+  document.body.insertBefore(bar, document.body.firstChild);
+  // ดัน body padding ลงมา ให้ banner ไม่บัง
+  document.body.style.paddingTop = '32px';
+}
+if(typeof document !== 'undefined'){
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', _renderStagingBanner);
+  } else {
+    _renderStagingBanner();
+  }
+}
+
+const APP_VERSION = '2026.04.29.081';
+
+// 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
+document.addEventListener('wheel', function(e){
+  var el = e.target;
+  if(el && el.tagName === 'INPUT' && el.type === 'number' && el === document.activeElement){
+    el.blur();  // เอา focus ออก -> ค่าไม่เปลี่ยน แต่หน้ายัง scroll ได้ปกติ
+  }
+}, {passive:true});
 
 // ── SYNC STATUS ────────────────────────────────────────────
 var _syncStatus = 'offline'; // 'online' | 'syncing' | 'offline' | 'error'
@@ -19418,7 +20924,7 @@ document.addEventListener('visibilitychange', function(){
 
 // ── REFRESH JOBS FROM CLOUD ────────────────────────────────
 // ดึงเฉพาะใบงานล่าสุดจาก cloud เพื่อให้เห็นที่ทีมแก้ไข (เร็วกว่า loadFromSupabase ที่โหลดทุก master)
-// ── Refresh Notice — persistent until user dismisses ──
+// 🔧 v081 — Refresh Notice ปิดเองใน 2 วินาที (เดิมต้องกดปิดเอง)
 function showRefreshNotice(html){
   var existing = document.getElementById('refresh-notice');
   if(existing) existing.remove();
@@ -19429,6 +20935,14 @@ function showRefreshNotice(html){
     '<button onclick="document.getElementById(\'refresh-notice\').remove()" '+
     'style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3);width:28px;height:28px;border-radius:50%;line-height:1;display:flex;align-items:center;justify-content:center" title="ปิด">&times;</button>';
   document.body.appendChild(notice);
+  // 🆕 v081 — auto-close หลัง 2 วินาที (fade out 0.3s ก่อน remove)
+  setTimeout(function(){
+    var n = document.getElementById('refresh-notice');
+    if(!n) return;
+    n.style.transition = 'opacity .3s ease-out';
+    n.style.opacity = '0';
+    setTimeout(function(){ var n2 = document.getElementById('refresh-notice'); if(n2) n2.remove(); }, 320);
+  }, 2000);
 }
 // CSS animation injected once
 (function(){
@@ -19466,6 +20980,7 @@ async function refreshJobsFromCloud(){
       jobs = (sbJobs||[]).map(mapJobFromDB);
       nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return parseInt((j.id||'0').replace(/\D/g,''))||0;}))+1 : 100;
       try { localStorage.setItem('gyt_jobs', JSON.stringify(jobs)); } catch(e){}
+      try { _sbCacheClear(); } catch(e){}  // 🆕 v080 — refresh = invalidate cache
 
       // Re-render
       if(typeof renderJobs === 'function') renderJobs();
@@ -19564,7 +21079,7 @@ async function sbFetchAll(table, query) {
   return all;
 }
 
-async function loadFromSupabase() {
+async function loadFromSupabase(forceRefresh) {
   // ตรวจสอบว่าอยู่บน Vercel หรือ custom domain เท่านั้นถึงจะ sync
   var _origin = window.location.origin || '';
   var _canSync = _origin.includes('vercel.app') || 
@@ -19572,6 +21087,52 @@ async function loadFromSupabase() {
   if(!_canSync) {
     setSyncStatus('offline');
     return;
+  }
+  // 🆕 v080 — try cache first (ถ้า fresh < 3 นาที -> ใช้เลย ไม่ต้อง fetch Supabase)
+  if(!forceRefresh){
+    var _cached = _sbCacheGet();
+    if(_cached && _cached.data){
+      try {
+        var d = _cached.data;
+        if(d.jobs) {
+          jobs = d.jobs;
+          nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return parseInt((j.id||'0').replace(/\D/g,''))||0;}))+1 : 100;
+          try { rebuildCarrierDB(); } catch(e){}
+        }
+        if(d.customers) customers = d.customers;
+        if(d.shippers) shippers = d.shippers;
+        if(d.billings) billings = d.billings;
+        if(d.tractors) tractors = d.tractors;
+        if(d.trailers) trailers = d.trailers;
+        if(d.drivers) drivers = d.drivers;
+        if(d.repairShops) repairShops = d.repairShops;
+        if(d.maintenanceIntervals) maintenanceIntervals = d.maintenanceIntervals;
+        if(d.maintenanceRecords) maintenanceRecords = d.maintenanceRecords;
+        if(d.inspections) inspections = d.inspections;
+        if(d.pairings) pairings = d.pairings;
+        if(d.users) {
+          users = d.users.map(function(u){ return Object.assign({},u,{perms:u.perms||[]}); });
+          var maxUid = users.reduce(function(m,u){return Math.max(m,parseInt(u.id)||0);},0);
+          nextUID = maxUid + 1;
+          if(currentUser && currentUser.id){
+            var fresh = users.find(function(u){return u.id===currentUser.id;});
+            if(fresh){
+              ['role','perms','fname','lname','username','phone','status','prefs'].forEach(function(k){
+                if(fresh[k] !== undefined) currentUser[k] = fresh[k];
+              });
+            }
+          }
+        }
+        _onlineMode = true;
+        setSyncStatus('online');
+        console.log('[cache] hit — age '+Math.round(_cached.age/1000)+'s, skipped Supabase fetch');
+        if(typeof renderJobs === 'function') renderJobs();
+        return;
+      } catch(e){
+        console.warn('[cache] restore failed, fetching fresh:', e.message);
+        _sbCacheClear();
+      }
+    }
   }
   setSyncStatus('syncing');
   try {
@@ -19646,6 +21207,15 @@ async function loadFromSupabase() {
     // 🔧 v056 — โหลดถังขยะจาก cloud
     try { await loadDeletedJobsFromCloud(); } catch(_){}
     renderJobs();
+    // 🆕 v080 — save snapshot to cache (next page reload จะใช้ cache)
+    try {
+      _sbCacheSet({
+        jobs: jobs, customers: customers, shippers: shippers, billings: billings,
+        tractors: tractors, trailers: trailers, drivers: drivers, pairings: pairings,
+        users: users, repairShops: repairShops, maintenanceIntervals: maintenanceIntervals,
+        maintenanceRecords: maintenanceRecords, inspections: inspections,
+      });
+    } catch(e){ console.warn('[cache] save failed:', e.message); }
   } catch(e) {
     console.error('loadFromSupabase error:', e.message);
     setSyncStatus('offline');
