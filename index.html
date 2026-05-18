@@ -20680,6 +20680,33 @@ document.addEventListener('keydown',function(e){
 const SUPA_URL = 'https://djdzhepbejsghetbsrmw.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqZHpoZXBiZWpzZ2hldGJzcm13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNjIwNTQsImV4cCI6MjA5MjgzODA1NH0.MmXpTzaioKeUc4W44a3z9ys6qTTnwIAu1VEWgW7s6XU';
 
+// 🆕 v080 — localStorage cache layer (ลด Supabase egress)
+var _SB_CACHE_TTL_MS = 3 * 60 * 1000;
+var _SB_CACHE_KEY = 'gyt_sb_cache_v1';
+function _sbCacheGet(){
+  try {
+    var raw = localStorage.getItem(_SB_CACHE_KEY);
+    if(!raw) return null;
+    var p = JSON.parse(raw);
+    if(!p || typeof p.ts !== 'number') return null;
+    var age = Date.now() - p.ts;
+    if(age > _SB_CACHE_TTL_MS) return null;
+    return { age: age, data: p.data };
+  } catch(e){ return null; }
+}
+function _sbCacheSet(data){
+  try {
+    localStorage.setItem(_SB_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data }));
+    return true;
+  } catch(e){
+    console.warn('[cache] set failed (quota?):', e.message);
+    return false;
+  }
+}
+function _sbCacheClear(){
+  try { localStorage.removeItem(_SB_CACHE_KEY); } catch(e){}
+}
+
 async function sbFetch(table, method='GET', body=null, query='') {
   // ตรวจสอบว่าสามารถเชื่อมต่อ Supabase ได้ไหม
   // file://, Claude preview, localhost ที่ไม่ได้ตั้งค่า → ข้ามทั้งหมด
@@ -20706,6 +20733,8 @@ async function sbFetch(table, method='GET', body=null, query='') {
   try {
     const r = await fetch(url, opts);
     if(!r.ok) return null;
+    // 🆕 v080 — write success -> invalidate cache (next load fetches fresh)
+    if(method !== 'GET' && method !== 'HEAD') _sbCacheClear();
     const text = await r.text();
     return text ? JSON.parse(text) : [];
   } catch(e) {
@@ -20769,7 +20798,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.079';
+const APP_VERSION = '2026.04.29.080';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -20943,6 +20972,7 @@ async function refreshJobsFromCloud(){
       jobs = (sbJobs||[]).map(mapJobFromDB);
       nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return parseInt((j.id||'0').replace(/\D/g,''))||0;}))+1 : 100;
       try { localStorage.setItem('gyt_jobs', JSON.stringify(jobs)); } catch(e){}
+      try { _sbCacheClear(); } catch(e){}  // 🆕 v080 — refresh = invalidate cache
 
       // Re-render
       if(typeof renderJobs === 'function') renderJobs();
@@ -21041,7 +21071,7 @@ async function sbFetchAll(table, query) {
   return all;
 }
 
-async function loadFromSupabase() {
+async function loadFromSupabase(forceRefresh) {
   // ตรวจสอบว่าอยู่บน Vercel หรือ custom domain เท่านั้นถึงจะ sync
   var _origin = window.location.origin || '';
   var _canSync = _origin.includes('vercel.app') || 
@@ -21049,6 +21079,52 @@ async function loadFromSupabase() {
   if(!_canSync) {
     setSyncStatus('offline');
     return;
+  }
+  // 🆕 v080 — try cache first (ถ้า fresh < 3 นาที -> ใช้เลย ไม่ต้อง fetch Supabase)
+  if(!forceRefresh){
+    var _cached = _sbCacheGet();
+    if(_cached && _cached.data){
+      try {
+        var d = _cached.data;
+        if(d.jobs) {
+          jobs = d.jobs;
+          nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return parseInt((j.id||'0').replace(/\D/g,''))||0;}))+1 : 100;
+          try { rebuildCarrierDB(); } catch(e){}
+        }
+        if(d.customers) customers = d.customers;
+        if(d.shippers) shippers = d.shippers;
+        if(d.billings) billings = d.billings;
+        if(d.tractors) tractors = d.tractors;
+        if(d.trailers) trailers = d.trailers;
+        if(d.drivers) drivers = d.drivers;
+        if(d.repairShops) repairShops = d.repairShops;
+        if(d.maintenanceIntervals) maintenanceIntervals = d.maintenanceIntervals;
+        if(d.maintenanceRecords) maintenanceRecords = d.maintenanceRecords;
+        if(d.inspections) inspections = d.inspections;
+        if(d.pairings) pairings = d.pairings;
+        if(d.users) {
+          users = d.users.map(function(u){ return Object.assign({},u,{perms:u.perms||[]}); });
+          var maxUid = users.reduce(function(m,u){return Math.max(m,parseInt(u.id)||0);},0);
+          nextUID = maxUid + 1;
+          if(currentUser && currentUser.id){
+            var fresh = users.find(function(u){return u.id===currentUser.id;});
+            if(fresh){
+              ['role','perms','fname','lname','username','phone','status','prefs'].forEach(function(k){
+                if(fresh[k] !== undefined) currentUser[k] = fresh[k];
+              });
+            }
+          }
+        }
+        _onlineMode = true;
+        setSyncStatus('online');
+        console.log('[cache] hit — age '+Math.round(_cached.age/1000)+'s, skipped Supabase fetch');
+        if(typeof renderJobs === 'function') renderJobs();
+        return;
+      } catch(e){
+        console.warn('[cache] restore failed, fetching fresh:', e.message);
+        _sbCacheClear();
+      }
+    }
   }
   setSyncStatus('syncing');
   try {
@@ -21123,6 +21199,15 @@ async function loadFromSupabase() {
     // 🔧 v056 — โหลดถังขยะจาก cloud
     try { await loadDeletedJobsFromCloud(); } catch(_){}
     renderJobs();
+    // 🆕 v080 — save snapshot to cache (next page reload จะใช้ cache)
+    try {
+      _sbCacheSet({
+        jobs: jobs, customers: customers, shippers: shippers, billings: billings,
+        tractors: tractors, trailers: trailers, drivers: drivers, pairings: pairings,
+        users: users, repairShops: repairShops, maintenanceIntervals: maintenanceIntervals,
+        maintenanceRecords: maintenanceRecords, inspections: inspections,
+      });
+    } catch(e){ console.warn('[cache] save failed:', e.message); }
   } catch(e) {
     console.error('loadFromSupabase error:', e.message);
     setSyncStatus('offline');
