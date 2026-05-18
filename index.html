@@ -20798,7 +20798,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.080';
+const APP_VERSION = '2026.04.29.081';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -20924,7 +20924,7 @@ document.addEventListener('visibilitychange', function(){
 
 // ── REFRESH JOBS FROM CLOUD ────────────────────────────────
 // ดึงเฉพาะใบงานล่าสุดจาก cloud เพื่อให้เห็นที่ทีมแก้ไข (เร็วกว่า loadFromSupabase ที่โหลดทุก master)
-// ── Refresh Notice — persistent until user dismisses ──
+// 🔧 v081 — Refresh Notice ปิดเองใน 2 วินาที (เดิมต้องกดปิดเอง)
 function showRefreshNotice(html){
   var existing = document.getElementById('refresh-notice');
   if(existing) existing.remove();
@@ -20935,6 +20935,14 @@ function showRefreshNotice(html){
     '<button onclick="document.getElementById(\'refresh-notice\').remove()" '+
     'style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3);width:28px;height:28px;border-radius:50%;line-height:1;display:flex;align-items:center;justify-content:center" title="ปิด">&times;</button>';
   document.body.appendChild(notice);
+  // 🆕 v081 — auto-close หลัง 2 วินาที (fade out 0.3s ก่อน remove)
+  setTimeout(function(){
+    var n = document.getElementById('refresh-notice');
+    if(!n) return;
+    n.style.transition = 'opacity .3s ease-out';
+    n.style.opacity = '0';
+    setTimeout(function(){ var n2 = document.getElementById('refresh-notice'); if(n2) n2.remove(); }, 320);
+  }, 2000);
 }
 // CSS animation injected once
 (function(){
