@@ -1751,6 +1751,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="fg"><label class="fl">Booking No./B/L</label><input class="fi" id="fj-booking" placeholder="หมายเลข Booking"></div>
     </div>
 
+    <div class="sec-title" style="margin-top:4px;margin-bottom:12px">วันเวลาปฏิบัติงาน</div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">วันเริ่มปฏิบัติงาน *</label><input class="fi" type="text" id="fj-startdate" placeholder="วว/ดด/ปปปป ชช:นน"></div>
+      <div class="fg"><label class="fl">วันเวลารับ/ส่งสินค้า</label><input class="fi" type="text" id="fj-deliverdate" placeholder="วว/ดด/ปปปป ชช:นน"></div>
+    </div>
+
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">ข้อมูลตู้</div>
     <div class="fg-row">
       <div class="fg"><label class="fl">ประเภทงาน</label>
@@ -1786,12 +1792,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="fg"><label class="fl">สถานะใบงาน</label>
         <select class="fi" id="fj-status"><option value="รอดำเนินการ">รอดำเนินการ</option><option value="กำลังดำเนินการ">กำลังดำเนินการ</option><option value="เสร็จสิ้น">เสร็จสิ้น</option></select>
       </div>
-    </div>
-
-    <div class="sec-title" style="margin-top:4px;margin-bottom:12px">วันเวลาปฏิบัติงาน</div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">วันเริ่มปฏิบัติงาน *</label><input class="fi" type="text" id="fj-startdate" placeholder="วว/ดด/ปปปป ชช:นน"></div>
-      <div class="fg"><label class="fl">วันเวลารับ/ส่งสินค้า</label><input class="fi" type="text" id="fj-deliverdate" placeholder="วว/ดด/ปปปป ชช:นน"></div>
     </div>
 
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">เส้นทาง + ลิงก์ Map</div>
@@ -20798,7 +20798,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.081';
+const APP_VERSION = '2026.04.29.082';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
