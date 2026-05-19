@@ -231,6 +231,9 @@ tr:hover td{background:#FAFCFB}
 .col-item.dragging{opacity:0.4;border-style:dashed}
 .col-item.drag-over{border-color:var(--green);border-style:solid;background:var(--green-l)}
 .col-drag-handle{color:var(--text-3);font-size:14px;flex-shrink:0;cursor:grab}
+.col-item .col-mv{background:#F3F4F6;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:3px 7px;font-size:11px;margin:0 1px;color:var(--text-2);line-height:1;touch-action:manipulation}
+.col-item .col-mv:hover{background:var(--green-l);color:var(--green-d)}
+.col-item .col-mv:active{background:var(--green);color:#fff}
 .col-name{flex:1;font-size:13px;font-weight:500;color:var(--text)}
 .col-toggle{width:36px;height:20px;border-radius:10px;background:var(--border);border:none;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0}
 .col-toggle.on{background:var(--green)}
@@ -17984,7 +17987,7 @@ function renderColList(){
       <span class="col-drag-handle">⠿</span>
       <span class="col-name">${col.label}</span>
       ${col.pinned?'<span style="font-size:10px;color:var(--text-3);padding:1px 6px;background:var(--border);border-radius:4px">ตายตัว</span>':''}
-      ${!col.pinned?`<button class="col-toggle ${on?'on':''}" onclick="toggleCol('${id}',this)" title="${on?'ซ่อน':'แสดง'}"></button>`:''}
+      ${!col.pinned?`<button class="col-mv" type="button" onclick="colMoveItem(this,-1)" title="เลื่อนขึ้น">▲</button><button class="col-mv" type="button" onclick="colMoveItem(this,1)" title="เลื่อนลง">▼</button><button class="col-toggle ${on?'on':''}" onclick="toggleCol('${id}',this)" title="${on?'ซ่อน':'แสดง'}"></button>`:''}
     </div>`;}).join('');
   initColItemDrag();
 }
@@ -18014,6 +18017,13 @@ function resetCols(){
   renderColList();
 }
 
+// 🆕 v083 (touch fix) — ปุ่ม ⬆⬇ ใน Column manager เพื่อให้ iPad/touch ใช้ได้
+function colMoveItem(btn,dir){
+  var item = btn.closest('.col-item'); if(!item) return;
+  var parent = item.parentElement;
+  if(dir < 0){ var prev = item.previousElementSibling; if(prev) parent.insertBefore(item, prev); }
+  else { var next = item.nextElementSibling; if(next) parent.insertBefore(next, item); }
+}
 let dragColItem=null;
 function initColItemDrag(){
   document.querySelectorAll('.col-item').forEach(el=>{
@@ -20798,7 +20808,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.082';
+const APP_VERSION = '2026.04.29.083';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
