@@ -5076,6 +5076,9 @@ const SD_DATA = {
   'fj-shipper':  ()=>shippers.map(s=>({label:s.name,value:s.name,sub:s.taxid||''})),
   'mc-customer': function(){return customers.map(function(c){return {label:c.name,value:c.name,sub:(c.code?'['+c.code+'] ':'')+( c.phone||''),phone:c.phone||''};});},
   'mc-shipper':  ()=>shippers.map(s=>({label:s.name,value:s.name,sub:s.taxid||''})),
+  // 🆕 v106 fix — register billing party here so it's always available (was only set by populateBillingDropdown which may not run on boot)
+  'fj-billing-party': function(){return (window.billings||[]).map(function(b){return {label:b.name,value:b.name,sub:(b.taxid?'Tax ID: '+b.taxid:'')+(b.note?' | '+b.note:'')};});},
+  'mc-billing-party': function(){return (window.billings||[]).map(function(b){return {label:b.name,value:b.name,sub:(b.taxid?'Tax ID: '+b.taxid:'')+(b.note?' | '+b.note:'')};});},
   // 🆕 v105 — Calculator dropdowns (origin/stop/dest) using sd-* for proper arrow key navigation
   'gc-origin': function(){return [{label:'ท่าเรือกรุงเทพ'},{label:'ท่าเรือแหลมฉบัง'},{label:'PAT (ท่าเรือกรุงเทพ)'},{label:'PORT (ท่าเรือ)'}].map(function(o){o.value=o.label;return o;});},
   'gc-dest':   function(){return [{label:'ท่าเรือกรุงเทพ'},{label:'ท่าเรือแหลมฉบัง'},{label:'PAT (ท่าเรือกรุงเทพ)'},{label:'PORT (ท่าเรือ)'}].map(function(o){o.value=o.label;return o;});},
@@ -22679,7 +22682,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.105';
+const APP_VERSION = '2026.04.29.106';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
