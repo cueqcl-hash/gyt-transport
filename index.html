@@ -22507,11 +22507,13 @@ function printQuote(){
 // UTILS
 // ══════════════════════════════════════════════════════
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+// 🆕 v104 — ห้าม modal data-entry ปิดเมื่อคลิก backdrop (กันข้อมูลหายโดยไม่ตั้งใจ)
+// ต้องกดปุ่ม ✕ หรือ "ยกเลิก" เท่านั้น
+var _MODAL_NO_BACKDROP_CLOSE = ['modal-job','modal-multi','modal-master','modal-billing','modal-vehicle','modal-driver','modal-user','modal-perms'];
 document.querySelectorAll('.modal-overlay').forEach(function(el){
   el.addEventListener('click',function(e){
     if(e.target!==el) return;
-    // กันการคลิก backdrop ปิด modal-job + modal-multi (กันข้อมูลหาย)
-    if(el.id==='modal-job' || el.id==='modal-multi') return;
+    if(_MODAL_NO_BACKDROP_CLOSE.indexOf(el.id) >= 0) return;
     el.classList.remove('open');
   });
 });
@@ -22659,7 +22661,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.103';
+const APP_VERSION = '2026.04.29.104';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
