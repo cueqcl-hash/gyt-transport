@@ -1222,11 +1222,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="fg" style="margin-bottom:14px">
           <label class="fl">เส้นทาง <span style="color:var(--text-3);font-weight:400">— กรอกจุดเปิด/บรรจุ → ระบบค้นหา rate card ให้อัตโนมัติ</span></label>
           <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;align-items:stretch">
-            <input class="fi" id="gc-origin" placeholder="ต้นทาง เช่น ท่าเรือกรุงเทพ" value="ท่าเรือกรุงเทพ" onkeydown="if(event.key==='Enter')gytCalcPrice()">
-            <input class="fi" id="gc-stop" list="gc-route-list" placeholder="จุดเปิด/บรรจุ — พิมพ์ค้นหา เช่น เมือง ขอนแก่น" oninput="gytTryLookup()" onkeydown="if(event.key==='Enter')gytCalcPrice()">
-            <input class="fi" id="gc-dest" placeholder="ปลายทาง เช่น ท่าเรือกรุงเทพ" value="ท่าเรือกรุงเทพ" onkeydown="if(event.key==='Enter')gytCalcPrice()">
+            <div class="sd-wrap"><input class="sd-input" id="gc-origin" autocomplete="off" placeholder="ต้นทาง เช่น ท่าเรือกรุงเทพ" value="ท่าเรือกรุงเทพ" oninput="sdFilter('gc-origin')" onfocus="sdOpen('gc-origin')" onblur="sdBlur('gc-origin')" onkeydown="if(event.key==='Enter' && !document.getElementById('gc-origin-list')?.classList.contains('open'))gytCalcPrice()"><span class="sd-arrow">▾</span><div class="sd-list" id="gc-origin-list"></div></div>
+            <div class="sd-wrap"><input class="sd-input" id="gc-stop" autocomplete="off" placeholder="จุดเปิด/บรรจุ — พิมพ์ค้นหา เช่น เมือง ขอนแก่น" oninput="sdFilter('gc-stop')" onfocus="sdOpen('gc-stop')" onblur="sdBlur('gc-stop')" onkeydown="if(event.key==='Enter' && !document.getElementById('gc-stop-list')?.classList.contains('open'))gytCalcPrice()"><span class="sd-arrow">▾</span><div class="sd-list" id="gc-stop-list"></div></div>
+            <div class="sd-wrap"><input class="sd-input" id="gc-dest" autocomplete="off" placeholder="ปลายทาง เช่น ท่าเรือกรุงเทพ" value="ท่าเรือกรุงเทพ" oninput="sdFilter('gc-dest')" onfocus="sdOpen('gc-dest')" onblur="sdBlur('gc-dest')" onkeydown="if(event.key==='Enter' && !document.getElementById('gc-dest-list')?.classList.contains('open'))gytCalcPrice()"><span class="sd-arrow">▾</span><div class="sd-list" id="gc-dest-list"></div></div>
           </div>
-          <datalist id="gc-route-list"></datalist>
+          <!-- 🆕 v105 — replaced native <datalist> with sd-* custom dropdown for proper arrow nav -->
           <div id="gc-lookup-info" style="margin-top:6px;font-size:11px;color:var(--text-3);display:none"></div>
         </div>
 
@@ -5076,6 +5076,16 @@ const SD_DATA = {
   'fj-shipper':  ()=>shippers.map(s=>({label:s.name,value:s.name,sub:s.taxid||''})),
   'mc-customer': function(){return customers.map(function(c){return {label:c.name,value:c.name,sub:(c.code?'['+c.code+'] ':'')+( c.phone||''),phone:c.phone||''};});},
   'mc-shipper':  ()=>shippers.map(s=>({label:s.name,value:s.name,sub:s.taxid||''})),
+  // 🆕 v105 — Calculator dropdowns (origin/stop/dest) using sd-* for proper arrow key navigation
+  'gc-origin': function(){return [{label:'ท่าเรือกรุงเทพ'},{label:'ท่าเรือแหลมฉบัง'},{label:'PAT (ท่าเรือกรุงเทพ)'},{label:'PORT (ท่าเรือ)'}].map(function(o){o.value=o.label;return o;});},
+  'gc-dest':   function(){return [{label:'ท่าเรือกรุงเทพ'},{label:'ท่าเรือแหลมฉบัง'},{label:'PAT (ท่าเรือกรุงเทพ)'},{label:'PORT (ท่าเรือ)'}].map(function(o){o.value=o.label;return o;});},
+  'gc-stop':   function(){
+    var rc = window._GC_RATE_CARD || [];
+    return rc.map(function(r){
+      var label = (r.amphoe||'') + ' ' + (r.province||'') + ' (' + (r.region||'') + ')';
+      return {label: label, value: label, sub: 'กม.รวม '+ r.km + ' · 20\''+ (r.p20||'-') + ' / 40\''+ (r.p40||'-')};
+    });
+  },
 };
 let sdTimers={};
 
@@ -5109,6 +5119,10 @@ function sdFilter(id){
   sdHighlight[id] = -1;  // reset highlight when typing
   sdRenderList(id, document.getElementById(id)?.value||'');
   document.getElementById(id+'-list')?.classList.add('open');
+  // 🆕 v105 — Calculator: auto-lookup rate card as user types in จุดเปิด/บรรจุ
+  if(id === 'gc-stop' && typeof gytTryLookup === 'function'){
+    sdTimers['gc-stop-lookup'] = setTimeout(function(){ gytTryLookup(); }, 150);
+  }
 }
 function sdRenderList(id,q){
   const list=document.getElementById(id+'-list');if(!list)return;
@@ -5228,6 +5242,10 @@ function sdSelect(id,value,phone){
   if(phone){
     const phoneField=id==='fj-customer'?'fj-phone':id==='mc-customer'?'mc-phone':null;
     if(phoneField){const el=document.getElementById(phoneField);if(el)el.value=phone;}
+  }
+  // 🆕 v105 — Calculator dropdown: trigger rate card lookup after selecting จุดเปิด/บรรจุ
+  if(id === 'gc-stop' && typeof gytTryLookup === 'function'){
+    setTimeout(function(){ gytTryLookup(); }, 0);
   }
   // auto-fill receipt when shipper selected (only if in shipper mode)
   if(id==='fj-shipper'){setTimeout(function(){var mode=document.querySelector('[name="fj-billing-mode"]:checked');if(!mode||mode.value==='shipper')fillReceipt('fj');},50);}
@@ -22661,7 +22679,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.104';
+const APP_VERSION = '2026.04.29.105';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
