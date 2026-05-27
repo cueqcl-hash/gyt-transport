@@ -22845,7 +22845,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.114';
+const APP_VERSION = '2026.04.29.115';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -26300,26 +26300,30 @@ async function billingCreateBill(){
   }
 }
 
-function billingViewBill(id){
+// 🆕 v115 — Open PDF-style A4 bill view (fetched from GitHub raw)
+var _BL_TEMPLATE_CACHE = null;
+async function billingViewBill(id){
   var b = _BL_BILLS.find(function(x){return x.id===id;});
   if(!b){ if(typeof showToast==='function') showToast('ไม่พบใบ'); return; }
-  var snap = b.customer_snapshot||{};
-  var items = b.line_items||[];
-  var html = '\n📑 ใบวางบิล: '+b.bill_no+'\n'+
-    'วันที่: '+_bl_date(b.bill_date)+'\n'+
-    'ลูกค้า: '+(snap.name||'')+'\n'+
-    'Tax ID: '+(snap.tax_id||'—')+'\n'+
-    '─────────────────────────\n'+
-    items.map(function(i,idx){
-      return (idx+1)+'. '+_bl_date(i.date)+' | '+i.desc+'\n   ยอด: '+_bl_fmt(i.amt_total)+' ฿';
-    }).join('\n')+
-    '\n─────────────────────────\n'+
-    'รวม: '+_bl_fmt(b.subtotal)+' ฿\n'+
-    'หัก ณ ที่จ่าย '+b.wht_pct_snapshot+'%: -'+_bl_fmt(b.wht_amt)+' ฿\n'+
-    'VAT '+b.vat_pct_snapshot+'%: '+_bl_fmt(b.vat_amt)+' ฿\n'+
-    'ยอดสุทธิ: '+_bl_fmt(b.net_amt)+' ฿\n'+
-    'สถานะ: '+b.status;
-  alert(html);
+  try{
+    // Load template (cached after first time)
+    if(!_BL_TEMPLATE_CACHE){
+      var resp = await fetch('https://raw.githubusercontent.com/cueqcl-hash/gyt-transport/main/bill_print_template.html?cb='+Date.now());
+      _BL_TEMPLATE_CACHE = await resp.text();
+    }
+    var w = window.open('', 'gyt_bill_print', 'width=900,height=1200,scrollbars=yes');
+    if(!w){ if(typeof showToast==='function') showToast('กรุณาอนุญาต popup ใน browser'); return; }
+    // Provide getBillData on opener for the child to call
+    window.getBillData = function(){ return b; };
+    w.document.write(_BL_TEMPLATE_CACHE);
+    w.document.close();
+    // Backup: also postMessage after delay (in case child loads before script runs)
+    setTimeout(function(){ try{ w.postMessage({type:'fillBill', bill:b}, '*'); }catch(e){} }, 600);
+    if(typeof showToast==='function') showToast('เปิดใบ '+b.bill_no);
+  }catch(e){
+    console.error('billingViewBill error:', e);
+    if(typeof showToast==='function') showToast('โหลด template ไม่สำเร็จ: '+e.message);
+  }
 }
 
 async function billingMarkPaid(id){
