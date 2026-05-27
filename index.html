@@ -22530,7 +22530,7 @@ function printQuote(){
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 // 🆕 v104 — ห้าม modal data-entry ปิดเมื่อคลิก backdrop (กันข้อมูลหายโดยไม่ตั้งใจ)
 // ต้องกดปุ่ม ✕ หรือ "ยกเลิก" เท่านั้น
-var _MODAL_NO_BACKDROP_CLOSE = ['modal-job','modal-multi','modal-master','modal-billing','modal-vehicle','modal-driver','modal-user','modal-perms'];
+var _MODAL_NO_BACKDROP_CLOSE = ['modal-job','modal-multi','modal-master','modal-billing','modal-vehicle','modal-driver','modal-user','modal-perms','modal-cost'];
 document.querySelectorAll('.modal-overlay').forEach(function(el){
   el.addEventListener('click',function(e){
     if(e.target!==el) return;
@@ -22682,7 +22682,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.106';
+const APP_VERSION = '2026.04.29.107';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -26932,6 +26932,75 @@ async function rcptLoadDoneList(){
 
 
 <!-- MODAL: BIN (ถังขยะ) -->
+<!-- 🆕 v107 — Re-add modal-cost (was missing, broke print 🖨 button) -->
+<div class="modal-overlay" id="modal-cost">
+<div class="modal" style="max-width:680px">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title">🖨 พิมพ์ใบปฏิบัติงาน + บันทึกค่าใช้จ่าย</div>
+      <div class="modal-sub" id="cost-job-sub">—</div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-cost')">&#215;</button>
+  </div>
+  <div class="modal-body">
+    <div style="background:var(--bg);padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:11.5px;color:var(--text-2);border-left:3px solid var(--green-m)">
+      💡 กรอกค่าใช้จ่ายของใบงาน (สามารถข้ามได้) → กด <strong>พิมพ์ใบปฏิบัติงาน</strong> เพื่อเปิดหน้าพิมพ์
+    </div>
+
+    <div class="fg-row">
+      <div class="fg" style="flex:1.4"><label class="fl">ค่าเที่ยว (บาท)</label>
+        <input class="fi" type="number" step="0.01" id="cost-trip-amt" placeholder="0" style="font-family:var(--mono)" oninput="updateCostTotal()"></div>
+      <div class="fg" style="flex:1"><label class="fl">หมายเหตุ ค่าเที่ยว</label>
+        <input class="fi" id="cost-trip-note" placeholder="เช่น รถสิบล้อ / หัวลาก"></div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่ายกตู้/บรรจุตู้</label>
+        <input class="fi" type="number" step="0.01" id="cost-box-amt" placeholder="0" style="font-family:var(--mono)" oninput="updateCostTotal()"></div>
+      <div class="fg"><label class="fl">ค่าท่าเรือ</label>
+        <input class="fi" type="number" step="0.01" id="cost-port-amt" placeholder="0" style="font-family:var(--mono)" oninput="updateCostTotal()"></div>
+      <div class="fg"><label class="fl">ค่าทางด่วน</label>
+        <input class="fi" type="number" step="0.01" id="cost-toll-amt" placeholder="0" style="font-family:var(--mono)" oninput="updateCostTotal()"></div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">ค่ารับตู้เปล่า</label>
+        <input class="fi" type="number" step="0.01" id="cost-recv-amt" placeholder="0" style="font-family:var(--mono)" oninput="updateCostTotal()"></div>
+      <div class="fg" style="flex:1.5"><label class="fl">หมายเหตุ ค่ารับตู้</label>
+        <input class="fi" id="cost-recv-note" placeholder="(ลานคืน, ฯลฯ)"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">ค่าคืนตู้ (หนัก)</label>
+        <input class="fi" type="number" step="0.01" id="cost-ret-amt" placeholder="0" style="font-family:var(--mono)" oninput="updateCostTotal()"></div>
+      <div class="fg" style="flex:1.5"><label class="fl">หมายเหตุ ค่าคืนตู้</label>
+        <input class="fi" id="cost-ret-note" placeholder="(ลานคืน, ฯลฯ)"></div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg" style="flex:1.5"><label class="fl">รายการอื่น 1</label>
+        <input class="fi" id="cost-misc-note" placeholder="เช่น ค่าย้ายตู้"></div>
+      <div class="fg" style="flex:1"><label class="fl">จำนวน</label>
+        <input class="fi" type="number" step="0.01" id="cost-misc-amt" placeholder="0" style="font-family:var(--mono)" oninput="updateCostTotal()"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg" style="flex:1.5"><label class="fl">รายการอื่น 2</label>
+        <input class="fi" id="cost-misc2-note" placeholder="(ถ้ามี)"></div>
+      <div class="fg" style="flex:1"><label class="fl">จำนวน</label>
+        <input class="fi" type="number" step="0.01" id="cost-misc2-amt" placeholder="0" style="font-family:var(--mono)" oninput="updateCostTotal()"></div>
+    </div>
+
+    <div style="background:var(--green-l);padding:10px 14px;border-radius:8px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;border:1px solid var(--green-m)">
+      <span style="font-weight:600;color:var(--green-d);font-size:13px">💰 ยอดรวมค่าใช้จ่าย</span>
+      <span id="cost-total-preview" style="font-family:var(--mono);font-weight:700;font-size:18px;color:var(--green-d)">0 บาท</span>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-cost')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="doPrint()">🖨 พิมพ์ใบปฏิบัติงาน</button>
+  </div>
+</div>
+</div>
+
 <div class="modal-overlay" id="modal-bin">
 <div class="modal" style="max-width:700px">
   <div class="modal-head">
