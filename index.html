@@ -1097,6 +1097,141 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 </div>
       </div>
 
+      <!-- ════════════════════════════════════════════════════ -->
+      <!-- 🆕 v114 — PAGE: ใบวางบิล (น้าปุ้ม)                -->
+      <!-- ════════════════════════════════════════════════════ -->
+      <div id="pg-billing" class="screen">
+        <style>
+          .bill-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+          .bill-stat{background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 14px;border-left:4px solid var(--green)}
+          .bill-stat.draft{border-left-color:#9CA3AF}
+          .bill-stat.issued{border-left-color:#F59E0B}
+          .bill-stat.paid{border-left-color:#10B981}
+          .bill-stat.total{border-left-color:#3B82F6}
+          .bill-stat-label{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:600}
+          .bill-stat-value{font-size:22px;font-weight:700;color:var(--text-1);margin-top:4px;font-family:var(--mono)}
+          .bill-stat-sub{font-size:11px;color:var(--text-3);margin-top:2px}
+          .bill-tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:14px}
+          .bill-tab{padding:9px 18px;font-size:13px;font-weight:600;color:var(--text-2);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all 0.15s}
+          .bill-tab:hover{background:#fafafa;color:var(--green-d)}
+          .bill-tab.active{color:var(--green-d);border-bottom-color:var(--green)}
+          .bill-tab-badge{background:var(--bg);border-radius:10px;padding:1px 8px;font-size:10.5px;margin-left:6px;color:var(--text-2);font-weight:500}
+          .bill-tab.active .bill-tab-badge{background:var(--green-l);color:var(--green-d)}
+          .bill-panel{display:none}
+          .bill-panel.active{display:block}
+          .bl-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10.5px;font-weight:600;letter-spacing:0.02em}
+          .bl-badge.draft{background:#F3F4F6;color:#6B7280}
+          .bl-badge.issued{background:#FEF3C7;color:#92400E}
+          .bl-badge.paid{background:#D1FAE5;color:#065F46}
+          .bl-row-hover:hover{background:#F9FAFB;cursor:pointer}
+        </style>
+
+        <!-- 📊 Stats Header -->
+        <div class="bill-stats" id="bill-stats">
+          <div class="bill-stat total"><div class="bill-stat-label">รวมทั้งหมด</div><div class="bill-stat-value" id="bs-total">—</div><div class="bill-stat-sub" id="bs-total-amt">— ฿</div></div>
+          <div class="bill-stat draft"><div class="bill-stat-label">ร่าง (draft)</div><div class="bill-stat-value" id="bs-draft">—</div><div class="bill-stat-sub">รอแก้ไข</div></div>
+          <div class="bill-stat issued"><div class="bill-stat-label">ออกใบแล้ว</div><div class="bill-stat-value" id="bs-issued">—</div><div class="bill-stat-sub" id="bs-issued-amt">— ฿ ค้างจ่าย</div></div>
+          <div class="bill-stat paid"><div class="bill-stat-label">จ่ายแล้ว</div><div class="bill-stat-value" id="bs-paid">—</div><div class="bill-stat-sub" id="bs-paid-amt">— ฿</div></div>
+        </div>
+
+        <!-- 🗂 Tabs -->
+        <div class="bill-tabs">
+          <div class="bill-tab active" data-bill-tab="issued" onclick="billingSwitchView('issued')">📑 ใบวางบิล <span class="bill-tab-badge" id="bt-issued-c">0</span></div>
+          <div class="bill-tab" data-bill-tab="create" onclick="billingSwitchView('create')">✏️ ออกใบใหม่</div>
+          <div class="bill-tab" data-bill-tab="master" onclick="billingSwitchView('master')">👥 ลูกค้าวางบิล <span class="bill-tab-badge" id="bt-master-c">0</span></div>
+        </div>
+
+        <!-- PANEL 1: Issued -->
+        <div class="bill-panel active" id="bill-panel-issued">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+            <span style="font-size:12px;color:var(--text-2)">สถานะ:</span>
+            <select class="fi" id="bl-flt-status" onchange="billingRenderIssued()" style="width:140px;height:32px">
+              <option value="">ทั้งหมด</option>
+              <option value="draft">ร่าง (draft)</option>
+              <option value="issued">ออกใบแล้ว</option>
+              <option value="paid">จ่ายแล้ว</option>
+            </select>
+            <input class="fi" id="bl-flt-search" placeholder="🔍 ค้นเลขใบ / ลูกค้า..." oninput="billingRenderIssued()" style="flex:1;min-width:200px;height:32px">
+            <button class="btn btn-ghost" onclick="billingLoadAll()" style="height:32px"><span>🔄</span> Refresh</button>
+          </div>
+          <div class="tbl-wrap"><div class="tbl-scroll">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="background:#F2F7F4">
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:120px">เลขที่ใบ</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:100px">วันที่</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2)">ลูกค้า</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:65px">รายการ</th>
+              <th style="padding:9px 10px;text-align:right;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:110px">ยอดสุทธิ (฿)</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:110px">สถานะ</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:140px">จัดการ</th>
+            </tr></thead>
+            <tbody id="bl-issued-tbody"></tbody>
+          </table>
+          </div></div>
+          <div id="bl-issued-empty" style="display:none;text-align:center;padding:40px;color:var(--text-3)">ยังไม่มีใบวางบิล</div>
+        </div>
+
+        <!-- PANEL 2: Create new bill -->
+        <div class="bill-panel" id="bill-panel-create">
+          <div style="background:#F0F8F0;border:1px solid var(--green-m);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green-d)">
+            💡 เลือกลูกค้า + ช่วงวันที่ → ระบบจะแสดง <strong>ใบงานที่เสร็จงานแล้ว + มีค่าใช้จ่ายในระบบ + ยังไม่ออกใบ</strong> → tick แล้วกดสร้างใบวางบิล
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+            <span style="font-size:12px;color:var(--text-2)">ลูกค้า:</span>
+            <select class="fi" id="bc-flt-customer" onchange="billingRenderCreate()" style="width:280px;height:32px">
+              <option value="">-- เลือกลูกค้า --</option>
+            </select>
+            <span style="font-size:12px;color:var(--text-2);margin-left:8px">ช่วงวันที่:</span>
+            <input type="text" class="fi" id="bc-flt-from" placeholder="DD/MM/YYYY" style="width:110px;height:32px" oninput="billingRenderCreate()">
+            <span style="font-size:12px;color:var(--text-3)">ถึง</span>
+            <input type="text" class="fi" id="bc-flt-to" placeholder="DD/MM/YYYY" style="width:110px;height:32px" oninput="billingRenderCreate()">
+            <button class="btn btn-ghost" onclick="document.getElementById('bc-flt-from').value='';document.getElementById('bc-flt-to').value='';billingRenderCreate();" style="height:32px">ล้าง</button>
+          </div>
+          <div class="tbl-wrap"><div class="tbl-scroll">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:#F2F7F4">
+              <th style="padding:9px 8px;text-align:center;border-bottom:2px solid var(--border);width:32px"><input type="checkbox" id="bc-cb-all" onchange="billingToggleAllJobs(this)"></th>
+              <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:90px">วันที่</th>
+              <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:90px">JOB ID</th>
+              <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2)">เส้นทาง / Booking</th>
+              <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:80px">ตู้</th>
+              <th style="padding:9px 8px;text-align:right;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:110px">ค่าใช้จ่าย</th>
+            </tr></thead>
+            <tbody id="bc-jobs-tbody"></tbody>
+          </table>
+          </div></div>
+          <div id="bc-jobs-empty" style="display:none;text-align:center;padding:40px;color:var(--text-3)">เลือกลูกค้าก่อน — หรือลูกค้านี้ยังไม่มี job ที่พร้อมออกใบ</div>
+          <div style="position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:10px 14px;margin-top:12px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:13px;color:var(--text-2)">เลือกแล้ว: <strong style="color:var(--text-1)" id="bc-sel-count">0</strong> ใบ • ยอดรวม: <strong style="font-family:var(--mono);color:var(--text-1)" id="bc-sel-sum">0</strong> ฿</span>
+            <button class="btn btn-green" id="bc-create-btn" onclick="billingCreateBill()" disabled style="margin-left:auto;height:36px">✏️ สร้างใบวางบิล →</button>
+          </div>
+        </div>
+
+        <!-- PANEL 3: Customer master -->
+        <div class="bill-panel" id="bill-panel-master">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+            <input class="fi" id="bm-search" placeholder="🔍 ค้นรหัส / ชื่อลูกค้า..." oninput="billingRenderMaster()" style="flex:1;min-width:200px;height:32px;max-width:380px">
+            <span style="font-size:12px;color:var(--text-3)">รวม <strong style="color:var(--text-1)" id="bm-count">0</strong> ลูกค้า</span>
+          </div>
+          <div class="tbl-wrap"><div class="tbl-scroll">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:#F2F7F4">
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:80px">Code</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2)">ชื่อลูกค้า</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:130px">Tax ID</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:70px">WHT %</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:70px">VAT %</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:100px">เงื่อนไขจ่าย</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:80px">รูปแบบ</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:80px">สถานะ</th>
+            </tr></thead>
+            <tbody id="bm-tbody"></tbody>
+          </table>
+          </div></div>
+        </div>
+      </div>
+      <!-- ════════════════════════════════════════════════════ END pg-billing -->
+
       <div id="pg-vehicles" class="screen">
 
         <!-- หัวรถ -->
@@ -2379,6 +2514,7 @@ const ALL_PERMS = [
   {id:'view_carrier', label:'ดู Carrier/Booking',    group:'ข้อมูลในใบงาน'},
   {id:'manage_finance', label:'จัดการการเงิน (น้ำมัน/ทางด่วน)', group:'การเงิน'},
   {id:'manage_receipts', label:'บันทึกใบเสร็จเข้าออฟฟิศ', group:'การเงิน'},  // 🆕 v083
+  {id:'manage_billing',  label:'ออกใบวางบิล (น้าปุ้ม)',  group:'การเงิน'},  // 🆕 v114
   {id:'view_weight',  label:'ดูน้ำหนักสินค้า',      group:'ข้อมูลในใบงาน'},
   {id:'view_plate',   label:'ดูทะเบียน/คนขับ',      group:'ข้อมูลในใบงาน'},
   {id:'view_location',label:'ดูลิงก์ Map',           group:'ข้อมูลในใบงาน'},
@@ -2402,7 +2538,7 @@ const DEFAULT_PERMS = {
   accounting: ['view_jobs','update_status',
                'view_customer','view_shipper','view_carrier','view_weight','view_plate','view_location',
                'dashboard','view_vehicles','view_drivers','view_settings',
-               'manage_finance','manage_receipts','export'],  // 🆕 v083
+               'manage_finance','manage_receipts','manage_billing','export'],  // 🆕 v114
   staff:   ['view_jobs','add_jobs','edit_jobs','delete_jobs','update_status',
             'view_customer','view_shipper','view_carrier','view_weight','view_plate','view_location',
             'dashboard','view_vehicles','view_drivers','view_settings'],
@@ -4720,6 +4856,7 @@ function initApp(){
     {id:'ratecalc', icon:'⛽',label:'คำนวณราคาขนส่ง',     perm:'dashboard'}, // ใช้ dashboard เป็นเงื่อนไข (admin/supervisor เห็น)
     {id:'finance', icon:'💰',label:'ค่าน้ำมัน + ทางด่วน',perm:'manage_finance'},  // 🆕 v060 — บัญชี
     {id:'receipts',icon:'📋',label:'บันทึกใบเสร็จ',     perm:'manage_receipts'},  // 🆕 v083
+    {id:'billing', icon:'📑',label:'ใบวางบิล',           perm:'manage_billing'},   // 🆕 v114
     {id:'maintenance',icon:'🛠',label:'ซ่อมบำรุงรถ',       perm:'view_maintenance'}, // Phase 1A
     {id:'inspection',icon:'✅',label:'ตรวจสภาพรถ',          perm:'view_inspection'},   // Phase 1A
     {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
@@ -4792,7 +4929,7 @@ function goPage(id, opts){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('pg-'+id)?.classList.add('active');
   document.getElementById('nav-'+id)?.classList.add('active');
-  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ',receipts:'บันทึกใบเสร็จเข้าออฟฟิศ',finance:'การเงิน'};
+  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ',receipts:'บันทึกใบเสร็จเข้าออฟฟิศ',finance:'การเงิน',billing:'ใบวางบิล (น้าปุ้ม)'};
   document.getElementById('topbar-title').textContent=titles[id]||'';
   const badge=document.getElementById('topbar-badge');
   if(id==='jobs'){badge.style.display='block';badge.textContent='Green Yello Transport';}
@@ -4801,6 +4938,7 @@ function goPage(id, opts){
   if(id==='jobs')renderJobs();
   if(id==='users')renderUsers();
   if(id==='receipts' && typeof rcptInit==='function') rcptInit();  // 🆕 v083
+  if(id==='billing'  && typeof billingInit==='function') billingInit();  // 🆕 v114
   // อัปเดตการซ่อน/แสดงปุ่มตาม perms (สำหรับหน้าใหม่ที่เพิ่งเปิด)
   if(typeof applyPermsToUI === 'function') setTimeout(applyPermsToUI, 0);
   // อัปเดต URL ให้ตรงกับหน้าปัจจุบัน → refresh จะอยู่หน้าเดิม + share link ได้
@@ -22707,7 +22845,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.113';
+const APP_VERSION = '2026.04.29.114';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -25861,6 +25999,347 @@ function _rcptCE2BE(iso){
   var p = String(iso).slice(0,10).split('-');
   if(p.length!==3) return iso;
   return p[2]+'/'+p[1]+'/'+(parseInt(p[0],10)+543);
+}
+
+// ════════════════════════════════════════════════════════════════
+// 🆕 v114 — Billing system (น้าปุ้ม) — JS layer
+// ════════════════════════════════════════════════════════════════
+var _BL_INITED = false;
+var _BL_BILLS = [];
+var _BL_MASTER = [];
+var _BL_JOBS = [];        // jobs for create-tab
+var _BL_VIEW = 'issued';
+
+function billingInit(){
+  // change view based on URL hash on first call
+  billingSwitchView(_BL_VIEW);
+  // load fresh data every time the page is opened
+  billingLoadAll();
+}
+
+function billingSwitchView(mode){
+  _BL_VIEW = mode;
+  document.querySelectorAll('.bill-tab').forEach(function(t){
+    t.classList.toggle('active', t.getAttribute('data-bill-tab')===mode);
+  });
+  document.querySelectorAll('.bill-panel').forEach(function(p){
+    p.classList.toggle('active', p.id==='bill-panel-'+mode);
+  });
+}
+
+async function billingLoadAll(){
+  try{
+    var url1 = SUPA_URL + '/rest/v1/gyt_billings?select=*&order=created_at.desc&limit=500';
+    var url2 = SUPA_URL + '/rest/v1/gyt_billing_master?select=*&is_active=eq.true&order=customer_code.asc&limit=200';
+    var h = {apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY};
+    var [b, m] = await Promise.all([
+      fetch(url1, {headers:h}).then(function(r){return r.json();}),
+      fetch(url2, {headers:h}).then(function(r){return r.json();})
+    ]);
+    _BL_BILLS = Array.isArray(b) ? b : [];
+    _BL_MASTER = Array.isArray(m) ? m : [];
+    billingRenderStats();
+    billingRenderIssued();
+    billingRenderMaster();
+    billingPopulateCustomerDropdown();
+    billingRenderCreate();
+  }catch(e){
+    console.error('billing load error:', e);
+    if(typeof showToast==='function') showToast('โหลดข้อมูลใบวางบิลไม่สำเร็จ: '+e.message);
+  }
+}
+
+function _bl_fmt(n){
+  var x = +n || 0;
+  return x.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function _bl_date(iso){
+  if(!iso) return '—';
+  var d = new Date(iso);
+  if(isNaN(d)) return iso;
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+(d.getFullYear()+543).toString().slice(-2);
+}
+function _bl_esc(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function billingRenderStats(){
+  var bills = _BL_BILLS;
+  var total = bills.length;
+  var draft = bills.filter(function(b){return b.status==='draft';});
+  var issued = bills.filter(function(b){return b.status==='issued';});
+  var paid = bills.filter(function(b){return b.status==='paid';});
+  var totalAmt = bills.reduce(function(s,b){return s+(+b.net_amt||0);}, 0);
+  var issuedAmt = issued.reduce(function(s,b){return s+(+b.net_amt||0);}, 0);
+  var paidAmt = paid.reduce(function(s,b){return s+(+b.net_amt||0);}, 0);
+  document.getElementById('bs-total').textContent = total;
+  document.getElementById('bs-total-amt').textContent = _bl_fmt(totalAmt)+' ฿';
+  document.getElementById('bs-draft').textContent = draft.length;
+  document.getElementById('bs-issued').textContent = issued.length;
+  document.getElementById('bs-issued-amt').textContent = _bl_fmt(issuedAmt)+' ฿ ค้างจ่าย';
+  document.getElementById('bs-paid').textContent = paid.length;
+  document.getElementById('bs-paid-amt').textContent = _bl_fmt(paidAmt)+' ฿';
+  document.getElementById('bt-issued-c').textContent = total;
+  document.getElementById('bt-master-c').textContent = _BL_MASTER.length;
+}
+
+function billingRenderIssued(){
+  var bills = _BL_BILLS.slice();
+  var st = document.getElementById('bl-flt-status').value;
+  var q = (document.getElementById('bl-flt-search').value||'').toLowerCase().trim();
+  if(st) bills = bills.filter(function(b){return b.status===st;});
+  if(q) bills = bills.filter(function(b){
+    var snap = b.customer_snapshot||{};
+    return (b.bill_no||'').toLowerCase().includes(q) || (snap.name||'').toLowerCase().includes(q) || (b.customer_code||'').toLowerCase().includes(q);
+  });
+  var tbody = document.getElementById('bl-issued-tbody');
+  var empty = document.getElementById('bl-issued-empty');
+  if(!bills.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  tbody.innerHTML = bills.map(function(b){
+    var snap = b.customer_snapshot||{};
+    var items = Array.isArray(b.line_items) ? b.line_items.length : 0;
+    var statusLabel = {draft:'📝 ร่าง', issued:'📤 ออกใบแล้ว', paid:'✅ จ่ายแล้ว'}[b.status] || b.status;
+    return '<tr class="bl-row-hover">'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--green-d);font-weight:600">'+_bl_esc(b.bill_no)+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11.5px;color:var(--text-2)">'+_bl_date(b.bill_date)+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border)">'+_bl_esc(snap.name||'—')+'</td>'+
+      '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--text-2)">'+items+'</td>'+
+      '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:600">'+_bl_fmt(b.net_amt)+'</td>'+
+      '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)"><span class="bl-badge '+b.status+'">'+statusLabel+'</span></td>'+
+      '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+
+        '<button class="tbl-action tbl-icon-btn" onclick="billingViewBill('+b.id+')" data-tip="ดูใบวางบิล" style="color:var(--green)">👁</button>'+
+        (b.status==='issued' ? '<button class="tbl-action tbl-icon-btn" onclick="billingMarkPaid('+b.id+')" data-tip="บันทึกว่าจ่ายแล้ว" style="color:#10B981">💰</button>' : '')+
+      '</td>'+
+      '</tr>';
+  }).join('');
+}
+
+function billingRenderMaster(){
+  var rows = _BL_MASTER.slice();
+  var q = (document.getElementById('bm-search').value||'').toLowerCase().trim();
+  if(q) rows = rows.filter(function(m){
+    return (m.customer_code||'').toLowerCase().includes(q) || (m.customer_name||'').toLowerCase().includes(q);
+  });
+  document.getElementById('bm-count').textContent = rows.length;
+  var tbody = document.getElementById('bm-tbody');
+  tbody.innerHTML = rows.map(function(m){
+    var fmtLabel = m.billing_format==='summary' ? '📦 ย่อ' : '📋 ละเอียด';
+    var termsLabel = m.payment_terms_days===0 ? '💵 เงินสด' : (m.payment_terms_days+' วัน');
+    return '<tr class="bl-row-hover">'+
+      '<td style="padding:7px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:600;color:var(--green-d)">'+_bl_esc(m.customer_code)+'</td>'+
+      '<td style="padding:7px 10px;border-bottom:1px solid var(--border)">'+_bl_esc(m.customer_name||'')+'</td>'+
+      '<td style="padding:7px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:11.5px;color:var(--text-2)">'+_bl_esc(m.tax_id||'—')+'</td>'+
+      '<td style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);font-family:var(--mono)">'+(+m.wht_pct||0)+'%</td>'+
+      '<td style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);font-family:var(--mono)">'+(+m.vat_pct||0)+'%</td>'+
+      '<td style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);font-size:11.5px">'+termsLabel+'</td>'+
+      '<td style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-2)">'+fmtLabel+'</td>'+
+      '<td style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border)"><span class="bl-badge '+(m.is_active?'paid':'draft')+'">'+(m.is_active?'active':'inactive')+'</span></td>'+
+      '</tr>';
+  }).join('');
+}
+
+function billingPopulateCustomerDropdown(){
+  var sel = document.getElementById('bc-flt-customer');
+  if(!sel) return;
+  var current = sel.value;
+  sel.innerHTML = '<option value="">-- เลือกลูกค้า --</option>' +
+    _BL_MASTER.map(function(m){
+      return '<option value="'+_bl_esc(m.customer_code)+'">'+_bl_esc(m.customer_code+' — '+(m.customer_name||''))+'</option>';
+    }).join('');
+  if(current) sel.value = current;
+}
+
+async function billingRenderCreate(){
+  var code = document.getElementById('bc-flt-customer').value;
+  var tbody = document.getElementById('bc-jobs-tbody');
+  var empty = document.getElementById('bc-jobs-empty');
+  if(!code){
+    tbody.innerHTML=''; empty.style.display='block';
+    document.getElementById('bc-sel-count').textContent='0';
+    document.getElementById('bc-sel-sum').textContent='0';
+    document.getElementById('bc-create-btn').disabled=true;
+    return;
+  }
+  // find customer by code → match shipper name OR receipt_name
+  var customer = _BL_MASTER.find(function(m){return m.customer_code===code;});
+  if(!customer){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  // fetch jobs with costs, filter to those matching this customer's name
+  try{
+    var url = SUPA_URL + '/rest/v1/gyt_jobs?select=id,shipper,receipt_name,startdate,deliverdate,booking,container,type,origin,dest,returnyard,costs&order=startdate.desc&limit=500';
+    var jobs = await fetch(url, {headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY}}).then(function(r){return r.json();});
+    // already-billed job IDs
+    var billed = new Set();
+    _BL_BILLS.forEach(function(b){ (b.job_ids||[]).forEach(function(j){billed.add(j);}); });
+    // match logic: substring (case-insensitive)
+    var custKey = (customer.customer_name||'').toLowerCase().split(' ')[0];
+    var matched = (jobs||[]).filter(function(j){
+      if(billed.has(j.id)) return false;
+      if(!j.costs) return false;
+      var c = j.costs;
+      var total = (+c.tripAmt||0)+(+c.boxAmt||0)+(+c.recvAmt||0)+(+c.retAmt||0)+(+c.portAmt||0)+(+c.tollAmt||0)+(+c.miscAmt||0)+(+c.misc2Amt||0);
+      if(total<=0) return false;
+      var nm = ((j.shipper||'')+' '+(j.receipt_name||'')).toLowerCase();
+      return custKey && nm.includes(custKey);
+    });
+    // filter by date range
+    var df = document.getElementById('bc-flt-from').value;
+    var dt = document.getElementById('bc-flt-to').value;
+    function parseDDMM(s){ var p=(s||'').split('/'); if(p.length!==3) return null; return new Date(parseInt(p[2])-543, parseInt(p[1])-1, parseInt(p[0])); }
+    var fromD = parseDDMM(df), toD = parseDDMM(dt);
+    if(fromD) matched = matched.filter(function(j){return j.startdate && new Date(j.startdate)>=fromD;});
+    if(toD) matched = matched.filter(function(j){var d=j.startdate?new Date(j.startdate):null; return d && d<=new Date(toD.getTime()+86400000);});
+    _BL_JOBS = matched;
+    if(!matched.length){ tbody.innerHTML=''; empty.style.display='block'; document.getElementById('bc-create-btn').disabled=true; return; }
+    empty.style.display='none';
+    tbody.innerHTML = matched.map(function(j){
+      var c = j.costs||{};
+      var total = (+c.tripAmt||0)+(+c.boxAmt||0)+(+c.recvAmt||0)+(+c.retAmt||0)+(+c.portAmt||0)+(+c.tollAmt||0)+(+c.miscAmt||0)+(+c.misc2Amt||0);
+      var route = (j.origin||'?')+' → '+(j.dest||'?')+(j.returnyard?' → '+j.returnyard:'');
+      var book = j.booking ? ' • '+j.booking : '';
+      return '<tr>'+
+        '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)"><input type="checkbox" class="bc-cb" data-job-id="'+_bl_esc(j.id)+'" data-job-amt="'+total+'" onchange="billingUpdateSelection()"></td>'+
+        '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11.5px">'+_bl_date(j.startdate)+'</td>'+
+        '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--green-d);font-weight:600">'+_bl_esc(j.id)+'</td>'+
+        '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:400px" title="'+_bl_esc(route+book)+'">'+_bl_esc(route+book)+'</td>'+
+        '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-2)">'+_bl_esc((j.container||'')+(j.type?' '+j.type:''))+'</td>'+
+        '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:600">'+_bl_fmt(total)+'</td>'+
+        '</tr>';
+    }).join('');
+    document.getElementById('bc-sel-count').textContent='0';
+    document.getElementById('bc-sel-sum').textContent='0';
+    document.getElementById('bc-create-btn').disabled=true;
+    document.getElementById('bc-cb-all').checked=false;
+  }catch(e){
+    console.error('billingRenderCreate error:', e);
+    if(typeof showToast==='function') showToast('โหลด jobs ไม่สำเร็จ: '+e.message);
+  }
+}
+
+function billingToggleAllJobs(cb){
+  document.querySelectorAll('.bc-cb').forEach(function(c){c.checked = cb.checked;});
+  billingUpdateSelection();
+}
+
+function billingUpdateSelection(){
+  var cbs = Array.from(document.querySelectorAll('.bc-cb:checked'));
+  var n = cbs.length;
+  var sum = cbs.reduce(function(s,c){return s+(+c.getAttribute('data-job-amt')||0);}, 0);
+  document.getElementById('bc-sel-count').textContent = n;
+  document.getElementById('bc-sel-sum').textContent = _bl_fmt(sum);
+  document.getElementById('bc-create-btn').disabled = n===0;
+}
+
+async function billingCreateBill(){
+  var cbs = Array.from(document.querySelectorAll('.bc-cb:checked'));
+  if(!cbs.length){ if(typeof showToast==='function') showToast('กรุณาเลือก job ก่อน'); return; }
+  var code = document.getElementById('bc-flt-customer').value;
+  var customer = _BL_MASTER.find(function(m){return m.customer_code===code;});
+  if(!customer){ if(typeof showToast==='function') showToast('ไม่พบลูกค้า'); return; }
+  var pickedJobs = cbs.map(function(c){
+    var id = c.getAttribute('data-job-id');
+    return _BL_JOBS.find(function(j){return j.id===id;});
+  }).filter(Boolean);
+  // build line items
+  var lineItems = [];
+  pickedJobs.forEach(function(j){
+    var c = j.costs||{};
+    var route = (j.origin||'?')+' → '+(j.dest||'?')+(j.returnyard?' → '+j.returnyard:'');
+    var date = (j.startdate||'').substring(0,10);
+    if((+c.tripAmt||0)>0) lineItems.push({date:date, desc:'ค่าขนส่ง: '+route+(j.booking?' • Booking '+j.booking:'')+(j.container?' • ตู้ '+j.container:''), amt_freight:+c.tripAmt, amt_other:0, amt_total:+c.tripAmt, job_id:j.id});
+    function add(desc, amt, note){ var n=+amt; if(n>0) lineItems.push({date:date, desc:desc, amt_freight:0, amt_other:n, amt_total:n, job_id:j.id, note:note||''}); }
+    add('ค่ายกตู้', c.boxAmt);
+    add('ค่ารับตู้', c.recvAmt, c.recvNote);
+    add('ค่าคืนตู้', c.retAmt, c.retNote);
+    add('ค่าผ่านท่า', c.portAmt);
+    add('ค่าทางด่วน', c.tollAmt);
+    if((+c.miscAmt||0)>0 && c.miscNote) add(c.miscNote, c.miscAmt);
+    if((+c.misc2Amt||0)>0 && c.misc2Note) add(c.misc2Note, c.misc2Amt);
+  });
+  var subtotal = lineItems.reduce(function(s,i){return s+(+i.amt_total||0);}, 0);
+  var wht_pct = +(customer.wht_pct||0);
+  var vat_pct = +(customer.vat_pct||0);
+  var wht_amt = +(subtotal*wht_pct/100).toFixed(2);
+  var vat_amt = +(subtotal*vat_pct/100).toFixed(2);
+  var net_amt = +(subtotal - wht_amt + vat_amt).toFixed(2);
+  // call RPC next_bill_no
+  var year = new Date().getFullYear()+543-2500;  // 2025 → 68, 2026 → 69
+  try{
+    var rpcResp = await fetch(SUPA_URL+'/rest/v1/rpc/next_bill_no', {
+      method:'POST',
+      headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY, 'Content-Type':'application/json'},
+      body: JSON.stringify({p_customer: code, p_year: year})
+    }).then(function(r){return r.json();});
+    var bill_no = (rpcResp && rpcResp[0]) ? rpcResp[0].bill_no : (code+'-'+year+'/001');
+    var payload = {
+      bill_no: bill_no,
+      bill_date: new Date().toISOString().substring(0,10),
+      customer_code: code,
+      customer_snapshot: {name:customer.customer_name, address:customer.address, tax_id:customer.tax_id, wht_pct:wht_pct, vat_pct:vat_pct, payment_terms_days:customer.payment_terms_days},
+      job_ids: pickedJobs.map(function(j){return j.id;}),
+      line_items: lineItems,
+      subtotal: subtotal,
+      wht_pct_snapshot: wht_pct, wht_amt: wht_amt,
+      vat_pct_snapshot: vat_pct, vat_amt: vat_amt,
+      net_amt: net_amt,
+      status: 'draft',
+      created_by: currentUser ? (currentUser.fname+' '+currentUser.lname).trim() : 'unknown'
+    };
+    var resp = await fetch(SUPA_URL+'/rest/v1/gyt_billings', {
+      method:'POST',
+      headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY, 'Content-Type':'application/json', Prefer:'return=representation'},
+      body: JSON.stringify([payload])
+    }).then(function(r){return r.json();});
+    if(typeof showToast==='function') showToast('✅ สร้างใบ '+bill_no+' สำเร็จ ('+lineItems.length+' รายการ, '+_bl_fmt(net_amt)+' ฿)');
+    // reload + switch to issued
+    await billingLoadAll();
+    billingSwitchView('issued');
+  }catch(e){
+    console.error('billingCreateBill error:', e);
+    if(typeof showToast==='function') showToast('สร้างใบไม่สำเร็จ: '+e.message);
+  }
+}
+
+function billingViewBill(id){
+  var b = _BL_BILLS.find(function(x){return x.id===id;});
+  if(!b){ if(typeof showToast==='function') showToast('ไม่พบใบ'); return; }
+  var snap = b.customer_snapshot||{};
+  var items = b.line_items||[];
+  var html = '\n📑 ใบวางบิล: '+b.bill_no+'\n'+
+    'วันที่: '+_bl_date(b.bill_date)+'\n'+
+    'ลูกค้า: '+(snap.name||'')+'\n'+
+    'Tax ID: '+(snap.tax_id||'—')+'\n'+
+    '─────────────────────────\n'+
+    items.map(function(i,idx){
+      return (idx+1)+'. '+_bl_date(i.date)+' | '+i.desc+'\n   ยอด: '+_bl_fmt(i.amt_total)+' ฿';
+    }).join('\n')+
+    '\n─────────────────────────\n'+
+    'รวม: '+_bl_fmt(b.subtotal)+' ฿\n'+
+    'หัก ณ ที่จ่าย '+b.wht_pct_snapshot+'%: -'+_bl_fmt(b.wht_amt)+' ฿\n'+
+    'VAT '+b.vat_pct_snapshot+'%: '+_bl_fmt(b.vat_amt)+' ฿\n'+
+    'ยอดสุทธิ: '+_bl_fmt(b.net_amt)+' ฿\n'+
+    'สถานะ: '+b.status;
+  alert(html);
+}
+
+async function billingMarkPaid(id){
+  if(!confirm('บันทึกใบนี้ว่าจ่ายแล้ว?')) return;
+  var b = _BL_BILLS.find(function(x){return x.id===id;});
+  if(!b) return;
+  try{
+    var by = currentUser ? (currentUser.fname+' '+currentUser.lname).trim() : 'unknown';
+    var payload = {status:'paid', status_changed_at:new Date().toISOString(), status_changed_by:by, paid_date:new Date().toISOString().substring(0,10), paid_amount:b.net_amt, updated_by:by};
+    await fetch(SUPA_URL+'/rest/v1/gyt_billings?id=eq.'+id, {
+      method:'PATCH',
+      headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY, 'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(typeof showToast==='function') showToast('✅ บันทึกจ่ายแล้ว');
+    await billingLoadAll();
+  }catch(e){
+    console.error('mark paid err:', e);
+    if(typeof showToast==='function') showToast('บันทึกไม่สำเร็จ: '+e.message);
+  }
 }
 
 function rcptInit(){
