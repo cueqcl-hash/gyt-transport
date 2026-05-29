@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ใบเสร็จรับเงิน — GYT</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:'Sarabun',sans-serif;background:#f0f0f0;font-size:13px;line-height:1.5;color:#111}
+.a4{width:210mm;min-height:297mm;background:#fff;margin:0 auto;padding:18mm;box-shadow:0 2px 24px rgba(0,0,0,0.12)}
+.hdr{display:flex;align-items:flex-start;gap:14px;border-bottom:3px solid #F59E0B;padding-bottom:7mm;margin-bottom:7mm}
+.hdr-logo{height:64px;width:auto;flex-shrink:0}
+.hdr-text{flex:1}
+.hdr-co{font-size:16px;font-weight:700;color:#1E5C3A}
+.hdr-tag{font-size:11px;color:#666;font-style:italic;margin-top:1px}
+.hdr-addr,.hdr-tel,.hdr-tax{font-size:10.5px;color:#555;margin-top:2px;line-height:1.5}
+.hdr-tax{font-weight:600}
+.hdr-right{text-align:center;flex-shrink:0;width:175px}
+.doc-title-box{font-size:18px;font-weight:700;color:#fff;background:#F59E0B;padding:8px 14px;border-radius:5px;letter-spacing:2px}
+.doc-meta{font-size:11px;color:#444;margin-top:6px;text-align:right;line-height:1.7}
+.doc-meta strong{color:#7A4F00;font-weight:700}
+.cust{background:#FFFBEB;border:1px solid #FCD34D;border-left:4px solid #F59E0B;border-radius:4px;padding:10px 14px;margin-bottom:6mm}
+.cust-row{display:flex;gap:10px;font-size:12.5px;margin-bottom:3px;line-height:1.65}
+.cust-label{color:#666;font-weight:600;min-width:95px}
+.cust-val{color:#111;font-weight:600;flex:1}
+.statement{background:#F0FDF4;border:2px solid #10B981;border-radius:8px;padding:14px 18px;margin:7mm 0;text-align:center}
+.statement-label{font-size:13px;color:#065F46;font-weight:600;margin-bottom:5px}
+.statement-amt{font-size:32px;font-weight:800;color:#065F46}
+.statement-words{font-size:13px;color:#444;margin-top:5px;font-style:italic}
+.ref-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6mm}
+.ref-table th{background:#F2F7F4;color:#1E5C3A;font-weight:700;padding:6px 10px;border:1px solid #ccc;text-align:left;font-size:11.5px}
+.ref-table td{padding:6px 10px;border:1px solid #e0e0e0}
+.ref-table td.r{text-align:right;font-weight:500}
+.ref-table tr.total td{background:#FAFAF6;font-weight:700;color:#1E5C3A;border-top:2px solid #2D7A4F}
+.ref-table tr.total td.r{color:#065F46;font-size:14px}
+.paymeta{display:grid;grid-template-columns:1fr 1fr;gap:14mm;background:#FAFAF6;padding:10px 14px;border-radius:4px;border-left:4px solid #10B981;margin-bottom:6mm;font-size:12px}
+.paymeta-row{display:flex;gap:8px;line-height:1.6}
+.paymeta-row span:first-child{color:#666;font-weight:600;min-width:90px}
+.paymeta-row span:last-child{color:#111;font-weight:600}
+.notes-box{margin-top:5mm;background:#FFFBEB;border:1px solid #F59E0B;border-radius:4px;padding:8px 12px;font-size:11.5px;color:#78350F;line-height:1.55}
+.sigs{display:grid;grid-template-columns:1fr 1fr;gap:14mm;margin-top:22mm}
+.sig{text-align:center;font-size:11.5px}
+.sig-line{border-bottom:1px solid #555;height:20mm;margin-bottom:4px}
+.sig-lbl{color:#444;line-height:1.65}
+.sig-lbl strong{display:block;font-size:12px;color:#222;margin-bottom:2px}
+.controls{position:fixed;top:14px;right:14px;display:flex;gap:8px;z-index:999}
+.btn-print{background:#F59E0B;color:#fff;border:none;padding:11px 22px;border-radius:8px;font-size:14px;font-family:inherit;cursor:pointer;font-weight:600}
+.btn-close{background:#fff;color:#333;border:1.5px solid #ccc;padding:11px 18px;border-radius:8px;font-size:14px;font-family:inherit;cursor:pointer}
+@page{size:A4 portrait;margin:0}
+@media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}html,body{background:#fff !important;margin:0 !important;padding:0 !important}body{zoom:0.97}.a4{box-shadow:none !important;margin:0 !important;padding:14mm !important;width:210mm !important;min-height:0 !important;height:auto !important}.controls,.no-print{display:none !important}}
+</style></head><body>
+<div class="controls no-print"><button class="btn-close" onclick="window.close()">✕ ปิด</button><button class="btn-print" onclick="window.print()">🖨 พิมพ์</button></div>
+<div class="a4">
+  <div class="hdr">
+    <img class="hdr-logo" id="hdr-logo" alt="GYT">
+    <div class="hdr-text">
+      <div class="hdr-co">บริษัท กรีน เยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด</div>
+      <div class="hdr-tag">"บริการ ไม่ประจำทาง"</div>
+      <div class="hdr-addr">31/1 ซ.เชื้อเพลิง(อมร) ถ.เชื้อเพลิง แขวงช่องนนทรี เขตยานนาวา กรุงเทพมหานคร 10120</div>
+      <div class="hdr-tel">Tel: 081-828-7991, 081-840-4408 | Email: greenyellowtransportth@gmail.com</div>
+      <div class="hdr-tax">เลขประจำตัวผู้เสียภาษีอากร: 0115544003652</div>
+    </div>
+    <div class="hdr-right">
+      <div class="doc-title-box">ใบเสร็จรับเงิน</div>
+      <div class="doc-meta">เลขที่ <strong id="r-no">—</strong><br>วันที่ออก <strong id="r-date">—</strong></div>
+    </div>
+  </div>
+  <div class="cust">
+    <div class="cust-row"><span class="cust-label">ได้รับเงินจาก:</span><span class="cust-val" id="c-name">—</span></div>
+    <div class="cust-row"><span class="cust-label">ที่อยู่:</span><span class="cust-val" id="c-addr">—</span></div>
+    <div class="cust-row"><span class="cust-label">เลขผู้เสียภาษี:</span><span class="cust-val" id="c-tax">—</span></div>
+  </div>
+  <div class="statement">
+    <div class="statement-label">จำนวนเงินที่ได้รับ</div>
+    <div class="statement-amt"><span id="big-amt">—</span> บาท</div>
+    <div class="statement-words" id="amt-words">—</div>
+  </div>
+  <table class="ref-table">
+    <thead><tr><th style="width:40%">รายการอ้างอิง</th><th>รายละเอียด</th><th class="r" style="width:18%">จำนวนเงิน (บาท)</th></tr></thead>
+    <tbody>
+      <tr><td>ใบวางบิลเลขที่</td><td id="ref-bill-no">—</td><td class="r" id="ref-subtotal">—</td></tr>
+      <tr><td>วันที่ใบวางบิล</td><td id="ref-bill-date">—</td><td class="r">—</td></tr>
+      <tr><td>หัก ณ ที่จ่าย <span id="ref-wht-pct">0</span>%</td><td>หักภาษี ณ ที่จ่าย</td><td class="r" style="color:#C0392B" id="ref-wht-amt">—</td></tr>
+      <tr id="ref-vat-row"><td>VAT <span id="ref-vat-pct">0</span>%</td><td>ภาษีมูลค่าเพิ่ม</td><td class="r" style="color:#1E5C3A" id="ref-vat-amt">—</td></tr>
+      <tr class="total"><td colspan="2">รวมเป็นเงินที่ได้รับ</td><td class="r" id="ref-net">—</td></tr>
+    </tbody>
+  </table>
+  <div class="paymeta">
+    <div class="paymeta-row"><span>ชำระเมื่อ:</span><span id="m-paid-date">—</span></div>
+    <div class="paymeta-row"><span>วิธีการชำระ:</span><span id="m-paid-note">—</span></div>
+    <div class="paymeta-row"><span>ผู้ออกใบเสร็จ:</span><span id="m-printed-by">—</span></div>
+    <div class="paymeta-row"><span>เวลาที่ออก:</span><span id="m-printed-at">—</span></div>
+  </div>
+  <div class="notes-box">📌 <strong>หมายเหตุ:</strong> ใบเสร็จรับเงินนี้ออกเพื่อรับรองการชำระเงินตามใบวางบิลเลขที่ <span id="note-bill">—</span> เท่านั้น กรุณาเก็บไว้เป็นหลักฐาน</div>
+  <div class="sigs">
+    <div class="sig"><div class="sig-line"></div><div class="sig-lbl"><strong>ผู้รับเงิน</strong>(......................................)<br>วันที่ ....... / ....... / .......</div></div>
+    <div class="sig"><div class="sig-line"></div><div class="sig-lbl"><strong>ผู้จ่ายเงิน / ตัวแทน</strong>(......................................)<br>วันที่ ....... / ....... / .......</div></div>
+  </div>
+</div>
+<script>
+(function(){try{if(window.opener&&window.opener._BL_TEMPLATE_CACHE){var m=window.opener._BL_TEMPLATE_CACHE.match(/src="(data:image\/png;base64,[^"]+)"/);if(m)document.getElementById('hdr-logo').src=m[1];}}catch(e){}})();
+function fmt(n){var x=+n||0;return x.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function thDate(iso){if(!iso)return '—';var d=new Date(iso);if(isNaN(d))return iso;return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+(d.getFullYear()+543);}
+function thDatetime(iso){if(!iso)return '—';var d=new Date(iso);if(isNaN(d))return iso;return thDate(iso)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function bahtText(n){var num=Math.abs(+n||0);var th=['','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];var pos=['','สิบ','ร้อย','พัน','หมื่น','แสน','ล้าน'];function readInt(s){if(s==='0')return '';var r='',len=s.length;for(var i=0;i<len;i++){var d=+s[i],p=len-1-i;if(d===0)continue;if(p===0&&d===1&&len>1)r+='เอ็ด';else if(p===1&&d===2)r+='ยี่';else if(p===1&&d===1)r+='';else r+=th[d];r+=pos[p];}return r;}var s=num.toFixed(2).split('.');var bahtInt=s[0],sat=s[1];var t='';if(bahtInt.length>6){var m=bahtInt.length-6;t+=readInt(bahtInt.slice(0,m))+'ล้าน';bahtInt=bahtInt.slice(m);}t+=readInt(bahtInt)+'บาท';if(sat==='00')t+='ถ้วน';else t+=readInt(sat)+'สตางค์';return t;}
+window.fillReceipt=function(bill){if(!bill)return;var snap=bill.customer_snapshot||{};
+document.getElementById('r-no').textContent=bill.receipt_no||'—';
+document.getElementById('r-date').textContent=thDate(bill.receipt_date||bill.paid_date);
+document.getElementById('c-name').textContent=snap.name||'—';
+document.getElementById('c-addr').textContent=snap.address||'—';
+document.getElementById('c-tax').textContent=snap.tax_id||'—';
+document.getElementById('big-amt').textContent=fmt(bill.net_amt);
+document.getElementById('amt-words').textContent='( '+bahtText(bill.net_amt)+' )';
+document.getElementById('ref-bill-no').textContent=bill.bill_no||'—';
+document.getElementById('ref-bill-date').textContent=thDate(bill.bill_date);
+document.getElementById('ref-subtotal').textContent=fmt(bill.subtotal);
+document.getElementById('ref-wht-pct').textContent=(+bill.wht_pct_snapshot||0);
+document.getElementById('ref-wht-amt').textContent='-'+fmt(bill.wht_amt);
+document.getElementById('ref-vat-pct').textContent=(+bill.vat_pct_snapshot||0);
+document.getElementById('ref-vat-amt').textContent=fmt(bill.vat_amt);
+if(!(+bill.vat_pct_snapshot))document.getElementById('ref-vat-row').style.display='none';
+document.getElementById('ref-net').textContent=fmt(bill.net_amt);
+document.getElementById('m-paid-date').textContent=thDate(bill.paid_date);
+document.getElementById('m-paid-note').textContent=bill.paid_note||'—';
+document.getElementById('m-printed-by').textContent=bill.receipt_printed_by||'—';
+document.getElementById('m-printed-at').textContent=thDatetime(bill.receipt_printed_at);
+document.getElementById('note-bill').textContent=bill.bill_no||'—';
+document.title='ใบเสร็จ '+(bill.receipt_no||'')+' — GYT';};
+window.addEventListener('message',function(e){if(e.data&&e.data.type==='fillReceipt')window.fillReceipt(e.data.bill);});
+if(window.opener&&typeof window.opener.getReceiptData==='function'){setTimeout(function(){try{window.fillReceipt(window.opener.getReceiptData());}catch(e){}},100);}
+</script>
+</body></html>
