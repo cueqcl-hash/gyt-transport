@@ -91,7 +91,7 @@ a.nav-item:visited,a.nav-item:hover,a.nav-item:active{text-decoration:none}
 .stat-card{background:var(--surface);border-radius:var(--radius-lg);padding:10px 12px;border:1px solid var(--border);box-shadow:var(--shadow);text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:96px}
 .stat-label{font-size:16px;color:var(--text-2);margin-bottom:2px;font-weight:700;letter-spacing:0;line-height:1.1;text-transform:none}
 .stat-num{font-size:48px;font-weight:800;line-height:1}
-.stat-sub-big{font-size:13px;color:var(--text-3);margin-top:2px;font-weight:600}
+.stat-sub{font-size:13px;color:var(--text-3);margin-top:2px;font-weight:600}
 .stat-card > div[style*="font-size:10px"]{font-size:13px !important;color:var(--text) !important;font-weight:700 !important}
 @media (max-width:1100px){
   .stat-num{font-size:40px}
@@ -1149,6 +1149,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="bill-tabs">
           <div class="bill-tab active" data-bill-tab="issued" onclick="billingSwitchView('issued')">📑 ใบวางบิล <span class="bill-tab-badge" id="bt-issued-c">0</span></div>
           <div class="bill-tab" data-bill-tab="create" onclick="billingSwitchView('create')">✏️ ออกใบใหม่</div>
+          <div class="bill-tab" data-bill-tab="paid" onclick="billingSwitchView('paid')">💰 ชำระเงินเรียบร้อย <span class="bill-tab-badge" id="bt-paid-c">0</span></div>
+          <div class="bill-tab" data-bill-tab="receipt" onclick="billingSwitchView('receipt')">🧾 ออกใบเสร็จรับเงิน <span class="bill-tab-badge" id="bt-receipt-c">0</span></div>
           <div class="bill-tab" data-bill-tab="master" onclick="billingSwitchView('master')">👥 ลูกค้าวางบิล <span class="bill-tab-badge" id="bt-master-c">0</span></div>
         </div>
 
@@ -1174,6 +1176,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:65px">รายการ</th>
               <th style="padding:9px 10px;text-align:right;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:110px">ยอดสุทธิ (฿)</th>
               <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:110px">สถานะ</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:130px">ออกโดย / เมื่อ</th>
               <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:140px">จัดการ</th>
             </tr></thead>
             <tbody id="bl-issued-tbody"></tbody>
@@ -1193,10 +1196,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <option value="">-- เลือกลูกค้า --</option>
             </select>
             <span style="font-size:12px;color:var(--text-2);margin-left:8px">ช่วงวันที่:</span>
-            <input type="text" class="fi" id="bc-flt-from" placeholder="DD/MM/YYYY" style="width:110px;height:32px" oninput="billingRenderCreate()">
+            <div class="fi-loc" style="width:130px;height:32px"><input type="text" class="fi" id="bc-flt-from" placeholder="DD/MM/YYYY" style="height:32px" oninput="billingRenderCreate()" onchange="billingRenderCreate()"><button class="loc-btn" onclick="document.getElementById('bc-flt-from')._flatpickr?.open()" style="cursor:pointer">📅</button></div>
             <span style="font-size:12px;color:var(--text-3)">ถึง</span>
-            <input type="text" class="fi" id="bc-flt-to" placeholder="DD/MM/YYYY" style="width:110px;height:32px" oninput="billingRenderCreate()">
-            <button class="btn btn-ghost" onclick="document.getElementById('bc-flt-from').value='';document.getElementById('bc-flt-to').value='';billingRenderCreate();" style="height:32px">ล้าง</button>
+            <div class="fi-loc" style="width:130px;height:32px"><input type="text" class="fi" id="bc-flt-to" placeholder="DD/MM/YYYY" style="height:32px" oninput="billingRenderCreate()" onchange="billingRenderCreate()"><button class="loc-btn" onclick="document.getElementById('bc-flt-to')._flatpickr?.open()" style="cursor:pointer">📅</button></div>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2);cursor:pointer;margin-left:8px"><input type="checkbox" id="bc-show-all-jobs" onchange="billingRenderCreate()"> แสดงทุก job (รวมที่วางบิลแล้ว)</label>
+            <button class="btn btn-ghost" onclick="document.getElementById('bc-flt-from').value='';document.getElementById('bc-flt-to').value='';document.getElementById('bc-show-all-jobs').checked=false;billingRenderCreate();" style="height:32px;margin-left:auto">ล้าง filter</button>
           </div>
           <div class="tbl-wrap"><div class="tbl-scroll">
           <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -1207,6 +1211,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2)">เส้นทาง / Booking</th>
               <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:80px">ตู้</th>
               <th style="padding:9px 8px;text-align:right;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:110px">ค่าใช้จ่าย</th>
+              <th style="padding:9px 8px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:130px">สถานะวางบิล</th>
             </tr></thead>
             <tbody id="bc-jobs-tbody"></tbody>
           </table>
@@ -1216,6 +1221,60 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <span style="font-size:13px;color:var(--text-2)">เลือกแล้ว: <strong style="color:var(--text-1)" id="bc-sel-count">0</strong> ใบ • ยอดรวม: <strong style="font-family:var(--mono);color:var(--text-1)" id="bc-sel-sum">0</strong> ฿</span>
             <button class="btn btn-green" id="bc-create-btn" onclick="billingCreateBill()" disabled style="margin-left:auto;height:36px">✏️ สร้างใบวางบิล →</button>
           </div>
+        </div>
+
+        <!-- 🆕 v116 PANEL: ชำระเงินเรียบร้อย -->
+        <div class="bill-panel" id="bill-panel-paid">
+          <div style="background:#D1FAE5;border:1px solid #10B981;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#065F46">
+            💰 รายการใบวางบิลที่ลูกค้า <strong>จ่ายเงินแล้ว</strong> — สามารถ <strong>ออกใบเสร็จรับเงิน</strong> ให้ลูกค้าได้ที่ Tab ถัดไป
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+            <input class="fi" id="bp-search" placeholder="🔍 ค้นเลขใบ / ลูกค้า / เลขใบเสร็จ..." oninput="billingRenderPaid()" style="flex:1;min-width:240px;height:32px;max-width:400px">
+            <span style="font-size:12px;color:var(--text-3)">รวม <strong style="color:var(--text-1)" id="bp-count">0</strong> ใบ • ยอดสุทธิ <strong style="color:#10B981;font-family:var(--mono)" id="bp-total">0</strong> ฿</span>
+          </div>
+          <div class="tbl-wrap"><div class="tbl-scroll">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:#F0FDF4">
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:120px">เลขที่ใบ</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:90px">วันออกใบ</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2)">ลูกค้า</th>
+              <th style="padding:9px 10px;text-align:right;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:110px">ยอดสุทธิ (฿)</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:90px">วันที่จ่าย</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:140px">หมายเหตุการจ่าย</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:130px">เลขใบเสร็จ</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:130px">จัดการ</th>
+            </tr></thead>
+            <tbody id="bp-tbody"></tbody>
+          </table>
+          </div></div>
+          <div id="bp-empty" style="display:none;text-align:center;padding:40px;color:var(--text-3)">ยังไม่มีใบที่ชำระแล้ว</div>
+        </div>
+
+        <!-- 🆕 v116 PANEL: ออกใบเสร็จรับเงิน -->
+        <div class="bill-panel" id="bill-panel-receipt">
+          <div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#78350F">
+            🧾 ออกใบเสร็จรับเงิน สำหรับใบวางบิลที่ลูกค้าชำระแล้ว แต่ <strong>ยังไม่ได้ออกใบเสร็จ</strong> — กดปุ่ม "ออกใบเสร็จ" ระบบจะ generate เลข RC-XX-NNN อัตโนมัติ
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+            <input class="fi" id="br-search" placeholder="🔍 ค้นเลขใบ / ลูกค้า..." oninput="billingRenderReceipt()" style="flex:1;min-width:240px;height:32px;max-width:400px">
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2);cursor:pointer"><input type="checkbox" id="br-show-issued" onchange="billingRenderReceipt()"> แสดงรวมใบที่ออกเสร็จแล้ว</label>
+            <span style="font-size:12px;color:var(--text-3)">รอออก <strong style="color:#F59E0B" id="br-count">0</strong> ใบ</span>
+          </div>
+          <div class="tbl-wrap"><div class="tbl-scroll">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:#FFFBEB">
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:120px">เลขที่ใบวางบิล</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2)">ลูกค้า</th>
+              <th style="padding:9px 10px;text-align:right;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:110px">ยอดสุทธิ (฿)</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:100px">วันที่จ่าย</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:160px">เลขที่ใบเสร็จ</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:140px">ออกโดย / เมื่อ</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:160px">จัดการ</th>
+            </tr></thead>
+            <tbody id="br-tbody"></tbody>
+          </table>
+          </div></div>
+          <div id="br-empty" style="display:none;text-align:center;padding:40px;color:var(--text-3)">ไม่มีใบที่รอออกใบเสร็จ</div>
         </div>
 
         <!-- PANEL 3: Customer master -->
@@ -2526,6 +2585,7 @@ const ALL_PERMS = [
   {id:'manage_finance', label:'จัดการการเงิน (น้ำมัน/ทางด่วน)', group:'การเงิน'},
   {id:'manage_receipts', label:'บันทึกใบเสร็จเข้าออฟฟิศ', group:'การเงิน'},  // 🆕 v083
   {id:'manage_billing',  label:'ออกใบวางบิล (น้าปุ้ม)',  group:'การเงิน'},  // 🆕 v114
+  {id:'share_jobs',      label:'ส่งงานทาง LINE',          group:'ตารางงาน'},  // 🆕 v120 — สิทธิ์ส่งใบงานเข้า LINE
   {id:'view_weight',  label:'ดูน้ำหนักสินค้า',      group:'ข้อมูลในใบงาน'},
   {id:'view_plate',   label:'ดูทะเบียน/คนขับ',      group:'ข้อมูลในใบงาน'},
   {id:'view_location',label:'ดูลิงก์ Map',           group:'ข้อมูลในใบงาน'},
@@ -2552,7 +2612,8 @@ const DEFAULT_PERMS = {
                'manage_finance','manage_receipts','manage_billing','export'],  // 🆕 v114
   staff:   ['view_jobs','add_jobs','edit_jobs','delete_jobs','update_status',
             'view_customer','view_shipper','view_carrier','view_weight','view_plate','view_location',
-            'dashboard','view_vehicles','view_drivers','view_settings'],
+            'dashboard','view_vehicles','view_drivers','view_settings',
+            'share_jobs'],  // 🆕 v120 — staff (dispatchers) default ส่ง LINE ได้
 };
 
 let users = [
@@ -18453,13 +18514,14 @@ function renderJobs(){
   const canEdit = hasPerm('edit_jobs');
   const canDelete = hasPerm('delete_jobs');
   const canStatus = hasPerm('update_status');
+  const canShare = hasPerm('share_jobs');  // 🆕 v120 — ส่ง LINE
 
   // Header
   // checkbox col ซ้ายสุด (sticky left) + action col ขวาสุด (sticky right) เฉพาะ icon buttons
   document.getElementById('j-thead-row').innerHTML=
     '<th class="cb-th-left" style="width:36px;min-width:36px;text-align:center;position:sticky;left:0;background:#F2F7F4;z-index:3"><input type="checkbox" class="row-cb" id="cb-all-hdr" onchange="toggleSelectAll(this)" title="เลือกทั้งหมด" style="vertical-align:middle;cursor:pointer"></th>'+
     cols.map(c=>`<th style="min-width:${c.width}" data-col="${c.id}" class="draggable">${c.label}</th>`).join('')+
-    '<th style="width:140px;min-width:140px;text-align:center;position:sticky;right:0;background:#F2F7F4;z-index:2">จัดการ</th>';
+    '<th style="width:170px;min-width:170px;text-align:center;position:sticky;right:0;background:#F2F7F4;z-index:2">จัดการ</th>';
   initColDrag();
 
   const tbody=document.getElementById('j-tbody');
@@ -18502,12 +18564,18 @@ function renderJobs(){
         <input type="checkbox" class="row-cb" data-id="${j.id}" ${isSelected?'checked':''} onchange="onRowCheck(this)" data-tip="เลือกใบงานนี้" style="vertical-align:middle;cursor:pointer">
       </td>`;
       // action cell ขวาสุด — icon-only buttons + custom tooltip
+      // 🆕 v120 — ปุ่ม 📱 ส่ง LINE + badge "ส่งแล้ว" ถ้าเคยส่ง
+      var lineSentBadge = j.line_sent_at
+        ? `<div style="font-size:9px;color:#06C755;font-weight:700;margin-top:2px" data-tip="ส่งโดย ${(j.line_sent_by||'?')} เมื่อ ${_fmtShortDt(j.line_sent_at)}">✅ ส่งแล้ว</div>`
+        : '';
       const actionCell=`<td style="position:sticky;right:0;background:${isSelected?'#E8F5E9':'#fff'};z-index:1;border-left:1px solid var(--border);padding:4px 4px;white-space:nowrap;text-align:center">
         <button class="tbl-action tbl-icon-btn" onclick="openDetail('${j.id}')" data-tip="ดู" style="color:var(--green)">👁</button>
         <button class="tbl-action tbl-icon-btn" onclick="openPrint('${j.id}')" data-tip="พิมพ์ใบปฏิบัติงาน" style="color:#1A5276">🖨</button>
+        ${canShare?`<button class="tbl-action tbl-icon-btn" onclick="shareJobToLine('${j.id}')" data-tip="ส่งงานทาง LINE" style="padding:2px 4px;vertical-align:middle"><svg viewBox="0 0 64 64" width="22" height="22" style="display:inline-block;vertical-align:middle"><rect width="64" height="64" rx="13" fill="#06C755"/><text x="32" y="40" font-family="Arial,sans-serif" font-size="18" font-weight="900" fill="#fff" text-anchor="middle" letter-spacing="0.5">LINE</text></svg></button>`:''}
         ${canEdit?`<button class="tbl-action tbl-icon-btn" onclick="openEditJob('${j.id}')" data-tip="แก้ไข" style="color:#E67E22">✏️</button>`:''}
         ${canStatus?`<button class="tbl-action tbl-icon-btn" onclick="quickStatus('${j.id}')" data-tip="อัปเดตสถานะ" style="color:var(--green-d)">🔄</button>`:''}
         ${canDelete?`<button class="tbl-action tbl-icon-btn" onclick="confirmDeleteJob('${j.id}')" data-tip="ลบ" style="color:var(--red)">🗑</button>`:''}
+        ${lineSentBadge}
       </td>`;
       return`<tr class="${isSelected?'row-selected':''}">${cbCell}${cells}${actionCell}</tr>`;
     }).join('');
@@ -20274,6 +20342,144 @@ function savePair(){
 var _printJobId = null;
 
 function openPrint(jobId){ openCostModal(jobId); }
+
+/* ════════════════════════════════════════════════════════════════
+   🆕 v120 — Share job to LINE
+   - Format ข้อความใบงาน + Google Maps links
+   - Copy ลง clipboard + เปิด LINE (https://line.me/R/msg/text/?<text>)
+   - PATCH gyt_jobs ใส่ line_sent_at + line_sent_by (audit)
+   ════════════════════════════════════════════════════════════════ */
+function _fmtShortDt(iso){
+  if(!iso) return '';
+  try{ var d=new Date(iso); var p=function(n){return String(n).padStart(2,'0');}; return p(d.getDate())+'/'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes()); }catch(e){return '';}
+}
+function _fmtDtThai(iso){
+  if(!iso) return '-';
+  try{
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return String(iso);
+    var p=function(n){return String(n).padStart(2,'0');};
+    var be = d.getFullYear()+543;
+    return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+String(be).slice(-2)+' '+p(d.getHours())+':'+p(d.getMinutes());
+  }catch(e){return String(iso);}
+}
+function _buildLineMsg(j){
+  var L = [];
+  L.push('🚛 GYT Transport — ใบงาน '+(j.id||''));
+  L.push('━━━━━━━━━━━━━━━━━');
+  if(j.startdate) L.push('📅 รับงาน: '+_fmtDtThai(j.startdate));
+  if(j.deliverdate) L.push('⏰ จัดส่ง: '+_fmtDtThai(j.deliverdate));
+  if(j.delivery_type) L.push('   ('+j.delivery_type+')');
+  L.push('');
+  if(j.plate) L.push('🚚 ทะเบียน: '+j.plate);
+  if(j.driver) L.push('👤 คนขับ: '+j.driver);
+  L.push('');
+  if(j.shipper) L.push('🏢 ลูกค้า: '+j.shipper);
+  if(j.container || j.type){
+    var ct = (j.container||'') + (j.type?' / '+j.type:'');
+    L.push('📦 ตู้: '+ct.trim());
+  }
+  if(j.weight) L.push('⚖️ น้ำหนัก: '+j.weight+' กก.');
+  if(j.booking) L.push('🔖 Booking: '+j.booking);
+  L.push('');
+  L.push('📍 ต้นทาง: '+(j.origin||'-'));
+  if(j.originUrl) L.push('   🗺️ '+j.originUrl);
+  L.push('🎯 ปลายทาง: '+(j.dest||'-'));
+  if(j.destUrl) L.push('   🗺️ '+j.destUrl);
+  if(j.returnyard){
+    L.push('🏁 คืนตู้: '+j.returnyard);
+    if(j.returnyardUrl) L.push('   🗺️ '+j.returnyardUrl);
+  }
+  if(j.note){
+    L.push('');
+    L.push('📝 หมายเหตุ: '+j.note);
+  }
+  return L.join('\n');
+}
+function _isMobileDevice(){
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+async function shareJobToLine(jobId){
+  var j = jobs.find(function(x){return x.id===jobId;});
+  if(!j){ if(typeof showToast==='function') showToast('ไม่พบใบงาน'); return; }
+  if(!hasPerm('share_jobs')){ if(typeof showToast==='function') showToast('คุณไม่มีสิทธิ์ส่งงาน'); return; }
+  var msg = _buildLineMsg(j);
+  // 1) Copy ข้อความเข้าคลิปบอร์ดก่อนเสมอ (สำคัญสุด)
+  var copied = false;
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(msg); copied = true;
+    }else{
+      var ta = document.createElement('textarea');
+      ta.value = msg; ta.style.position='fixed'; ta.style.left='-9999px';
+      document.body.appendChild(ta); ta.select();
+      try{document.execCommand('copy'); copied = true;}catch(_e){}
+      document.body.removeChild(ta);
+    }
+  }catch(e){ console.warn('clipboard write failed:', e); }
+  // 2) แยก mobile vs desktop
+  var isMobile = _isMobileDevice();
+  if(isMobile){
+    // Mobile: เปิดแอป LINE ตรงๆ (line.me/R/share รับ text ได้บนมือถือ)
+    var mobileUrl = 'https://line.me/R/share?text='+encodeURIComponent(msg);
+    window.location.href = mobileUrl;  // ใช้ location.href แทน window.open ให้แน่ใจว่าเปิดในแอป
+  }else{
+    // Desktop: ลอง launch LINE for PC ผ่าน custom protocol (ไม่ทุกเครื่องจะมี)
+    // ถ้าไม่มี LINE for PC ก็ไม่เป็นไร เพราะ copy ลง clipboard ไว้แล้ว
+    showLineDesktopHelp(j, msg, copied);
+  }
+  // 3) บันทึก audit (line_sent_at + line_sent_by) — try/catch กันกรณี column ยังไม่ถูก add ใน DB
+  var byName = currentUser ? (currentUser.fname+' '+(currentUser.lname||'')).trim() : 'unknown';
+  var nowIso = new Date().toISOString();
+  try{
+    var resp = await fetch(SUPA_URL+'/rest/v1/gyt_jobs?id=eq.'+encodeURIComponent(jobId), {
+      method:'PATCH',
+      headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY, 'Content-Type':'application/json', Prefer:'return=minimal'},
+      body: JSON.stringify({line_sent_at: nowIso, line_sent_by: byName})
+    });
+    if(resp.ok){
+      j.line_sent_at = nowIso;
+      j.line_sent_by = byName;
+      if(typeof renderJobs==='function') renderJobs();
+    }
+  }catch(e){ console.warn('line_sent audit failed (column may not exist yet):', e); }
+}
+
+/* Modal บอก user ว่า copy แล้ว — ไป paste ใน LINE (desktop only) */
+function showLineDesktopHelp(j, msg, copied){
+  // ลบ modal เก่าก่อน (ถ้ามี)
+  var old = document.getElementById('line-share-help');
+  if(old) old.remove();
+  var bg = document.createElement('div');
+  bg.id = 'line-share-help';
+  bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var msgEsc = msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  bg.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3)">'
+    +'<div style="background:linear-gradient(135deg,#06C755,#04A648);color:#fff;padding:18px 22px">'
+    +  '<div style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px"><svg viewBox="0 0 64 64" width="28" height="28"><rect width="64" height="64" rx="13" fill="#fff"/><text x="32" y="40" font-family="Arial,sans-serif" font-size="18" font-weight="900" fill="#06C755" text-anchor="middle" letter-spacing="0.5">LINE</text></svg> ส่งงานทาง LINE</div>'
+    +  '<div style="font-size:13px;opacity:0.95;margin-top:4px">ใบงาน '+(j.id||'')+' — '+(j.shipper||'')+'</div>'
+    +'</div>'
+    +'<div style="padding:18px 22px;overflow:auto;flex:1">'
+    +  (copied
+        ? '<div style="background:#D1FAE5;color:#065F46;padding:10px 14px;border-radius:8px;font-weight:600;margin-bottom:14px">✅ คัดลอกข้อความเรียบร้อย</div>'
+        : '<div style="background:#FEF3C7;color:#92400E;padding:10px 14px;border-radius:8px;font-weight:600;margin-bottom:14px">⚠️ คัดลอกไม่สำเร็จ — กรุณา copy เองด้านล่าง</div>')
+    +  '<div style="font-size:13px;color:#374151;margin-bottom:8px;font-weight:600">วิธีใช้:</div>'
+    +  '<ol style="font-size:13px;color:#374151;padding-left:22px;margin:0 0 14px 0;line-height:1.7">'
+    +    '<li>เปิดแอป <strong>LINE</strong> ในคอม (หรือ <a href="https://line.me/" target="_blank" style="color:#06C755">line.me</a>)</li>'
+    +    '<li>เลือกห้องแชต (คนขับ หรือ กลุ่ม)</li>'
+    +    '<li>กด <strong>Ctrl+V</strong> เพื่อ paste แล้วกด Enter</li>'
+    +  '</ol>'
+    +  '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:#6B7280;font-weight:600">📄 ดูข้อความที่จะส่ง / Copy เอง</summary>'
+    +    '<textarea readonly style="width:100%;height:240px;margin-top:8px;padding:10px;font-family:monospace;font-size:12px;border:1px solid #D1D5DB;border-radius:6px;background:#F9FAFB;resize:vertical" onclick="this.select()">'+msgEsc+'</textarea>'
+    +  '</details>'
+    +'</div>'
+    +'<div style="padding:14px 22px;background:#F9FAFB;border-top:1px solid #E5E7EB;display:flex;gap:8px;justify-content:flex-end">'
+    +  '<button onclick="document.getElementById(\'line-share-help\').remove()" style="padding:10px 22px;background:#06C755;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px">เข้าใจแล้ว</button>'
+    +'</div>'
+    +'</div>';
+  bg.onclick = function(e){ if(e.target===bg) bg.remove(); };
+  document.body.appendChild(bg);
+}
 
 function openCostModal(jobId){
   var j=jobs.find(function(x){return x.id===jobId;});
@@ -22856,7 +23062,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.119';
+const APP_VERSION = '2026.04.29.122';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -26026,6 +26232,13 @@ function billingInit(){
   billingSwitchView(_BL_VIEW);
   // load fresh data every time the page is opened
   billingLoadAll();
+  // 🆕 v116 — init date pickers for create-tab date range
+  setTimeout(function(){
+    if(typeof initDatePicker === 'function'){
+      try{ initDatePicker('bc-flt-from'); }catch(e){}
+      try{ initDatePicker('bc-flt-to'); }catch(e){}
+    }
+  }, 300);
 }
 
 function billingSwitchView(mode){
@@ -26040,7 +26253,8 @@ function billingSwitchView(mode){
 
 async function billingLoadAll(){
   try{
-    var url1 = SUPA_URL + '/rest/v1/gyt_billings?select=*&order=created_at.desc&limit=500';
+    // 🆕 v116 — sort ใบล่าสุดอยู่บนสุด (bill_date desc, ตามด้วย created_at เป็น tiebreaker)
+    var url1 = SUPA_URL + '/rest/v1/gyt_billings?select=*&order=bill_date.desc,created_at.desc&limit=2000';
     var url2 = SUPA_URL + '/rest/v1/gyt_billing_master?select=*&is_active=eq.true&order=customer_code.asc&limit=200';
     var h = {apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY};
     var [b, m] = await Promise.all([
@@ -26054,6 +26268,8 @@ async function billingLoadAll(){
     billingRenderMaster();
     billingPopulateCustomerDropdown();
     billingRenderCreate();
+    if(typeof billingRenderPaid==='function') billingRenderPaid();        // 🆕 v116
+    if(typeof billingRenderReceipt==='function') billingRenderReceipt();  // 🆕 v116
   }catch(e){
     console.error('billing load error:', e);
     if(typeof showToast==='function') showToast('โหลดข้อมูลใบวางบิลไม่สำเร็จ: '+e.message);
@@ -26069,6 +26285,12 @@ function _bl_date(iso){
   var d = new Date(iso);
   if(isNaN(d)) return iso;
   return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+(d.getFullYear()+543).toString().slice(-2);
+}
+function _bl_datetime(iso){
+  if(!iso) return '—';
+  var d = new Date(iso);
+  if(isNaN(d)) return iso;
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+(d.getFullYear()+543).toString().slice(-2)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
 function _bl_esc(s){
   return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -26118,6 +26340,10 @@ function billingRenderIssued(){
       '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--text-2)">'+items+'</td>'+
       '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:600">'+_bl_fmt(b.net_amt)+'</td>'+
       '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)"><span class="bl-badge '+b.status+'">'+statusLabel+'</span></td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-2)">'+
+        '<div style="font-weight:600;color:var(--text-1)">'+_bl_esc(b.created_by||'—')+'</div>'+
+        '<div style="font-size:10.5px;color:var(--text-3)">'+_bl_datetime(b.created_at)+'</div>'+
+      '</td>'+
       '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+
         '<button class="tbl-action tbl-icon-btn" onclick="billingViewBill('+b.id+')" data-tip="ดูใบวางบิล" style="color:var(--green)">👁</button>'+
         (b.status==='issued' ? '<button class="tbl-action tbl-icon-btn" onclick="billingMarkPaid('+b.id+')" data-tip="บันทึกว่าจ่ายแล้ว" style="color:#10B981">💰</button>' : '')+
@@ -26179,13 +26405,15 @@ async function billingRenderCreate(){
   try{
     var url = SUPA_URL + '/rest/v1/gyt_jobs?select=id,shipper,receipt_name,startdate,deliverdate,booking,container,type,origin,dest,returnyard,costs&order=startdate.desc&limit=500';
     var jobs = await fetch(url, {headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY}}).then(function(r){return r.json();});
-    // already-billed job IDs
-    var billed = new Set();
-    _BL_BILLS.forEach(function(b){ (b.job_ids||[]).forEach(function(j){billed.add(j);}); });
+    // already-billed job IDs (with which bill_no for display)
+    var billedMap = {};   // job_id → bill_no
+    _BL_BILLS.forEach(function(b){ (b.job_ids||[]).forEach(function(j){ billedMap[j] = b.bill_no; }); });
     // match logic: substring (case-insensitive)
     var custKey = (customer.customer_name||'').toLowerCase().split(' ')[0];
+    var showAll = document.getElementById('bc-show-all-jobs')?.checked;
     var matched = (jobs||[]).filter(function(j){
-      if(billed.has(j.id)) return false;
+      // 🆕 v116 — แสดงทุก job ที่ match ลูกค้า (ทั้ง billed/unbilled) ตาม checkbox
+      if(!showAll && billedMap[j.id]) return false;
       if(!j.costs) return false;
       var c = j.costs;
       var total = (+c.tripAmt||0)+(+c.boxAmt||0)+(+c.recvAmt||0)+(+c.retAmt||0)+(+c.portAmt||0)+(+c.tollAmt||0)+(+c.miscAmt||0)+(+c.misc2Amt||0);
@@ -26193,6 +26421,8 @@ async function billingRenderCreate(){
       var nm = ((j.shipper||'')+' '+(j.receipt_name||'')).toLowerCase();
       return custKey && nm.includes(custKey);
     });
+    // expose billedMap for renderer
+    window._BC_BILLED_MAP = billedMap;
     // filter by date range
     var df = document.getElementById('bc-flt-from').value;
     var dt = document.getElementById('bc-flt-to').value;
@@ -26208,13 +26438,21 @@ async function billingRenderCreate(){
       var total = (+c.tripAmt||0)+(+c.boxAmt||0)+(+c.recvAmt||0)+(+c.retAmt||0)+(+c.portAmt||0)+(+c.tollAmt||0)+(+c.miscAmt||0)+(+c.misc2Amt||0);
       var route = (j.origin||'?')+' → '+(j.dest||'?')+(j.returnyard?' → '+j.returnyard:'');
       var book = j.booking ? ' • '+j.booking : '';
-      return '<tr>'+
-        '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)"><input type="checkbox" class="bc-cb" data-job-id="'+_bl_esc(j.id)+'" data-job-amt="'+total+'" onchange="billingUpdateSelection()"></td>'+
+      var billedBy = (window._BC_BILLED_MAP||{})[j.id];
+      var isBilled = !!billedBy;
+      var rowStyle = isBilled ? 'background:#FAFAFA;opacity:0.75' : '';
+      var statusCell = isBilled
+        ? '<span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:600" title="วางบิลแล้วใน '+_bl_esc(billedBy)+'">✓ '+_bl_esc(billedBy)+'</span>'
+        : '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:600">🟡 ยังไม่วางบิล</span>';
+      var cbAttr = isBilled ? 'disabled' : '';
+      return '<tr style="'+rowStyle+'">'+
+        '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)"><input type="checkbox" class="bc-cb" data-job-id="'+_bl_esc(j.id)+'" data-job-amt="'+total+'" '+cbAttr+' onchange="billingUpdateSelection()"></td>'+
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11.5px">'+_bl_date(j.startdate)+'</td>'+
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--green-d);font-weight:600">'+_bl_esc(j.id)+'</td>'+
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:400px" title="'+_bl_esc(route+book)+'">'+_bl_esc(route+book)+'</td>'+
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-2)">'+_bl_esc((j.container||'')+(j.type?' '+j.type:''))+'</td>'+
         '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:600">'+_bl_fmt(total)+'</td>'+
+        '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)">'+statusCell+'</td>'+
         '</tr>';
     }).join('');
     document.getElementById('bc-sel-count').textContent='0';
@@ -26354,6 +26592,153 @@ async function billingMarkPaid(id){
   }catch(e){
     console.error('mark paid err:', e);
     if(typeof showToast==='function') showToast('บันทึกไม่สำเร็จ: '+e.message);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// 🆕 v116 — Tab "ชำระเงินเรียบร้อย" (Paid)
+// ════════════════════════════════════════════════════════════════
+function billingRenderPaid(){
+  var rows = _BL_BILLS.filter(function(b){return b.status==='paid';});
+  var q = (document.getElementById('bp-search')?.value||'').toLowerCase().trim();
+  if(q) rows = rows.filter(function(b){
+    var snap = b.customer_snapshot||{};
+    return (b.bill_no||'').toLowerCase().includes(q) || (snap.name||'').toLowerCase().includes(q) || (b.receipt_no||'').toLowerCase().includes(q);
+  });
+  document.getElementById('bp-count').textContent = rows.length;
+  var totalAmt = rows.reduce(function(s,b){return s+(+b.net_amt||0);}, 0);
+  document.getElementById('bp-total').textContent = _bl_fmt(totalAmt);
+  document.getElementById('bt-paid-c').textContent = _BL_BILLS.filter(function(b){return b.status==='paid';}).length;
+  var tbody = document.getElementById('bp-tbody');
+  var empty = document.getElementById('bp-empty');
+  if(!rows.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  tbody.innerHTML = rows.map(function(b){
+    var snap = b.customer_snapshot||{};
+    var receiptCell = b.receipt_no
+      ? '<span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:600;font-family:var(--mono)">'+_bl_esc(b.receipt_no)+'</span>'
+      : '<span style="color:var(--text-3);font-size:10.5px">— รอออก —</span>';
+    return '<tr class="bl-row-hover">'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--green-d);font-weight:600">'+_bl_esc(b.bill_no)+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-2)">'+_bl_date(b.bill_date)+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border)">'+_bl_esc(snap.name||'—')+'</td>'+
+      '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:700;color:#065F46">'+_bl_fmt(b.net_amt)+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">'+_bl_date(b.paid_date)+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-2)">'+_bl_esc(b.paid_note||'—')+'</td>'+
+      '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+receiptCell+'</td>'+
+      '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+
+        '<button class="tbl-action tbl-icon-btn" onclick="billingViewBill('+b.id+')" data-tip="ดูใบวางบิล" style="color:var(--green)">👁</button>'+
+        (b.receipt_no
+          ? '<button class="tbl-action tbl-icon-btn" onclick="openReceiptPrint('+b.id+')" data-tip="พิมพ์ใบเสร็จ" style="color:#F59E0B">🧾</button>'
+          : '<button class="tbl-action tbl-icon-btn" onclick="billingIssueReceipt('+b.id+')" data-tip="ออกใบเสร็จ" style="color:#F59E0B">+🧾</button>')+
+      '</td>'+
+      '</tr>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// 🆕 v116 — Tab "ออกใบเสร็จรับเงิน" (Receipt)
+// ════════════════════════════════════════════════════════════════
+function billingRenderReceipt(){
+  var paid = _BL_BILLS.filter(function(b){return b.status==='paid';});
+  var showIssued = document.getElementById('br-show-issued')?.checked;
+  var rows = paid.filter(function(b){ return showIssued ? true : !b.receipt_no; });
+  var q = (document.getElementById('br-search')?.value||'').toLowerCase().trim();
+  if(q) rows = rows.filter(function(b){
+    var snap = b.customer_snapshot||{};
+    return (b.bill_no||'').toLowerCase().includes(q) || (snap.name||'').toLowerCase().includes(q);
+  });
+  var notIssuedCount = paid.filter(function(b){return !b.receipt_no;}).length;
+  document.getElementById('br-count').textContent = notIssuedCount;
+  document.getElementById('bt-receipt-c').textContent = notIssuedCount;
+  var tbody = document.getElementById('br-tbody');
+  var empty = document.getElementById('br-empty');
+  if(!rows.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  tbody.innerHTML = rows.map(function(b){
+    var snap = b.customer_snapshot||{};
+    var receiptCell = b.receipt_no
+      ? '<span style="background:#D1FAE5;color:#065F46;padding:3px 10px;border-radius:10px;font-size:11.5px;font-weight:700;font-family:var(--mono)">'+_bl_esc(b.receipt_no)+'</span>'
+      : '<span style="color:var(--text-3);font-size:11px">— ยังไม่ออก —</span>';
+    var printedCell = b.receipt_printed_by
+      ? '<div style="font-weight:600">'+_bl_esc(b.receipt_printed_by)+'</div><div style="font-size:10.5px;color:var(--text-3)">'+_bl_datetime(b.receipt_printed_at)+'</div>'
+      : '<span style="color:var(--text-3);font-size:11px">—</span>';
+    return '<tr class="bl-row-hover">'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--green-d);font-weight:600">'+_bl_esc(b.bill_no)+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border)">'+_bl_esc(snap.name||'—')+'</td>'+
+      '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:700">'+_bl_fmt(b.net_amt)+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">'+_bl_date(b.paid_date)+'</td>'+
+      '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+receiptCell+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">'+printedCell+'</td>'+
+      '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+
+        (b.receipt_no
+          ? '<button class="tbl-action tbl-icon-btn" onclick="openReceiptPrint('+b.id+')" data-tip="ดู/พิมพ์ใบเสร็จ" style="color:#F59E0B">🧾</button>'
+          : '<button class="btn btn-yellow" onclick="billingIssueReceipt('+b.id+')" style="height:28px;padding:0 12px;font-size:11.5px">+ ออกใบเสร็จ</button>')+
+      '</td>'+
+      '</tr>';
+  }).join('');
+}
+
+// Generate receipt_no via RPC + save to bill
+async function billingIssueReceipt(id){
+  var b = _BL_BILLS.find(function(x){return x.id===id;});
+  if(!b){ if(typeof showToast==='function') showToast('ไม่พบใบ'); return; }
+  if(b.status!=='paid'){ if(typeof showToast==='function') showToast('ออกใบเสร็จได้เฉพาะใบที่จ่ายแล้ว'); return; }
+  if(b.receipt_no){ if(typeof showToast==='function') showToast('ใบนี้มีเลขใบเสร็จแล้ว: '+b.receipt_no); openReceiptPrint(id); return; }
+  if(!confirm('ออกใบเสร็จรับเงินสำหรับใบ '+b.bill_no+' ?')) return;
+  var by = currentUser ? (currentUser.fname+' '+currentUser.lname).trim() : 'unknown';
+  var year = new Date().getFullYear()+543-2500;
+  try{
+    // Call RPC to get next receipt number
+    var rpcResp = await fetch(SUPA_URL+'/rest/v1/rpc/next_receipt_no', {
+      method:'POST',
+      headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY, 'Content-Type':'application/json'},
+      body: JSON.stringify({p_year: year})
+    }).then(function(r){return r.json();});
+    // ใช้ number field แล้ว format เป็น "69/075" (matches น้าปุ้ม Excel) แทน RC-69-075
+    var num = (rpcResp && rpcResp[0] && rpcResp[0].number) ? rpcResp[0].number : 0;
+    var receipt_no = year + '/' + String(num).padStart(3, '0');
+    var now = new Date().toISOString();
+    var payload = {
+      receipt_no: receipt_no,
+      receipt_date: now.substring(0,10),
+      receipt_printed_by: by,
+      receipt_printed_at: now,
+      updated_by: by
+    };
+    await fetch(SUPA_URL+'/rest/v1/gyt_billings?id=eq.'+id, {
+      method:'PATCH',
+      headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY, 'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(typeof showToast==='function') showToast('✅ ออกใบเสร็จ '+receipt_no+' สำเร็จ');
+    await billingLoadAll();
+    setTimeout(function(){ openReceiptPrint(id); }, 400);
+  }catch(e){
+    console.error('issue receipt err:', e);
+    if(typeof showToast==='function') showToast('ออกใบเสร็จไม่สำเร็จ: '+e.message);
+  }
+}
+
+// Open receipt print template (similar to bill print)
+var _BR_TEMPLATE_CACHE = null;
+async function openReceiptPrint(id){
+  var b = _BL_BILLS.find(function(x){return x.id===id;});
+  if(!b || !b.receipt_no){ if(typeof showToast==='function') showToast('ใบนี้ยังไม่มีเลขใบเสร็จ'); return; }
+  try{
+    if(!_BR_TEMPLATE_CACHE){
+      var resp = await fetch('https://raw.githubusercontent.com/cueqcl-hash/gyt-transport/main/receipt_print_template.html?cb='+Date.now());
+      _BR_TEMPLATE_CACHE = await resp.text();
+    }
+    var w = window.open('', 'gyt_receipt_print', 'width=900,height=1200,scrollbars=yes');
+    if(!w){ if(typeof showToast==='function') showToast('กรุณาอนุญาต popup'); return; }
+    window.getReceiptData = function(){ return b; };
+    w.document.write(_BR_TEMPLATE_CACHE);
+    w.document.close();
+    setTimeout(function(){ try{ w.postMessage({type:'fillReceipt', bill:b}, '*'); }catch(e){} }, 600);
+  }catch(e){
+    console.error('openReceiptPrint err:', e);
+    if(typeof showToast==='function') showToast('โหลด template ไม่สำเร็จ: '+e.message);
   }
 }
 
@@ -27493,4 +27878,13 @@ async function rcptLoadDoneList(){
       <div class="fg"><label class="fl">จำนวนเงิน (บาท)</label><input class="fi" id="cost-misc2-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
     </div>
     <div style="background:var(--bg);border-radius:var(--radius);padding:8px 12px;margin-top:8px;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:13px;color:var(--text-2);font-weight:600">รวมค่าใช้จ่ายทั้ง�
+      <span style="font-size:13px;color:var(--text-2);font-weight:600">รวมค่าใช้จ่ายทั้งหมด</span>
+      <span style="font-size:18px;font-weight:700;color:var(--red)" id="cost-total-preview">0 บาท</span>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-cost')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="doPrint()">🖨 พิมพ์ใบปฏิบัติงาน</button>
+  </div>
+</div>
+</div>
