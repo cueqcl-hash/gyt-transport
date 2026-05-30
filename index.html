@@ -20380,6 +20380,7 @@ function _buildLineMsg(j){
     L.push('📦 ตู้: '+ct.trim());
   }
   if(j.weight) L.push('⚖️ น้ำหนัก: '+j.weight+' กก.');
+  if(j.carrier) L.push('🚢 CARRIER LINE (เอเย่นต์): '+j.carrier);  // 🆕 v123 — เพิ่ม carrier line + คำแปลไทย
   if(j.booking) L.push('🔖 Booking: '+j.booking);
   L.push('');
   L.push('📍 ต้นทาง: '+(j.origin||'-'));
@@ -23062,7 +23063,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.122';
+const APP_VERSION = '2026.04.29.123';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
