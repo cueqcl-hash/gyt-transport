@@ -23070,7 +23070,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.124';
+const APP_VERSION = '2026.04.29.125';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -27845,8 +27845,39 @@ async function rcptLoadDoneList(){
 </div>
 
 
-<!-- MODAL: BIN (ถังขยะ) -->
-<!-- 🆕 v109 — Re-add complete modal-cost (v107 was truncated, broke fields + print button) -->
+<!-- MODAL: BIN (ถังขยะ) — 🆕 v125 re-added (was lost in v109 patch) -->
+<div class="modal-overlay" id="modal-bin">
+<div class="modal" style="max-width:880px">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title">🗑 ถังขยะ — ใบงานที่ถูกลบ</div>
+      <div class="modal-sub">เก็บไว้ 30 วัน · มี <span id="bin-count-label">0</span> รายการ · กู้คืนได้ หรือ ลบถาวร (PISOLN เท่านั้น)</div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-bin')">&#215;</button>
+  </div>
+  <div class="modal-body" style="padding:0;max-height:65vh;overflow-y:auto">
+    <div id="bin-empty" style="padding:40px 20px;text-align:center;color:var(--text-3);font-size:14px;display:none">
+      <div style="font-size:48px;margin-bottom:8px">🗑</div>
+      <div style="font-weight:600;font-size:16px;color:var(--text-2)">ถังขยะว่างเปล่า</div>
+      <div style="margin-top:6px;font-size:12px">ยังไม่มีใบงานที่ถูกลบ — ถ้าลบใบงาน จะมาอยู่ที่นี่ก่อน 30 วัน</div>
+    </div>
+    <div id="bin-list"></div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-bin')">ปิด</button>
+    <button class="btn" id="bin-empty-all-btn" onclick="confirmEmptyBin()" style="background:var(--red);color:#fff;border:none">🔴 ล้างถังขยะทั้งหมด (PISOLN)</button>
+  </div>
+</div>
+</div>
+<style>
+.bin-reason-tag{font-size:10px;background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:10px;font-weight:600}
+.restore-btn{background:var(--green);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.restore-btn:hover{background:var(--green-d)}
+.bin-del-btn{background:#fff;color:var(--red);border:1.5px solid var(--red);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.bin-del-btn:hover:not(:disabled){background:var(--red);color:#fff}
+</style>
+
+<!-- MODAL: COST / PRINT — 🆕 v109 — Re-add complete modal-cost (v107 was truncated, broke fields + print button) -->
 <div class="modal-overlay" id="modal-cost">
 <div class="modal" style="max-width:680px">
   <div class="modal-head">
