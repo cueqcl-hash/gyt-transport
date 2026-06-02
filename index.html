@@ -23070,7 +23070,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.125';
+const APP_VERSION = '2026.04.29.126';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -27190,6 +27190,12 @@ function rcptRenderTodayList(){
   var el = document.getElementById('rcpt-today-list');
   if(!list.length){ el.innerHTML = '<div class="rcpt-empty">ไม่มีใบเสร็จในช่วงนี้</div>'; return; }
 
+  // 🆕 v126 — สร้าง jmap จาก global jobs[] เพื่อ lookup SHIPPER ผ่าน job_id
+  var jmap = {};
+  if(typeof jobs !== 'undefined' && Array.isArray(jobs)){
+    for(var i=0;i<jobs.length;i++){ if(jobs[i] && jobs[i].id) jmap[jobs[i].id] = jobs[i]; }
+  }
+
   var rows = [];
   var curDate = null;
   var dayTot = {pickup:0, ret:0, change:0, toll:0, count:0};
@@ -27198,7 +27204,7 @@ function rcptRenderTodayList(){
   function pushSubtotal(){
     if(curDate === null || dayTot.count === 0) return;
     rows.push('<tr class="rcpt-today-subtotal-row">'+
-      '<td colspan="6" style="text-align:right">รวม '+ _rcptEsc(_rcptFmtDateBE(curDate)) +' ('+dayTot.count+' รายการ)</td>'+
+      '<td colspan="7" style="text-align:right">รวม '+ _rcptEsc(_rcptFmtDateBE(curDate)) +' ('+dayTot.count+' รายการ)</td>'+
       '<td style="text-align:right;font-family:var(--mono)">'+_rcptFmt(dayTot.pickup)+'</td>'+
       '<td style="text-align:right;font-family:var(--mono)">'+_rcptFmt(dayTot.ret)+'</td>'+
       '<td style="text-align:right;font-family:var(--mono)">'+_rcptFmt(dayTot.change)+'</td>'+
@@ -27217,6 +27223,9 @@ function rcptRenderTodayList(){
         ac = Number(r.change_amount)||0, at = Number(r.toll_amount)||0;
     dayTot.pickup += ap; dayTot.ret += ar; dayTot.change += ac; dayTot.toll += at; dayTot.count++;
     grand.pickup  += ap; grand.ret  += ar; grand.change  += ac; grand.toll  += at; grand.count++;
+    // 🆕 v126 — lookup shipper จาก job
+    var j = r.job_id ? jmap[r.job_id] : null;
+    var ship = j ? (j.shipper||'-') : '-';
     rows.push('<tr>'+
       '<td>'+_rcptEsc(_rcptFmtDateBE(d))+'</td>'+
       '<td style="font-size:11px;color:#6B7280">'+_rcptEsc((r.created_at||'').slice(11,16))+'</td>'+
@@ -27224,6 +27233,7 @@ function rcptRenderTodayList(){
       '<td>'+_rcptEsc(r.plate||'-')+'</td>'+
       '<td style="font-family:var(--mono);font-size:11.5px">'+_rcptEsc(r.container_number||'-')+'</td>'+
       '<td>'+_rcptEsc(r.customer||'-')+'</td>'+
+      '<td style="color:var(--green-d);font-weight:600">'+_rcptEsc(ship)+'</td>'+
       '<td style="text-align:right;font-family:var(--mono)">'+(ap ? _rcptFmt(ap) : '—')+'</td>'+
       '<td style="text-align:right;font-family:var(--mono)">'+(ar ? _rcptFmt(ar) : '—')+'</td>'+
       '<td style="text-align:right;font-family:var(--mono)">'+(ac ? _rcptFmt(ac) : '—')+'</td>'+
@@ -27234,7 +27244,7 @@ function rcptRenderTodayList(){
   pushSubtotal();
 
   rows.push('<tr class="rcpt-today-grand-row">'+
-    '<td colspan="6" style="text-align:right">🟢 รวมทั้งหมด ('+grand.count+' รายการ)</td>'+
+    '<td colspan="7" style="text-align:right">🟢 รวมทั้งหมด ('+grand.count+' รายการ)</td>'+
     '<td style="text-align:right;font-family:var(--mono)">'+_rcptFmt(grand.pickup)+'</td>'+
     '<td style="text-align:right;font-family:var(--mono)">'+_rcptFmt(grand.ret)+'</td>'+
     '<td style="text-align:right;font-family:var(--mono)">'+_rcptFmt(grand.change)+'</td>'+
@@ -27242,7 +27252,7 @@ function rcptRenderTodayList(){
     '<td></td></tr>');
 
   el.innerHTML = '<div class="rcpt-today-table"><table><thead><tr>'+
-    '<th>วันที่</th><th>เวลา</th><th>JOB</th><th>ทะเบียน</th><th>เบอร์ตู้</th><th>ลูกค้า</th>'+
+    '<th>วันที่</th><th>เวลา</th><th>JOB</th><th>ทะเบียน</th><th>เบอร์ตู้</th><th>ลูกค้า</th><th>SHIPPER (เจ้าของสินค้า)</th>'+
     '<th style="text-align:right">รับ</th><th style="text-align:right">คืน</th><th style="text-align:right">ทอน</th><th style="text-align:right">ทางด่วน</th><th></th>'+
     '</tr></thead><tbody>'+
     rows.join('')+'</tbody></table></div>';
