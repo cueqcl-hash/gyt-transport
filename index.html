@@ -16548,9 +16548,16 @@ let nextMID_s = shippers.length  ? Math.max.apply(null,shippers.map(function(x){
 let masterType='customer', editMID=null;
 
 function saveMasterDB(){
-  localStorage.setItem('gyt_customers',JSON.stringify(customers));
-  localStorage.setItem('gyt_shippers', JSON.stringify(shippers));
-  localStorage.setItem('gyt_billings', JSON.stringify(billings));
+  // 🆕 v124 — wrap แต่ละ setItem ใน try/catch กัน QuotaExceededError
+  // (ถ้า gyt_jobs ใหญ่จน quota เกือบเต็ม จะกระทบ master table ที่เขียนทีหลัง)
+  // Supabase = source of truth, localStorage เป็นแค่ cache สำหรับ offline
+  var failed = [];
+  try{ localStorage.setItem('gyt_customers',JSON.stringify(customers)); }catch(e){ failed.push('customers'); console.warn('saveMasterDB customers:', e.name); }
+  try{ localStorage.setItem('gyt_shippers', JSON.stringify(shippers)); }catch(e){ failed.push('shippers'); console.warn('saveMasterDB shippers:', e.name); }
+  try{ localStorage.setItem('gyt_billings', JSON.stringify(billings)); }catch(e){ failed.push('billings'); console.warn('saveMasterDB billings:', e.name); }
+  if(failed.length && typeof showToast==='function'){
+    showToast('⚠️ Cache เต็ม — ข้อมูลถูกบันทึกบน server แต่ไม่ได้ cache ใน browser');
+  }
   if(_onlineMode)syncMasterData();
 }
 function renderSettings(){
@@ -23063,7 +23070,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.123';
+const APP_VERSION = '2026.04.29.124';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
