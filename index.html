@@ -823,6 +823,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           </select>
           <button class="btn btn-ghost" onclick="refreshJobsFromCloud()" id="btn-refresh-jobs" title="ดึงข้อมูลล่าสุดจาก Cloud — เห็นที่ทีมแก้ไข"><span id="refresh-icon">🔄</span> รีเฟรช</button>
           <button class="btn btn-ghost" onclick="openColManager()" title="จัดเรียง Column">⚙ Column</button>
+          <button class="btn btn-ghost" onclick="openActivityLog()" id="activity-log-btn" style="color:#2563EB;border-color:#93C5FD" title="ดูประวัติ: ใครทำอะไร เมื่อไหร่">📋 Activity Log</button>
           <button class="btn btn-ghost" onclick="openBin()" id="bin-btn" style="color:var(--red);border-color:var(--red-m)" title="ถังขยะ — งานที่ลบไปแล้ว">🗑 ถังขยะ<span class="bin-badge" id="bin-badge" style="display:none">0</span></button>
           <button class="btn btn-green" id="btn-add-job" onclick="openAddJob()">+ ใบงานใหม่</button>
           <button class="btn btn-yellow" id="btn-add-multi" onclick="openMultiJob()">+ หลายตู้ (BL เดียว)</button>
@@ -20592,6 +20593,139 @@ function updateBinBadge(){
   if(badge){badge.textContent=n;badge.style.display=n>0?'inline':'none';}
 }
 
+/* ════════════════════════════════════════════════════════════════
+   🆕 v127 — Activity Log Panel
+   - ดึง events จาก gyt_jobs (create + update), gyt_deleted_jobs (delete),
+     gyt_billings (paid + receipt), line_sent_at (LINE share)
+   - Merge เป็น timeline เดียว เรียงใหม่→เก่า
+   - Filter: ผู้ทำ / ประเภท / ช่วงวัน / search
+   ════════════════════════════════════════════════════════════════ */
+var _ALOG = [];
+async function openActivityLog(){
+  document.getElementById('modal-activity-log').classList.add('open');
+  await loadActivityLog();
+}
+async function loadActivityLog(){
+  var loadEl = document.getElementById('al-loading');
+  var emptyEl = document.getElementById('al-empty');
+  var listEl = document.getElementById('al-list');
+  if(loadEl) loadEl.style.display = 'block';
+  if(emptyEl) emptyEl.style.display = 'none';
+  if(listEl) listEl.innerHTML = '';
+  var days = parseInt((document.getElementById('al-filter-days')||{}).value || '7', 10);
+  var since = new Date(Date.now() - days*24*60*60*1000).toISOString();
+  var events = [];
+  try{
+    // 1) Jobs created
+    var jobsCreated = await fetch(SUPA_URL+'/rest/v1/gyt_jobs?created_at=gte.'+since+'&select=id,shipper,customer,plate,driver,created_at,created_by,startdate&order=created_at.desc&limit=300', {headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY}}).then(r=>r.json());
+    (jobsCreated||[]).forEach(function(j){ events.push({ts:j.created_at, kind:'create', user:j.created_by||'(ไม่ระบุ)', job_id:j.id, shipper:j.shipper||'', customer:j.customer||'', plate:j.plate||'', driver:j.driver||'', detail:'สร้างใบงานใหม่'}); });
+    // 2) Jobs updated (only those NOT already in create list within this period)
+    var jobsUpdated = await fetch(SUPA_URL+'/rest/v1/gyt_jobs?updated_at=gte.'+since+'&select=id,shipper,customer,plate,driver,updated_at,updated_by,created_at,startdate&order=updated_at.desc&limit=300', {headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY}}).then(r=>r.json());
+    (jobsUpdated||[]).forEach(function(j){ events.push({ts:j.updated_at, kind:'update', user:j.updated_by||'(ไม่ระบุ)', job_id:j.id, shipper:j.shipper||'', customer:j.customer||'', plate:j.plate||'', driver:j.driver||'', detail:'แก้ไขใบงาน'}); });
+    // 3) Jobs deleted (from trash)
+    var jobsDeleted = await fetch(SUPA_URL+'/rest/v1/gyt_deleted_jobs?deleted_at=gte.'+since+'&select=job,deleted_at,deleted_by,reason&order=deleted_at.desc&limit=200', {headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY}}).then(r=>r.json());
+    (jobsDeleted||[]).forEach(function(d){ var j=d.job||{}; events.push({ts:d.deleted_at, kind:'delete', user:d.deleted_by||'(ไม่ระบุ)', job_id:j.id||'?', shipper:j.shipper||'', customer:j.customer||'', plate:j.plate||'', driver:j.driver||'', detail:'ลบใบงาน: '+(d.reason||'(ไม่ระบุเหตุผล)')}); });
+    // 4) LINE shares (jobs with line_sent_at in period)
+    var lineShares = await fetch(SUPA_URL+'/rest/v1/gyt_jobs?line_sent_at=gte.'+since+'&select=id,shipper,customer,plate,driver,line_sent_at,line_sent_by&order=line_sent_at.desc&limit=200', {headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY}}).then(r=>r.json());
+    (lineShares||[]).forEach(function(j){ events.push({ts:j.line_sent_at, kind:'line', user:j.line_sent_by||'(ไม่ระบุ)', job_id:j.id, shipper:j.shipper||'', customer:j.customer||'', plate:j.plate||'', driver:j.driver||'', detail:'ส่งงานเข้า LINE หาคนขับ'}); });
+    // 5) Bills paid + receipt issued (best-effort, ignore if columns missing)
+    try{
+      var billsPaid = await fetch(SUPA_URL+'/rest/v1/gyt_billings?paid_at=gte.'+since+'&select=id,bill_no,customer_name,paid_at,paid_by&order=paid_at.desc&limit=100', {headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY}}).then(r=>r.json());
+      (billsPaid||[]).forEach(function(b){ if(b.paid_at) events.push({ts:b.paid_at, kind:'paid', user:b.paid_by||'(ไม่ระบุ)', job_id:b.bill_no||'?', shipper:'', customer:b.customer_name||'', plate:'', driver:'', detail:'รับชำระเงิน — ใบวางบิล '+b.bill_no}); });
+    }catch(e){}
+    try{
+      var billsRcpt = await fetch(SUPA_URL+'/rest/v1/gyt_billings?receipt_printed_at=gte.'+since+'&select=id,bill_no,receipt_no,customer_name,receipt_printed_at,receipt_printed_by&order=receipt_printed_at.desc&limit=100', {headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY}}).then(r=>r.json());
+      (billsRcpt||[]).forEach(function(b){ if(b.receipt_printed_at) events.push({ts:b.receipt_printed_at, kind:'receipt', user:b.receipt_printed_by||'(ไม่ระบุ)', job_id:b.receipt_no||'?', shipper:'', customer:b.customer_name||'', plate:'', driver:'', detail:'ออกใบเสร็จ '+b.receipt_no+' (จากใบวางบิล '+b.bill_no+')'}); });
+    }catch(e){}
+  }catch(e){ console.warn('loadActivityLog error:', e); }
+  // sort newest first
+  events.sort(function(a,b){ return (b.ts||'').localeCompare(a.ts||''); });
+  _ALOG = events;
+  // populate user filter dropdown
+  var users = Array.from(new Set(events.map(function(e){return e.user;}))).sort();
+  var userSel = document.getElementById('al-filter-user');
+  if(userSel){
+    var cur = userSel.value;
+    userSel.innerHTML = '<option value="">ทุกคน ('+events.length+')</option>' + users.map(function(u){
+      var cnt = events.filter(function(e){return e.user===u;}).length;
+      return '<option value="'+_alEsc(u)+'">'+_alEsc(u)+' ('+cnt+')</option>';
+    }).join('');
+    if(cur) userSel.value = cur;
+  }
+  if(loadEl) loadEl.style.display = 'none';
+  renderActivityLog();
+}
+function _alEsc(v){ return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _alFmtTime(iso){
+  if(!iso) return '';
+  try{
+    var d = new Date(iso);
+    var p=function(n){return String(n).padStart(2,'0');};
+    var be = d.getFullYear()+543;
+    return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+String(be).slice(-2)+' '+p(d.getHours())+':'+p(d.getMinutes());
+  }catch(e){return '';}
+}
+function _alRelTime(iso){
+  if(!iso) return '';
+  try{
+    var diff = (Date.now() - new Date(iso).getTime()) / 1000;
+    if(diff < 60) return 'เมื่อสักครู่';
+    if(diff < 3600) return Math.floor(diff/60)+' นาทีก่อน';
+    if(diff < 86400) return Math.floor(diff/3600)+' ชั่วโมงก่อน';
+    if(diff < 86400*7) return Math.floor(diff/86400)+' วันก่อน';
+    return _alFmtTime(iso);
+  }catch(e){return '';}
+}
+function renderActivityLog(){
+  var listEl = document.getElementById('al-list');
+  var emptyEl = document.getElementById('al-empty');
+  var countEl = document.getElementById('al-count');
+  if(!listEl) return;
+  var userFilter = (document.getElementById('al-filter-user')||{}).value || '';
+  var actionFilter = (document.getElementById('al-filter-action')||{}).value || '';
+  var q = ((document.getElementById('al-filter-search')||{}).value || '').toLowerCase().trim();
+  var filtered = _ALOG.filter(function(e){
+    if(userFilter && e.user !== userFilter) return false;
+    if(actionFilter && e.kind !== actionFilter) return false;
+    if(q){
+      var hay = (e.job_id+' '+e.shipper+' '+e.customer+' '+e.plate+' '+e.driver).toLowerCase();
+      if(hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+  if(countEl) countEl.textContent = filtered.length;
+  if(!filtered.length){
+    listEl.innerHTML = '';
+    if(emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+  if(emptyEl) emptyEl.style.display = 'none';
+  var ICONS = {create:'✨', update:'✏️', delete:'🗑', line:'📱', paid:'💰', receipt:'🧾'};
+  var BADGES = {create:'al-badge-create', update:'al-badge-update', delete:'al-badge-delete', line:'al-badge-line', paid:'al-badge-paid', receipt:'al-badge-paid'};
+  var LABELS = {create:'สร้าง', update:'แก้ไข', delete:'ลบ', line:'ส่ง LINE', paid:'รับชำระ', receipt:'ออกใบเสร็จ'};
+  listEl.innerHTML = filtered.slice(0,500).map(function(e){
+    var bits = [];
+    if(e.shipper) bits.push('📦 '+_alEsc(e.shipper));
+    if(e.customer) bits.push('🏢 '+_alEsc(e.customer));
+    if(e.plate) bits.push('🚚 '+_alEsc(e.plate));
+    if(e.driver) bits.push('👤 '+_alEsc(e.driver));
+    var clickAttr = (e.kind==='create'||e.kind==='update'||e.kind==='line') && e.job_id && /^JOB-/.test(e.job_id) ? ' onclick="closeModal(\'modal-activity-log\');setTimeout(function(){openDetail(\''+_alEsc(e.job_id)+'\')},150)"' : '';
+    return '<div class="al-row"'+clickAttr+'>'+
+      '<div class="al-icon">'+(ICONS[e.kind]||'•')+'</div>'+
+      '<div class="al-body">'+
+        '<div class="al-action">'+
+          '<strong>'+_alEsc(e.user)+'</strong> '+_alEsc(LABELS[e.kind]||e.kind)+
+          ' <span style="color:var(--green);font-family:var(--mono);font-weight:700">'+_alEsc(e.job_id)+'</span>'+
+          '<span class="al-badge '+(BADGES[e.kind]||'')+'">'+_alEsc(LABELS[e.kind]||e.kind)+'</span>'+
+        '</div>'+
+        (bits.length ? '<div class="al-detail">'+bits.join(' · ')+'</div>' : '')+
+        '<div class="al-detail" style="color:#9CA3AF;font-size:10.5px;margin-top:2px">'+_alEsc(e.detail)+'</div>'+
+      '</div>'+
+      '<div class="al-time">'+_alFmtTime(e.ts)+'<br><span style="font-size:10px;color:#D1D5DB">'+_alRelTime(e.ts)+'</span></div>'+
+    '</div>';
+  }).join('') + (filtered.length>500 ? '<div style="padding:12px;text-align:center;color:var(--text-3);font-size:11px">แสดง 500 จาก '+filtered.length+' รายการ — ใช้ filter เพื่อจำกัด</div>' : '');
+}
+
 function openBin(){
   if(!hasPerm('delete_jobs')){showToast('⚠ ไม่มีสิทธิ์เข้าถังขยะ');return;}
   // 🔧 v056 — ซ่อนปุ่ม "ล้างถังขยะทั้งหมด" ถ้าไม่ใช่ PISOLN
@@ -23070,7 +23204,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.126';
+const APP_VERSION = '2026.04.29.127';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -27854,6 +27988,80 @@ async function rcptLoadDoneList(){
 </div>
 </div>
 
+
+<!-- MODAL: ACTIVITY LOG — 🆕 v127 — ใครทำอะไร เมื่อไหร่ -->
+<div class="modal-overlay" id="modal-activity-log">
+<div class="modal" style="max-width:1000px">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title">📋 Activity Log — ประวัติการทำงาน</div>
+      <div class="modal-sub">แสดง <span id="al-count">0</span> รายการ — เรียงจากใหม่ไปเก่า · <button onclick="loadActivityLog()" style="background:none;border:none;color:#2563EB;cursor:pointer;font-weight:600;text-decoration:underline">🔄 รีเฟรช</button></div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-activity-log')">&#215;</button>
+  </div>
+  <div style="padding:12px 18px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <div>
+      <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:2px">ผู้ทำ</label>
+      <select id="al-filter-user" onchange="renderActivityLog()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:#fff;min-width:140px">
+        <option value="">ทุกคน</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:2px">ประเภท</label>
+      <select id="al-filter-action" onchange="renderActivityLog()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:#fff;min-width:140px">
+        <option value="">ทุกประเภท</option>
+        <option value="create">✨ สร้างใหม่</option>
+        <option value="update">✏️ แก้ไข</option>
+        <option value="delete">🗑 ลบ</option>
+        <option value="line">📱 ส่ง LINE</option>
+        <option value="paid">💰 รับชำระ</option>
+        <option value="receipt">🧾 ออกใบเสร็จ</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:2px">ช่วงวันที่</label>
+      <select id="al-filter-days" onchange="loadActivityLog()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:#fff">
+        <option value="1">วันนี้</option>
+        <option value="3">3 วันล่าสุด</option>
+        <option value="7" selected>7 วันล่าสุด</option>
+        <option value="14">14 วันล่าสุด</option>
+        <option value="30">30 วันล่าสุด</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:2px">ค้นหา JOB ID / Shipper</label>
+      <input type="text" id="al-filter-search" oninput="renderActivityLog()" placeholder="JOB-4023 หรือ THAI XIN..." style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:220px">
+    </div>
+  </div>
+  <div class="modal-body" style="padding:0;max-height:60vh;overflow-y:auto">
+    <div id="al-loading" style="padding:40px 20px;text-align:center;color:var(--text-3)">⏳ กำลังโหลด...</div>
+    <div id="al-empty" style="padding:40px 20px;text-align:center;color:var(--text-3);display:none">
+      <div style="font-size:48px;margin-bottom:8px">📭</div>
+      <div style="font-weight:600;font-size:16px;color:var(--text-2)">ไม่พบกิจกรรมตาม filter</div>
+    </div>
+    <div id="al-list"></div>
+  </div>
+  <div class="modal-foot">
+    <div style="flex:1;font-size:11px;color:var(--text-3)">💡 คลิกแถวเพื่อดูรายละเอียดใบงาน · สีฟ้า=สร้าง · สีเขียว=แก้ไข · สีแดง=ลบ · สีเขียวอ่อน=LINE</div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-activity-log')">ปิด</button>
+  </div>
+</div>
+</div>
+<style>
+.al-row{padding:10px 18px;border-bottom:1px solid #F3F4F6;display:flex;align-items:flex-start;gap:10px;transition:.1s;cursor:pointer}
+.al-row:hover{background:#F0FDF4}
+.al-icon{font-size:20px;flex-shrink:0;width:32px;text-align:center}
+.al-body{flex:1;min-width:0}
+.al-action{font-size:13px;font-weight:600;color:#1A2E22}
+.al-detail{font-size:11.5px;color:#4A6655;margin-top:2px}
+.al-time{font-size:11px;color:#9CA3AF;flex-shrink:0;text-align:right;font-family:var(--mono)}
+.al-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;margin-left:4px}
+.al-badge-create{background:#DBEAFE;color:#1E40AF}
+.al-badge-update{background:#D1FAE5;color:#065F46}
+.al-badge-delete{background:#FEE2E2;color:#991B1B}
+.al-badge-line{background:#DCFCE7;color:#14532D}
+.al-badge-paid{background:#FEF3C7;color:#92400E}
+</style>
 
 <!-- MODAL: BIN (ถังขยะ) — 🆕 v125 re-added (was lost in v109 patch) -->
 <div class="modal-overlay" id="modal-bin">
