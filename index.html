@@ -1842,9 +1842,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
                 <option value="cash">💵 เงินสด</option>
                 <option value="vat">🧾 VAT 7%</option>
               </select>
+              <select class="fi" id="mt-records-plate" onchange="renderMaintenance()" style="width:180px" title="กรองตามทะเบียนรถ">
+                <option value="">🚚 ทุกทะเบียน</option>
+              </select>
               <input class="fi" type="date" id="mt-records-from" onchange="renderMaintenance()" style="width:150px" title="กรอง: ตั้งแต่วันที่ซ่อม (เว้นว่าง=ทั้งหมด)" placeholder="ตั้งแต่...">
               <input class="fi" type="date" id="mt-records-to" onchange="renderMaintenance()" style="width:150px" title="กรอง: ถึงวันที่ซ่อม (เว้นว่าง=ทั้งหมด)" placeholder="ถึง...">
-              <button class="btn btn-ghost" onclick="document.getElementById('mt-records-from').value='';document.getElementById('mt-records-to').value='';renderMaintenance();" title="ล้างวันที่ — แสดงทุกรายการ" style="font-size:12px;padding:0 10px">🗑 ล้างวันที่</button>
+              <button class="btn btn-ghost" onclick="document.getElementById('mt-records-from').value='';document.getElementById('mt-records-to').value='';document.getElementById('mt-records-plate').value='';renderMaintenance();" title="ล้าง filter ทั้งหมด — แสดงทุกรายการ" style="font-size:12px;padding:0 10px">🗑 ล้าง filter</button>
             </div>
             <div class="tbl-wrap">
               <table>
@@ -2025,6 +2028,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
                   <option value="truck10">🚛 รถสิบล้อ</option>
                   <option value="tractor">🚜 หัวลาก</option>
                   <option value="trailer">🚚 หางเทลเลอร์</option>
+                </select>
+              </div>
+              <div class="fg"><label class="fl">ทะเบียนรถ</label>
+                <select class="fi" id="rpt-plate" onchange="renderReports()">
+                  <option value="">🚚 ทุกทะเบียน</option>
                 </select>
               </div>
               <div class="fg" style="display:flex;align-items:flex-end">
@@ -23206,7 +23214,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.133';
+const APP_VERSION = '2026.04.29.134';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24218,10 +24226,13 @@ function getAllVehicles(){
 
 // ── Render maintenance records list ──
 function renderMaintenance(){
+  // 🆕 v134 — populate plate dropdown on every render (ensures it stays in sync)
+  _mtPopulatePlateFilter('mt-records-plate');
   var q = ((document.getElementById('mt-records-search')||{}).value || '').toLowerCase().trim();
   var ftype = (document.getElementById('mt-records-filter-type')||{}).value || '';
   var dfrom = (document.getElementById('mt-records-from')||{}).value || '';
   var dto = (document.getElementById('mt-records-to')||{}).value || '';
+  var fplate = (document.getElementById('mt-records-plate')||{}).value || '';  // 🆕 v134
   var allVehicles = getAllVehicles();
   var vehicleMap = {};
   allVehicles.forEach(function(v){ vehicleMap[v.vehicle_type+':'+v.id] = v; });
@@ -24234,6 +24245,8 @@ function renderMaintenance(){
     if(ftype && (sh ? sh.type : '') !== ftype) return false;
     if(dfrom && r.service_date < dfrom) return false;
     if(dto && r.service_date > dto) return false;
+    // 🆕 v134 — plate filter (value is "vehicle_type:vehicle_id")
+    if(fplate && (r.vehicle_type+':'+r.vehicle_id) !== fplate) return false;
     if(!q) return true;
     return ((v?v.plate:'').toLowerCase().includes(q)) ||
            ((sh?sh.name:'').toLowerCase().includes(q)) ||
@@ -25130,10 +25143,13 @@ function rptApplyQuick(){
 }
 
 function _rptGetFilteredRecords(){
+  // 🆕 v134 — keep report plate dropdown synced
+  _mtPopulatePlateFilter('rpt-plate');
   var from = (document.getElementById('rpt-from')||{}).value || '';
   var to = (document.getElementById('rpt-to')||{}).value || '';
   var ftype = (document.getElementById('rpt-type')||{}).value || '';
   var fvtype = (document.getElementById('rpt-vtype')||{}).value || '';
+  var fplate = (document.getElementById('rpt-plate')||{}).value || '';  // 🆕 v134
   var shopMap = {};
   (repairShops||[]).forEach(function(sh){shopMap[sh.id]=sh;});
   var allVehicles = (typeof getAllVehicles==='function' ? getAllVehicles() : []);
@@ -25143,6 +25159,8 @@ function _rptGetFilteredRecords(){
     if(from && r.service_date < from) return false;
     if(to && r.service_date > to) return false;
     if(fvtype && r.vehicle_type !== fvtype) return false;
+    // 🆕 v134 — plate filter (value is "vehicle_type:vehicle_id")
+    if(fplate && (r.vehicle_type+':'+r.vehicle_id) !== fplate) return false;
     if(ftype){
       var sh = shopMap[r.shop_id];
       if(!sh || sh.type !== ftype) return false;
@@ -25151,6 +25169,33 @@ function _rptGetFilteredRecords(){
   }).map(function(r){
     return {record:r, shop:shopMap[r.shop_id], vehicle:vMap[r.vehicle_type+':'+r.vehicle_id]};
   });
+}
+
+/* 🆕 v134 — Populate plate dropdown with all vehicles (tractors + trailers + truck10) */
+function _mtPopulatePlateFilter(selectId){
+  var sel = document.getElementById(selectId);
+  if(!sel) return;
+  var cur = sel.value;
+  // Default option label depends on selectId
+  var defaultLabel = '🚚 ทุกทะเบียน';
+  // Get all vehicles
+  var vehicles = (typeof getAllVehicles === 'function') ? getAllVehicles() : [];
+  // Sort by plate
+  vehicles.sort(function(a,b){ return String(a.plate||'').localeCompare(String(b.plate||''), 'th'); });
+  // Count records per vehicle for hint
+  var counts = {};
+  (maintenanceRecords||[]).forEach(function(r){ var k = (r.vehicle_type||'')+':'+(r.vehicle_id||''); counts[k] = (counts[k]||0)+1; });
+  var allCount = (maintenanceRecords||[]).length;
+  var TYPE_ICONS = {tractor:'🚜', trailer:'🚚', truck10:'🚛'};
+  var html = '<option value="">'+defaultLabel+' ('+allCount+')</option>' + vehicles.map(function(v){
+    var k = (v.vehicle_type||'')+':'+v.id;
+    var icon = TYPE_ICONS[v.vehicle_type] || '🚐';
+    var cnt = counts[k]||0;
+    return '<option value="'+k+'">'+icon+' '+(v.plate||'(ไม่มีทะเบียน)')+(cnt?' ('+cnt+')':'')+'</option>';
+  }).join('');
+  sel.innerHTML = html;
+  // Restore selection if still valid
+  if(cur) sel.value = cur;
 }
 
 function renderReports(){
