@@ -23241,7 +23241,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.139';
+const APP_VERSION = '2026.04.29.140';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24702,16 +24702,17 @@ function mmRenderPartsTable(mode, initialRows){
   var html;
   if(mode === 'vat'){
     // 8 cols: PC | รหัส | รายละเอียด | จำนวน | ราคาขาย/หน่วย | ส่วนลด | VAT | จำนวนเงิน
-    html = '<table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:920px"><thead><tr style="background:#F3F4F6">'+
-      '<th style="padding:6px 4px;border:1px solid var(--border);width:60px">PC</th>'+
-      '<th style="padding:6px 4px;border:1px solid var(--border);width:110px">รหัสบริการ/อะไหล่</th>'+
-      '<th style="padding:6px 4px;border:1px solid var(--border)">รายละเอียด</th>'+
-      '<th style="padding:6px 4px;border:1px solid var(--border);width:60px">จำนวน</th>'+
-      '<th style="padding:6px 4px;border:1px solid var(--border);width:90px">ราคาขาย/หน่วย</th>'+
-      '<th style="padding:6px 4px;border:1px solid var(--border);width:70px">ส่วนลด</th>'+
-      '<th style="padding:6px 4px;border:1px solid var(--border);width:70px">VAT</th>'+
-      '<th style="padding:6px 4px;border:1px solid var(--border);width:90px">จำนวนเงิน</th>'+
-      '<th style="padding:6px 4px;border:1px solid var(--border);width:32px"></th>'+
+    // 🆕 v140 — เอา min-width ออก + ปรับ width ให้พอดีจอ (modal กว้าง 1180px แล้ว)
+    html = '<table style="width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed"><thead><tr style="background:#F3F4F6">'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:48px">PC</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:95px">รหัส</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border)">รายละเอียด</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:55px">จำนวน</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:80px">ราคา/หน่วย</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:60px">ส่วนลด<br><span style="font-size:9px;color:var(--text-3);font-weight:400">(%)</span></th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:55px">VAT</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:90px">จำนวนเงิน</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:28px"></th>'+
       '</tr></thead><tbody id="mm-parts-tbody"></tbody>'+
       '<tfoot><tr style="background:#FAFAF7;font-weight:600"><td colspan="7" style="padding:6px;border:1px solid var(--border);text-align:right">รวม</td>'+
       '<td style="padding:6px;border:1px solid var(--border);text-align:right;font-family:var(--mono)" id="mm-parts-grand">0.00</td>'+
@@ -28575,7 +28576,7 @@ async function rcptLoadDoneList(){
 
 <!-- MODAL: MAINTENANCE (บันทึกซ่อม) — 🆕 v129 re-added -->
 <div class="modal-overlay" id="modal-maintenance">
-<div class="modal" style="max-width:780px">
+<div class="modal" style="max-width:min(1180px, 96vw); width:min(1180px, 96vw)">
   <div class="modal-head">
     <div>
       <div class="modal-title" id="mm-title">บันทึกการซ่อมใหม่</div>
