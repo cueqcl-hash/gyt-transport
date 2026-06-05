@@ -23235,7 +23235,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.135';
+const APP_VERSION = '2026.04.29.136';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24529,13 +24529,21 @@ function mtOpenMaintenance(id){
       return '<option value="' + v.vehicle_type + ':' + v.id + '">' + escapeHtml(v.label) + '</option>';
     }).join('');
 
-  // Populate shop dropdown
+  // Populate shop dropdown — 🆕 v136 มี option "+ เพิ่มอู่ใหม่" ที่บนสุด
   var sSelect = document.getElementById('mm-shop');
   sSelect.innerHTML = '<option value="">— เลือกอู่ —</option>' +
+    '<option value="__new__" style="background:#DCFCE7;color:#14532D;font-weight:700">✨ + เพิ่มอู่ใหม่ (กรอกข้อมูลด้านล่าง)</option>' +
     (repairShops||[]).filter(function(sh){return sh.is_active!==false;}).map(function(sh){
       var typeLabel = sh.type==='vat' ? '🧾 VAT' : '💵 เงินสด';
       return '<option value="' + sh.id + '">' + typeLabel + ' — ' + escapeHtml(sh.name) + '</option>';
     }).join('');
+  // Reset new-shop panel
+  var nsWrap = document.getElementById('mm-newshop-wrap');
+  if(nsWrap) nsWrap.style.display = 'none';
+  ['mm-ns-name','mm-ns-phone','mm-ns-contact','mm-ns-taxid','mm-ns-address','mm-ns-note'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value = '';
+  });
+  var nsCash = document.getElementById('mm-ns-type-cash'); if(nsCash) nsCash.checked = true;
 
   // Populate service types checkboxes
   var stWrap = document.getElementById('mm-service-types-wrap');
@@ -24607,11 +24615,43 @@ function mmToggleServiceLabel(i){
   }
 }
 
+// 🆕 v136 — Toggle VAT fields in inline new-shop form
+function mmNewShopToggleType(){
+  var isVat = document.getElementById('mm-ns-type-vat').checked;
+  var vatWrap = document.getElementById('mm-ns-vat-fields');
+  if(vatWrap) vatWrap.style.display = isVat ? 'block' : 'none';
+  // highlight radio
+  var cashLabel = document.querySelector('label[for=""], label:has(#mm-ns-type-cash)');
+  var labels = document.querySelectorAll('input[name="mm-newshop-type"]');
+  labels.forEach(function(rb){
+    var lbl = rb.closest('label');
+    if(lbl) lbl.style.borderColor = rb.checked ? 'var(--green)' : 'var(--border)';
+  });
+  // Update parts table layout to match new shop type
+  if(document.getElementById('mm-shop').value === '__new__'){
+    var existing = (typeof _mmCurrentParts !== 'undefined' && _mmCurrentParts && _mmCurrentParts._mode === (isVat?'vat':'cash')) ? _mmCurrentParts.rows : [];
+    mmRenderPartsTable(isVat ? 'vat' : 'cash', existing);
+  }
+}
+
 // Auto-fill shop info + render parts table by shop type
 function mmSelectShop(){
-  var shopId = parseInt(document.getElementById('mm-shop').value||0);
-  var sh = (repairShops||[]).find(function(x){return x.id===shopId;});
+  var shopVal = document.getElementById('mm-shop').value || '';
   var infoEl = document.getElementById('mm-shop-info');
+  var nsWrap = document.getElementById('mm-newshop-wrap');
+  // 🆕 v136 — handle "+ เพิ่มอู่ใหม่"
+  if(shopVal === '__new__'){
+    if(nsWrap) nsWrap.style.display = 'block';
+    if(infoEl) infoEl.style.display = 'none';
+    // Default to cash mode
+    var isVat = document.getElementById('mm-ns-type-vat').checked;
+    mmRenderPartsTable(isVat ? 'vat' : 'cash', (_mmCurrentParts && _mmCurrentParts.rows) || []);
+    return;
+  } else {
+    if(nsWrap) nsWrap.style.display = 'none';
+  }
+  var shopId = parseInt(shopVal||0);
+  var sh = (repairShops||[]).find(function(x){return x.id===shopId;});
   if(!sh){
     if(infoEl) infoEl.style.display = 'none';
     mmRenderPartsTable('cash', []);
@@ -24838,14 +24878,54 @@ async function saveMaintenance(){
   var date = document.getElementById('mm-date').value;
   var mileage = parseInt(document.getElementById('mm-mileage').value||0);
   var vehicleStr = document.getElementById('mm-vehicle').value;
-  var shopId = parseInt(document.getElementById('mm-shop').value||0);
+  var shopVal = document.getElementById('mm-shop').value || '';
   var total = parseFloat(document.getElementById('mm-total').value||0);
   if(!date){ showToast('กรอกวันที่ก่อน'); return; }
   if(!mileage){ showToast('กรอกเลขไมล์ก่อน'); return; }
   if(!vehicleStr){ showToast('เลือกรถก่อน'); return; }
-  if(!shopId){ showToast('เลือกอู่ก่อน'); return; }
+  if(!shopVal){ showToast('เลือกอู่ก่อน'); return; }
   if(!total){ showToast('กรอกราคารวมก่อน'); return; }
-  var [vt, vid] = vehicleStr.split(':');
+  // 🆕 v136 — handle inline new shop creation
+  var shopId;
+  if(shopVal === '__new__'){
+    var nsName = (document.getElementById('mm-ns-name').value||'').trim();
+    if(!nsName){ showToast('กรอกชื่ออู่ใหม่ก่อน'); return; }
+    var nsType = document.getElementById('mm-ns-type-vat').checked ? 'vat' : 'cash';
+    var nsTaxid = (document.getElementById('mm-ns-taxid').value||'').trim();
+    var nsObj = {
+      name: nsName, type: nsType,
+      tax_id: nsTaxid || null,
+      address: (document.getElementById('mm-ns-address').value||'').trim() || null,
+      phone: (document.getElementById('mm-ns-phone').value||'').trim() || null,
+      contact_person: (document.getElementById('mm-ns-contact').value||'').trim() || null,
+      note: (document.getElementById('mm-ns-note').value||'').trim() || null,
+      is_active: true,
+      default_payment_method: nsType
+    };
+    // Determine next id (local-first)
+    var nextShopId = (repairShops && repairShops.length) ? Math.max.apply(null, repairShops.map(function(x){return x.id||0;}))+1 : 1;
+    nsObj.id = nextShopId;
+    // POST to Supabase if online
+    try {
+      if(_onlineMode){
+        var sResp = await fetch(SUPA_URL+'/rest/v1/gyt_repair_shops', {
+          method:'POST',
+          headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY, 'Content-Type':'application/json', Prefer:'return=representation'},
+          body:JSON.stringify(nsObj)
+        }).then(function(r){return r.json();});
+        if(sResp && sResp[0] && sResp[0].id){ nsObj.id = sResp[0].id; nextShopId = sResp[0].id; }
+      }
+    } catch(e){ console.warn('inline saveShop sync error:', e); }
+    // Add to local cache
+    repairShops.push(nsObj);
+    try{ localStorage.setItem('gyt_repair_shops', JSON.stringify(repairShops)); }catch(e){}
+    shopId = nextShopId;
+    if(typeof showToast==='function') showToast('✅ เพิ่มอู่ใหม่: '+nsName);
+  } else {
+    shopId = parseInt(shopVal||0);
+    if(!shopId){ showToast('เลือกอู่ก่อน'); return; }
+  }
+  var vparts = vehicleStr.split(':'); var vt = vparts[0]; var vid = vparts[1];
   var sh = (repairShops||[]).find(function(x){return x.id===shopId;});
   // 🆕 v131 — collect parts table rows + auto-derive service_types from descriptions
   var partsRows = (_mmCurrentParts && _mmCurrentParts.rows ? _mmCurrentParts.rows : []).filter(function(r){
@@ -28481,7 +28561,46 @@ async function rcptLoadDoneList(){
       <div class="fg" style="flex:1"><label class="fl">ทะเบียนรถ <span style="color:red">*</span></label><select class="fi" id="mm-vehicle"><option value="">— เลือกทะเบียนรถ —</option></select></div>
     </div>
     <div class="fg-row">
-      <div class="fg" style="flex:1"><label class="fl">อู่ซ่อม <span style="color:red">*</span></label><select class="fi" id="mm-shop" onchange="mmSelectShop()"><option value="">— เลือกอู่ —</option></select></div>
+      <div class="fg" style="flex:1"><label class="fl">อู่ซ่อม <span style="color:red">*</span></label>
+        <select class="fi" id="mm-shop" onchange="mmSelectShop()"><option value="">— เลือกอู่ —</option></select>
+      </div>
+    </div>
+    <!-- 🆕 v136 — Inline new-shop form (shows when "+ เพิ่มอู่ใหม่" selected) -->
+    <div id="mm-newshop-wrap" style="display:none;border:2px dashed var(--green);border-radius:8px;padding:12px;background:#F0FDF4;margin-bottom:10px">
+      <div style="font-weight:700;color:var(--green-d);margin-bottom:8px;font-size:13px">✨ กรอกข้อมูลอู่ใหม่ — จะถูกบันทึกพร้อมกับใบซ่อม</div>
+      <div class="fg-row">
+        <div class="fg" style="flex:1">
+          <label class="fl">ประเภทอู่</label>
+          <div style="display:flex;gap:8px">
+            <label style="flex:1;display:flex;align-items:center;gap:6px;padding:6px 10px;border:2px solid var(--green);border-radius:6px;cursor:pointer;background:#fff;font-size:12px">
+              <input type="radio" name="mm-newshop-type" id="mm-ns-type-cash" value="cash" checked onchange="mmNewShopToggleType()">
+              <span>💵 เงินสด</span>
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:6px;padding:6px 10px;border:2px solid var(--border);border-radius:6px;cursor:pointer;background:#fff;font-size:12px">
+              <input type="radio" name="mm-newshop-type" id="mm-ns-type-vat" value="vat" onchange="mmNewShopToggleType()">
+              <span>🧾 VAT (มีใบกำกับภาษี)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="fg-row">
+        <div class="fg" style="flex:2"><label class="fl">ชื่ออู่ <span style="color:red">*</span></label><input class="fi" id="mm-ns-name" placeholder="เช่น อู่สมศักดิ์ยานยนต์"></div>
+        <div class="fg" style="flex:1"><label class="fl">เบอร์โทร</label><input class="fi" id="mm-ns-phone" placeholder="086-xxx-xxxx"></div>
+      </div>
+      <div class="fg-row">
+        <div class="fg" style="flex:1"><label class="fl">ผู้ติดต่อ</label><input class="fi" id="mm-ns-contact" placeholder="ชื่อช่าง/เจ้าของอู่"></div>
+      </div>
+      <div id="mm-ns-vat-fields" style="display:none">
+        <div class="fg-row">
+          <div class="fg" style="flex:1"><label class="fl">เลขประจำตัวผู้เสียภาษี (13 หลัก)</label><input class="fi" id="mm-ns-taxid" placeholder="0-1234-56789-01-2"></div>
+        </div>
+        <div class="fg-row">
+          <div class="fg" style="flex:1"><label class="fl">ที่อยู่ (ตามใบกำกับภาษี)</label><textarea class="fi" id="mm-ns-address" rows="2" placeholder="เลขที่ / ถนน / ตำบล / อำเภอ / จังหวัด / รหัสไปรษณีย์"></textarea></div>
+        </div>
+      </div>
+      <div class="fg-row">
+        <div class="fg" style="flex:1"><label class="fl">หมายเหตุ</label><input class="fi" id="mm-ns-note" placeholder="เช่น เฉพาะหัวลาก"></div>
+      </div>
     </div>
     <div id="mm-shop-info" style="display:none;padding:10px;background:var(--green-l);border-radius:6px;font-size:12px;color:var(--text-2);margin-bottom:10px"></div>
 
