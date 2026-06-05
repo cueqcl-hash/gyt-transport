@@ -23235,7 +23235,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.136';
+const APP_VERSION = '2026.04.29.137';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24749,11 +24749,12 @@ function _mmDrawRows(){
         '<td style="border:1px solid var(--border);text-align:center"><button type="button" onclick="mmRemovePartRow('+idx+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px" title="ลบแถวนี้">✕</button></td>'+
       '</tr>';
     } else {
+      // 🆕 v137 — Cash mode: ปล่อยให้พิมพ์ทุกช่องอิสระ (รวม จำนวนเงิน) — รองรับเคสค่าแรง
       return '<tr>'+
-        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-qty-'+idx+'" type="number" step="0.01" value="'+(r.qty||'')+'" oninput="mmRecalcRow('+idx+')" style="width:100%;border:none;padding:4px;background:transparent;font-size:12px;text-align:right"></td>'+
-        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-desc-'+idx+'" value="'+escapeHtml(r.description||'')+'" oninput="mmRowEdit('+idx+')" placeholder="เช่น เปลี่ยนสลักหูแหนบ" style="width:100%;border:none;padding:4px;background:transparent;font-size:12px"></td>'+
-        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-unit-'+idx+'" type="number" step="0.01" value="'+(r.unit_price||'')+'" oninput="mmRecalcRow('+idx+')" style="width:100%;border:none;padding:4px;background:transparent;font-size:12px;text-align:right"></td>'+
-        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-amt-'+idx+'" type="number" step="0.01" value="'+(r.amount||'')+'" readonly style="width:100%;border:none;padding:4px;background:#FAFAF7;font-size:12px;text-align:right;font-weight:600"></td>'+
+        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-qty-'+idx+'" type="number" step="0.01" value="'+(r.qty||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="—" style="width:100%;border:none;padding:4px;background:transparent;font-size:12px;text-align:right"></td>'+
+        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-desc-'+idx+'" value="'+escapeHtml(r.description||'')+'" oninput="mmRowEdit('+idx+')" placeholder="เช่น ค่าแรง / เปลี่ยนสลักหูแหนบ" style="width:100%;border:none;padding:4px;background:transparent;font-size:12px"></td>'+
+        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-unit-'+idx+'" type="number" step="0.01" value="'+(r.unit_price||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="—" style="width:100%;border:none;padding:4px;background:transparent;font-size:12px;text-align:right"></td>'+
+        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-amt-'+idx+'" type="number" step="0.01" value="'+(r.amount||'')+'" oninput="mmEditAmountCash('+idx+')" placeholder="0.00" title="พิมพ์เองได้ ถ้ามีจำนวน+หน่วยละ จะคำนวณให้อัตโนมัติ" style="width:100%;border:none;padding:4px;background:#FFFBEB;font-size:12px;text-align:right;font-weight:700;color:#92400E"></td>'+
         '<td style="border:1px solid var(--border);text-align:center"><button type="button" onclick="mmRemovePartRow('+idx+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px" title="ลบแถวนี้">✕</button></td>'+
       '</tr>';
     }
@@ -24777,19 +24778,36 @@ function mmRecalcRow(idx){
   var qty = _mmNum('mm-pr-qty-'+idx);
   var unit = _mmNum('mm-pr-unit-'+idx);
   r.qty = qty; r.unit_price = unit;
-  var amt;
   if(_mmCurrentParts._mode === 'vat'){
     var disc = _mmNum('mm-pr-disc-'+idx);
     var vat  = _mmNum('mm-pr-vat-'+idx);
     r.discount = disc; r.vat = vat;
-    amt = (qty * unit) - disc + vat;
+    var amt = (qty * unit) - disc + vat;
+    r.amount = Math.round(amt * 100) / 100;
+    var amtEl = document.getElementById('mm-pr-amt-'+idx);
+    if(amtEl) amtEl.value = r.amount.toFixed(2);
   } else {
-    amt = qty * unit;
+    // 🆕 v137 — Cash mode: auto-calc เฉพาะเมื่อมี qty AND unit > 0
+    // (ถ้าว่างช่องใดช่องหนึ่ง = ปล่อยให้ user พิมพ์จำนวนเงินเอง เช่น ค่าแรง)
+    if(qty > 0 && unit > 0){
+      var amt2 = qty * unit;
+      r.amount = Math.round(amt2 * 100) / 100;
+      var amtEl2 = document.getElementById('mm-pr-amt-'+idx);
+      if(amtEl2) amtEl2.value = r.amount.toFixed(2);
+    } else {
+      // อ่าน amount ปัจจุบันที่ user พิมพ์เข้าไป
+      r.amount = _mmNum('mm-pr-amt-'+idx);
+    }
   }
-  r.amount = Math.round(amt * 100) / 100;
   _mmCurrentParts.rows[idx] = r;
-  var amtEl = document.getElementById('mm-pr-amt-'+idx);
-  if(amtEl) amtEl.value = r.amount.toFixed(2);
+  mmRecalcAllRows();
+}
+
+// 🆕 v137 — Cash mode: user พิมพ์จำนวนเงินตรงๆ
+function mmEditAmountCash(idx){
+  var r = _mmCurrentParts.rows[idx] || (_mmCurrentParts.rows[idx]={});
+  r.amount = _mmNum('mm-pr-amt-'+idx);
+  _mmCurrentParts.rows[idx] = r;
   mmRecalcAllRows();
 }
 function mmRecalcAllRows(){
