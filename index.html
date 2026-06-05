@@ -23204,7 +23204,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.128';
+const APP_VERSION = '2026.04.29.129';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -27988,6 +27988,125 @@ async function rcptLoadDoneList(){
 </div>
 </div>
 
+
+<!-- MODAL: SHOP (อู่ซ่อม) — 🆕 v129 re-added -->
+<div class="modal-overlay" id="modal-shop">
+<div class="modal" style="max-width:640px">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title" id="ms-title">เพิ่มอู่ซ่อม</div>
+      <div class="modal-sub">ข้อมูลอู่/ร้านซ่อม — แยกประเภท เงินสด/VAT</div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-shop')">&#215;</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg-row">
+      <div class="fg" style="flex:1">
+        <label class="fl">ประเภทอู่ <span style="color:red">*</span></label>
+        <div style="display:flex;gap:8px">
+          <label id="ms-type-cash-label" style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:2px solid var(--green);border-radius:6px;cursor:pointer;background:#fff">
+            <input type="radio" name="ms-type" id="ms-type-cash" value="cash" checked onchange="msToggleType()">
+            <span>💵 เงินสด</span>
+          </label>
+          <label id="ms-type-vat-label" style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:2px solid var(--border);border-radius:6px;cursor:pointer;background:#fff">
+            <input type="radio" name="ms-type" id="ms-type-vat" value="vat" onchange="msToggleType()">
+            <span>🧾 VAT (มีใบกำกับภาษี)</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="fg-row">
+      <div class="fg" style="flex:2"><label class="fl">ชื่ออู่ <span style="color:red">*</span></label><input class="fi" id="ms-name" placeholder="เช่น อู่สมศักดิ์ยานยนต์"></div>
+      <div class="fg" style="flex:1"><label class="fl">เบอร์โทร</label><input class="fi" id="ms-phone" placeholder="086-xxx-xxxx"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">ผู้ติดต่อ</label><input class="fi" id="ms-contact" placeholder="ชื่อช่าง/เจ้าของอู่"></div>
+    </div>
+    <div id="ms-vat-fields" style="display:none">
+      <div class="fg-row">
+        <div class="fg" style="flex:1"><label class="fl">เลขประจำตัวผู้เสียภาษี (สำหรับ VAT)</label><input class="fi" id="ms-tax-id" placeholder="0-1234-56789-01-2"></div>
+      </div>
+      <div class="fg-row">
+        <div class="fg" style="flex:1"><label class="fl">ที่อยู่ (ตามใบกำกับภาษี)</label><textarea class="fi" id="ms-address" rows="2" placeholder="เลขที่ / ถนน / ตำบล / อำเภอ / จังหวัด / รหัสไปรษณีย์"></textarea></div>
+      </div>
+    </div>
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">หมายเหตุ</label><textarea class="fi" id="ms-note" rows="2" placeholder="เช่น เฉพาะหัวลาก, ใกล้ลาน DICO"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-shop')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="saveShop()">💾 บันทึกอู่</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: MAINTENANCE (บันทึกซ่อม) — 🆕 v129 re-added -->
+<div class="modal-overlay" id="modal-maintenance">
+<div class="modal" style="max-width:780px">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title" id="mm-title">บันทึกการซ่อมใหม่</div>
+      <div class="modal-sub">บันทึกค่าใช้จ่ายซ่อมบำรุง + แนบใบเสร็จ</div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-maintenance')">&#215;</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">วันที่ซ่อม <span style="color:red">*</span></label><input class="fi" type="date" id="mm-date"></div>
+      <div class="fg" style="flex:1"><label class="fl">เลขไมล์ (km)</label><input class="fi" type="number" id="mm-mileage" placeholder="เช่น 125000"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">ทะเบียนรถ <span style="color:red">*</span></label><select class="fi" id="mm-vehicle"><option value="">— เลือกทะเบียนรถ —</option></select></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">อู่ซ่อม <span style="color:red">*</span></label><select class="fi" id="mm-shop" onchange="mmSelectShop()"><option value="">— เลือกอู่ —</option></select></div>
+    </div>
+    <div id="mm-shop-info" style="display:none;padding:10px;background:var(--green-l);border-radius:6px;font-size:12px;color:var(--text-2);margin-bottom:10px"></div>
+
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">รายการซ่อม (เลือกได้หลายอย่าง)</label>
+        <div id="mm-service-types-wrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px dashed var(--border);border-radius:6px;background:#FAFAF7"></div>
+      </div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">เลขที่บิล (เงินสด)</label><input class="fi" id="mm-bill-no" placeholder="—"></div>
+      <div class="fg" style="flex:1"><label class="fl">เลขที่ใบกำกับภาษี (VAT)</label><input class="fi" id="mm-invoice-no" placeholder="—"></div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">ยอดก่อน VAT</label><input class="fi" type="number" step="0.01" id="mm-before-vat" oninput="mmCalcVAT()" placeholder="0.00"></div>
+      <div class="fg" style="flex:1"><label class="fl">VAT 7%</label><input class="fi" type="number" step="0.01" id="mm-vat" placeholder="0.00"></div>
+      <div class="fg" style="flex:1"><label class="fl">ยอดรวม (บาท)</label><input class="fi" type="number" step="0.01" id="mm-total" oninput="mmCalcReverseVAT()" placeholder="0.00" style="font-weight:700;color:var(--red)"></div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">กำหนดซ่อมครั้งหน้า (km)</label><input class="fi" type="number" id="mm-next-km" placeholder="—"></div>
+      <div class="fg" style="flex:1"><label class="fl">กำหนดซ่อมครั้งหน้า (วันที่)</label><input class="fi" type="date" id="mm-next-date"></div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">หมายเหตุ</label><textarea class="fi" id="mm-note" rows="2" placeholder="รายละเอียดเพิ่มเติม"></textarea></div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg" style="flex:1">
+        <label class="fl">แนบใบเสร็จ/ใบกำกับภาษี (รูป/PDF)</label>
+        <input type="file" id="mm-file-input" multiple accept="image/*,.pdf" onchange="mmHandleFileUpload(event)" style="padding:8px;border:1.5px dashed var(--border);border-radius:6px;background:#FAFAF7;width:100%">
+        <div id="mm-upload-progress" class="mm-upload-progress"></div>
+        <div id="mm-files-grid" class="mm-files-grid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn" id="mm-delete-btn" onclick="mtDeleteMaintenance(editMaintenanceId)" style="background:var(--red);color:#fff;border:none;display:none">🗑 ลบบันทึกนี้</button>
+    <div style="flex:1"></div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-maintenance')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="saveMaintenance()">💾 บันทึก</button>
+  </div>
+</div>
+</div>
 
 <!-- MODAL: ACTIVITY LOG — 🆕 v127 — ใครทำอะไร เมื่อไหร่ -->
 <div class="modal-overlay" id="modal-activity-log">
