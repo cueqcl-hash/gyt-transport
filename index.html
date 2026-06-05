@@ -1842,14 +1842,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
                 <option value="cash">💵 เงินสด</option>
                 <option value="vat">🧾 VAT 7%</option>
               </select>
-              <input class="fi" type="date" id="mt-records-from" onchange="renderMaintenance()" style="width:150px" title="ตั้งแต่วันที่">
-              <input class="fi" type="date" id="mt-records-to" onchange="renderMaintenance()" style="width:150px" title="ถึงวันที่">
+              <input class="fi" type="date" id="mt-records-from" onchange="renderMaintenance()" style="width:150px" title="กรอง: ตั้งแต่วันที่ซ่อม (เว้นว่าง=ทั้งหมด)" placeholder="ตั้งแต่...">
+              <input class="fi" type="date" id="mt-records-to" onchange="renderMaintenance()" style="width:150px" title="กรอง: ถึงวันที่ซ่อม (เว้นว่าง=ทั้งหมด)" placeholder="ถึง...">
+              <button class="btn btn-ghost" onclick="document.getElementById('mt-records-from').value='';document.getElementById('mt-records-to').value='';renderMaintenance();" title="ล้างวันที่ — แสดงทุกรายการ" style="font-size:12px;padding:0 10px">🗑 ล้างวันที่</button>
             </div>
             <div class="tbl-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>วันที่</th>
+                    <th>วันที่ซ่อม</th>
+                    <th>วันที่บันทึก</th>
                     <th>ทะเบียนรถ</th>
                     <th>อู่ที่ซ่อม</th>
                     <th>รายการ</th>
@@ -23204,7 +23206,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.131';
+const APP_VERSION = '2026.04.29.132';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24260,8 +24262,14 @@ function renderMaintenance(){
       ('🧾 ' + escapeHtml(r.invoice_no||'(ไม่มีเลข)')) :
       ('💵 ' + escapeHtml(r.bill_no||'(เงินสด)'));
     var serviceText = (r.service_types||[]).slice(0,3).join(', ') + ((r.service_types||[]).length>3?' +'+((r.service_types||[]).length-3):'');
+    // 🆕 v132 — Buddhist year formatter
+    var _mtFmtBE = function(iso){ if(!iso) return '—'; try{ var d = new Date(iso); if(isNaN(d.getTime())) return iso; var p=function(n){return String(n).padStart(2,'0');}; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+String(d.getFullYear()+543).slice(-2); }catch(e){return iso;}};
+    var _mtFmtBETime = function(iso){ if(!iso) return ''; try{ var d = new Date(iso); var p=function(n){return String(n).padStart(2,'0');}; return p(d.getHours())+':'+p(d.getMinutes()); }catch(e){return '';}};
+    var createdBE = _mtFmtBE(r.created_at);
+    var createdHM = _mtFmtBETime(r.created_at);
     return '<tr>' +
-      '<td>' + (r.service_date||'—') + '</td>' +
+      '<td><strong>' + _mtFmtBE(r.service_date) + '</strong></td>' +
+      '<td style="font-size:11.5px;color:var(--text-2)">' + createdBE + (createdHM ? '<div style="font-size:10px;color:var(--text-3)">'+createdHM+' น.</div>' : '') + '</td>' +
       '<td><strong>' + escapeHtml(v?v.plate:'(รถถูกลบ)') + '</strong>' +
         '<div style="font-size:10px;color:var(--text-3)">' + (v?v.vehicle_type:r.vehicle_type||'—') + '</div>' +
       '</td>' +
