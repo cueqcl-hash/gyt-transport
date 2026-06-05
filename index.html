@@ -23241,7 +23241,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.138';
+const APP_VERSION = '2026.04.29.139';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24914,7 +24914,7 @@ async function saveMaintenance(){
   var shopVal = document.getElementById('mm-shop').value || '';
   var total = parseFloat(document.getElementById('mm-total').value||0);
   if(!date){ showToast('กรอกวันที่ก่อน'); return; }
-  if(!mileage){ showToast('กรอกเลขไมล์ก่อน'); return; }
+  // 🆕 v139 — ปลดล็อค เลขไมล์ ไม่บังคับกรอกแล้ว (บางครั้งช่างไม่ได้บันทึก)
   if(!vehicleStr){ showToast('เลือกรถก่อน'); return; }
   if(!shopVal){ showToast('เลือกอู่ก่อน'); return; }
   if(!total){ showToast('กรอกราคารวมก่อน'); return; }
@@ -24974,7 +24974,7 @@ async function saveMaintenance(){
     vehicle_type: vt,
     shop_id: shopId,
     service_date: date,
-    mileage: mileage,
+    mileage: mileage || null,
     bill_no: (sh && sh.type==='cash') ? document.getElementById('mm-bill-no').value || null : null,
     invoice_no: (sh && sh.type==='vat') ? document.getElementById('mm-invoice-no').value || null : null,
     service_types: serviceTypes,
@@ -28588,7 +28588,7 @@ async function rcptLoadDoneList(){
       <div class="fg" style="flex:1"><label class="fl">วันที่ซ่อม <span style="color:red">*</span></label>
         <div style="display:flex"><input class="fi" type="text" id="mm-date" placeholder="วว/ดด/พ.ศ." readonly style="background:#fff;border-right:none;border-radius:6px 0 0 6px;cursor:pointer"><button type="button" onclick="document.getElementById('mm-date')._flatpickr&&document.getElementById('mm-date')._flatpickr.open()" style="padding:0 14px;border:1px solid var(--border);border-left:none;border-radius:0 6px 6px 0;background:var(--green-l);cursor:pointer;font-size:16px">📅</button></div>
       </div>
-      <div class="fg" style="flex:1"><label class="fl">เลขไมล์ (km)</label><input class="fi" type="number" id="mm-mileage" placeholder="เช่น 125000"></div>
+      <div class="fg" style="flex:1"><label class="fl">เลขไมล์ (km) <span style="color:var(--text-3);font-weight:400;font-size:11px">— ไม่บังคับ</span></label><input class="fi" type="number" id="mm-mileage" placeholder="เว้นว่างได้ถ้าไม่ทราบ"></div>
     </div>
     <div class="fg-row">
       <div class="fg" style="flex:1"><label class="fl">ทะเบียนรถ <span style="color:red">*</span></label><select class="fi" id="mm-vehicle"><option value="">— เลือกทะเบียนรถ —</option></select></div>
