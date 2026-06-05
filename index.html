@@ -23241,7 +23241,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.140';
+const APP_VERSION = '2026.04.29.141';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24702,19 +24702,17 @@ function mmRenderPartsTable(mode, initialRows){
   var html;
   if(mode === 'vat'){
     // 8 cols: PC | รหัส | รายละเอียด | จำนวน | ราคาขาย/หน่วย | ส่วนลด | VAT | จำนวนเงิน
-    // 🆕 v140 — เอา min-width ออก + ปรับ width ให้พอดีจอ (modal กว้าง 1180px แล้ว)
+    // 🆕 v141 — รวมคอลัมน์แบบ stacked ให้พอดีจอ: PC+รหัส, ส่วนลด+VAT
     html = '<table style="width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed"><thead><tr style="background:#F3F4F6">'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:48px">PC</th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:95px">รหัส</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:95px">PC / รหัส</th>'+
       '<th style="padding:6px 3px;border:1px solid var(--border)">รายละเอียด</th>'+
       '<th style="padding:6px 3px;border:1px solid var(--border);width:55px">จำนวน</th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:80px">ราคา/หน่วย</th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:60px">ส่วนลด<br><span style="font-size:9px;color:var(--text-3);font-weight:400">(%)</span></th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:55px">VAT</th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:90px">จำนวนเงิน</th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:28px"></th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:75px">ราคา/หน่วย</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:70px">ส่วนลด %<br><span style="font-size:9px;color:var(--text-3);font-weight:400">/ VAT บาท</span></th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:85px">จำนวนเงิน</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border);width:26px"></th>'+
       '</tr></thead><tbody id="mm-parts-tbody"></tbody>'+
-      '<tfoot><tr style="background:#FAFAF7;font-weight:600"><td colspan="7" style="padding:6px;border:1px solid var(--border);text-align:right">รวม</td>'+
+      '<tfoot><tr style="background:#FAFAF7;font-weight:600"><td colspan="5" style="padding:6px;border:1px solid var(--border);text-align:right">รวม</td>'+
       '<td style="padding:6px;border:1px solid var(--border);text-align:right;font-family:var(--mono)" id="mm-parts-grand">0.00</td>'+
       '<td style="border:1px solid var(--border)"></td></tr></tfoot></table>'+
       '<div style="padding:8px"><button type="button" class="btn" onclick="mmAddPartRow()" style="background:var(--green-l);color:var(--green-d);border:1px dashed var(--green);font-size:12px">+ เพิ่มแถว</button></div>';
@@ -24744,17 +24742,28 @@ function _mmDrawRows(){
   if(!rows.length){ rows.push({}); }
   tbody.innerHTML = rows.map(function(r, idx){
     if(mode === 'vat'){
-      // 🆕 v138 — VAT mode: ปล่อย amount พิมพ์ได้เหมือน Cash
+      // 🆕 v141 — VAT mode: รวม PC+รหัส และ ส่วนลด+VAT แบบ stacked เพื่อให้พอดีจอ
       return '<tr>'+
-        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-pc-'+idx+'" value="'+escapeHtml(r.pc_code||'')+'" oninput="mmRowEdit('+idx+')" style="width:100%;border:none;padding:4px;background:transparent;font-size:11.5px;text-align:center"></td>'+
-        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-code-'+idx+'" value="'+escapeHtml(r.part_code||'')+'" oninput="mmRowEdit('+idx+')" style="width:100%;border:none;padding:4px;background:transparent;font-size:11.5px;font-family:var(--mono)"></td>'+
+        // คอลัมน์ 1: PC + รหัส แบบ stacked
+        '<td style="border:1px solid var(--border);padding:1px">'+
+          '<input id="mm-pr-pc-'+idx+'" value="'+escapeHtml(r.pc_code||'')+'" oninput="mmRowEdit('+idx+')" placeholder="PC" style="width:100%;border:none;padding:2px 3px;background:transparent;font-size:10.5px;text-align:center;border-bottom:1px dashed #E5E7EB">'+
+          '<input id="mm-pr-code-'+idx+'" value="'+escapeHtml(r.part_code||'')+'" oninput="mmRowEdit('+idx+')" placeholder="รหัส" style="width:100%;border:none;padding:2px 3px;background:transparent;font-size:10.5px;font-family:var(--mono)">'+
+        '</td>'+
+        // คอลัมน์ 2: รายละเอียด (flex)
         '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-desc-'+idx+'" value="'+escapeHtml(r.description||'')+'" oninput="mmRowEdit('+idx+')" placeholder="ชื่อรายการ" style="width:100%;border:none;padding:4px;background:transparent;font-size:11.5px"></td>'+
+        // คอลัมน์ 3: จำนวน
         '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-qty-'+idx+'" type="number" step="0.01" value="'+(r.qty||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="—" style="width:100%;border:none;padding:4px;background:transparent;font-size:11.5px;text-align:right"></td>'+
+        // คอลัมน์ 4: ราคา/หน่วย
         '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-unit-'+idx+'" type="number" step="0.01" value="'+(r.unit_price||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="—" style="width:100%;border:none;padding:4px;background:transparent;font-size:11.5px;text-align:right"></td>'+
-        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-disc-'+idx+'" type="number" step="0.01" value="'+(r.discount||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="—" style="width:100%;border:none;padding:4px;background:transparent;font-size:11.5px;text-align:right"></td>'+
-        '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-vat-'+idx+'" type="number" step="0.01" value="'+(r.vat||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="—" style="width:100%;border:none;padding:4px;background:transparent;font-size:11.5px;text-align:right"></td>'+
+        // คอลัมน์ 5: ส่วนลด% + VAT บาท แบบ stacked
+        '<td style="border:1px solid var(--border);padding:1px">'+
+          '<input id="mm-pr-disc-'+idx+'" type="number" step="0.01" value="'+(r.discount||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="ลด%" title="ส่วนลด %" style="width:100%;border:none;padding:2px 3px;background:transparent;font-size:10.5px;text-align:right;border-bottom:1px dashed #E5E7EB">'+
+          '<input id="mm-pr-vat-'+idx+'" type="number" step="0.01" value="'+(r.vat||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="VAT" title="VAT บาท" style="width:100%;border:none;padding:2px 3px;background:transparent;font-size:10.5px;text-align:right">'+
+        '</td>'+
+        // คอลัมน์ 6: จำนวนเงิน
         '<td style="border:1px solid var(--border);padding:2px"><input id="mm-pr-amt-'+idx+'" type="number" step="0.01" value="'+(r.amount||'')+'" oninput="mmEditAmountCash('+idx+')" placeholder="0.00" title="พิมพ์เองได้ ถ้ามีจำนวน+หน่วยละ จะคำนวณให้อัตโนมัติ" style="width:100%;border:none;padding:4px;background:#FFFBEB;font-size:11.5px;text-align:right;font-weight:700;color:#92400E"></td>'+
-        '<td style="border:1px solid var(--border);text-align:center"><button type="button" onclick="mmRemovePartRow('+idx+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px" title="ลบแถวนี้">✕</button></td>'+
+        // คอลัมน์ 7: ลบแถว
+        '<td style="border:1px solid var(--border);text-align:center"><button type="button" onclick="mmRemovePartRow('+idx+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:13px" title="ลบแถวนี้">✕</button></td>'+
       '</tr>';
     } else {
       // 🆕 v137 — Cash mode: ปล่อยให้พิมพ์ทุกช่องอิสระ (รวม จำนวนเงิน) — รองรับเคสค่าแรง
