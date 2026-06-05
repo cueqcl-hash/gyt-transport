@@ -577,7 +577,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 #modal-maintenance input[type="number"]{-moz-appearance:textfield;appearance:textfield}
 /* 🆕 v144 — CSS Grid สำหรับตาราง parts (แทน <table> ที่มีปัญหา overflow) */
 #mm-parts-table-wrap{overflow-x:hidden}
-.mm-grid-vat{display:grid;grid-template-columns:90px minmax(0,1fr) 55px 75px 70px 85px 25px;font-size:11.5px;width:100%;max-width:100%}
+.mm-grid-vat{display:grid;grid-template-columns:50px 95px minmax(0,1fr) 55px 75px 70px 85px 25px;font-size:11.5px;width:100%;max-width:100%}
 .mm-grid-cash{display:grid;grid-template-columns:70px minmax(0,1fr) 100px 110px 32px;font-size:12px;width:100%;max-width:100%}
 .mm-grid-row{display:contents}
 .mm-grid-cell{border:1px solid var(--border);padding:2px;min-width:0;overflow:hidden;box-sizing:border-box;display:flex;align-items:center}
@@ -23254,7 +23254,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.145';
+const APP_VERSION = '2026.04.29.146';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24715,10 +24715,12 @@ function mmRenderPartsTable(mode, initialRows){
   var html;
   // 🆕 v144 — เปลี่ยนจาก <table> เป็น CSS Grid แก้ overflow ถาวร
   if(mode === 'vat'){
-    // 6 cols (รวม PC+รหัส, ลด%+VAT แบบ stack): 90px | 1fr | 55px | 75px | 70px | 85px | 25px
+    // 🆕 v146 — 8 cols (PC + รหัสบริการ แยกกันตาม UD Trucks invoice)
+    // 50px | 95px | 1fr | 55px | 75px | 70px | 85px | 25px = 455px fixed + flex
     html = '<div class="mm-grid-vat">'+
-      // header row
-      '<div class="mm-grid-cell mm-grid-th">PC / รหัส</div>'+
+      // header row (8 cells)
+      '<div class="mm-grid-cell mm-grid-th">PC</div>'+
+      '<div class="mm-grid-cell mm-grid-th">รหัสบริการ/อะไหล่</div>'+
       '<div class="mm-grid-cell mm-grid-th">รายละเอียด</div>'+
       '<div class="mm-grid-cell mm-grid-th">จำนวน</div>'+
       '<div class="mm-grid-cell mm-grid-th">ราคา/หน่วย</div>'+
@@ -24726,8 +24728,8 @@ function mmRenderPartsTable(mode, initialRows){
       '<div class="mm-grid-cell mm-grid-th">จำนวนเงิน</div>'+
       '<div class="mm-grid-cell mm-grid-th"></div>'+
       '<div id="mm-parts-tbody" style="display:contents"></div>'+
-      // footer row (รวม + grand total)
-      '<div class="mm-grid-cell mm-grid-foot" style="grid-column:1/6">รวม</div>'+
+      // footer row (3 cells: spans 1-6, then col 7 = grand total, then col 8 = blank)
+      '<div class="mm-grid-cell mm-grid-foot" style="grid-column:1/7">รวม</div>'+
       '<div class="mm-grid-cell mm-grid-foot" style="font-family:var(--mono);justify-content:flex-end" id="mm-parts-grand">0.00</div>'+
       '<div class="mm-grid-cell mm-grid-foot"></div>'+
       '</div>'+
@@ -24759,27 +24761,26 @@ function _mmDrawRows(){
   if(!rows.length){ rows.push({}); }
   tbody.innerHTML = rows.map(function(r, idx){
     if(mode === 'vat'){
-      // 🆕 v144 — VAT mode CSS Grid (7 cells per row, display:contents allows direct children of grid)
+      // 🆕 v146 — VAT mode CSS Grid (8 cells per row — PC + รหัสบริการ แยกคอลัมน์)
       return '<div class="mm-grid-row">'+
-        // 1: PC + รหัส แบบ stacked
-        '<div class="mm-grid-cell mm-grid-cell-stack mm-grid-stack-input">'+
-          '<input id="mm-pr-pc-'+idx+'" value="'+escapeHtml(r.pc_code||'')+'" oninput="mmRowEdit('+idx+')" placeholder="PC" style="text-align:center">'+
-          '<input id="mm-pr-code-'+idx+'" value="'+escapeHtml(r.part_code||'')+'" oninput="mmRowEdit('+idx+')" placeholder="รหัส" style="font-family:var(--mono)">'+
-        '</div>'+
-        // 2: รายละเอียด
+        // 1: PC (รหัสการขาย)
+        '<div class="mm-grid-cell"><input id="mm-pr-pc-'+idx+'" value="'+escapeHtml(r.pc_code||'')+'" oninput="mmRowEdit('+idx+')" placeholder="PC" style="text-align:center"></div>'+
+        // 2: รหัสบริการ/อะไหล่
+        '<div class="mm-grid-cell"><input id="mm-pr-code-'+idx+'" value="'+escapeHtml(r.part_code||'')+'" oninput="mmRowEdit('+idx+')" placeholder="รหัส" style="font-family:var(--mono);font-size:10.5px"></div>'+
+        // 3: รายละเอียด
         '<div class="mm-grid-cell"><input id="mm-pr-desc-'+idx+'" value="'+escapeHtml(r.description||'')+'" oninput="mmRowEdit('+idx+')" placeholder="ชื่อรายการ"></div>'+
-        // 3: จำนวน
+        // 4: จำนวน
         '<div class="mm-grid-cell"><input id="mm-pr-qty-'+idx+'" type="number" step="0.01" value="'+(r.qty||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="—" style="text-align:right"></div>'+
-        // 4: ราคา/หน่วย
+        // 5: ราคา/หน่วย
         '<div class="mm-grid-cell"><input id="mm-pr-unit-'+idx+'" type="number" step="0.01" value="'+(r.unit_price||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="—" style="text-align:right"></div>'+
-        // 5: ส่วนลด% + VAT บาท แบบ stacked
+        // 6: ส่วนลด% + VAT บาท แบบ stacked
         '<div class="mm-grid-cell mm-grid-cell-stack mm-grid-stack-input">'+
           '<input id="mm-pr-disc-'+idx+'" type="number" step="0.01" value="'+(r.discount||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="ลด%" title="ส่วนลด %" style="text-align:right">'+
           '<input id="mm-pr-vat-'+idx+'" type="number" step="0.01" value="'+(r.vat||'')+'" oninput="mmRecalcRow('+idx+')" placeholder="VAT" title="VAT บาท" style="text-align:right">'+
         '</div>'+
-        // 6: จำนวนเงิน
+        // 7: จำนวนเงิน
         '<div class="mm-grid-cell mm-grid-amt"><input id="mm-pr-amt-'+idx+'" type="number" step="0.01" value="'+(r.amount||'')+'" oninput="mmEditAmountCash('+idx+')" placeholder="0.00" title="พิมพ์เองได้ ถ้ามีจำนวน+หน่วยละ จะคำนวณให้อัตโนมัติ"></div>'+
-        // 7: ลบแถว
+        // 8: ลบแถว
         '<div class="mm-grid-cell" style="justify-content:center;padding:0"><button type="button" onclick="mmRemovePartRow('+idx+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:13px;width:100%" title="ลบแถวนี้">✕</button></div>'+
       '</div>';
     } else {
