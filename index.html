@@ -23206,7 +23206,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.132';
+const APP_VERSION = '2026.04.29.133';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24281,9 +24281,133 @@ function renderMaintenance(){
       '<td style="font-size:12px">' + escapeHtml(serviceText||'—') + '</td>' +
       '<td style="text-align:right;font-family:var(--mono)">' + (r.mileage||0).toLocaleString() + '</td>' +
       '<td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--green-d)">' + (parseFloat(r.total_amount)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>' +
-      '<td><button class="btn-sm" onclick="mtOpenMaintenance(' + r.id + ')">แก้</button></td>' +
+      '<td style="white-space:nowrap">'+
+        '<button class="btn-sm" onclick="mtViewMaintenance(' + r.id + ')" style="background:var(--green-l);color:var(--green-d);border:1px solid var(--green-m);margin-right:4px">👁 ดู</button>' +
+        '<button class="btn-sm" onclick="mtOpenMaintenance(' + r.id + ')">แก้</button>' +
+      '</td>' +
     '</tr>';
   }).join('');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   🆕 v133 — View Maintenance Detail Modal (read-only)
+   ════════════════════════════════════════════════════════════════ */
+function mtViewMaintenance(id){
+  var r = (maintenanceRecords||[]).find(function(x){return x.id===id;});
+  if(!r){ if(typeof showToast==='function') showToast('ไม่พบบันทึก'); return; }
+  var allVehicles = (typeof getAllVehicles==='function') ? getAllVehicles() : [];
+  var v = allVehicles.find(function(x){return (x.vehicle_type+':'+x.id) === (r.vehicle_type+':'+r.vehicle_id);});
+  var sh = (repairShops||[]).find(function(x){return x.id === r.shop_id;});
+  var isVat = sh && sh.type === 'vat';
+  var parts = r.parts_list || [];
+  var _esc = function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  var _fmtMoney = function(v){ var n = Number(v)||0; return n.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+  var _fmtBE = function(iso){ if(!iso) return '—'; try{ var d = new Date(iso); if(isNaN(d.getTime())){ var p2 = String(iso).split('-'); if(p2.length===3){ return p2[2]+'/'+p2[1]+'/'+String(parseInt(p2[0],10)+543).slice(-2);} return iso;} var p=function(n){return String(n).padStart(2,'0');}; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+String(d.getFullYear()+543).slice(-2);}catch(e){return iso;}};
+
+  var partsHtml;
+  if(!parts.length){
+    partsHtml = '<div style="padding:18px;text-align:center;color:var(--text-3)">ไม่มีรายการอะไหล่/บริการในบันทึกนี้</div>';
+  } else if(isVat){
+    partsHtml = '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#F3F4F6">'+
+      '<th style="padding:8px 6px;border:1px solid var(--border);width:50px">PC</th>'+
+      '<th style="padding:8px 6px;border:1px solid var(--border);width:120px">รหัสบริการ/อะไหล่</th>'+
+      '<th style="padding:8px 6px;border:1px solid var(--border)">รายละเอียด</th>'+
+      '<th style="padding:8px 6px;border:1px solid var(--border);width:60px;text-align:right">จำนวน</th>'+
+      '<th style="padding:8px 6px;border:1px solid var(--border);width:90px;text-align:right">ราคา/หน่วย</th>'+
+      '<th style="padding:8px 6px;border:1px solid var(--border);width:70px;text-align:right">ส่วนลด</th>'+
+      '<th style="padding:8px 6px;border:1px solid var(--border);width:60px;text-align:right">VAT</th>'+
+      '<th style="padding:8px 6px;border:1px solid var(--border);width:100px;text-align:right">จำนวนเงิน</th>'+
+      '</tr></thead><tbody>'+
+      parts.map(function(p){
+        return '<tr>'+
+          '<td style="padding:6px;border:1px solid var(--border);text-align:center">'+_esc(p.pc_code||'')+'</td>'+
+          '<td style="padding:6px;border:1px solid var(--border);font-family:var(--mono);font-size:11.5px">'+_esc(p.part_code||'')+'</td>'+
+          '<td style="padding:6px;border:1px solid var(--border)">'+_esc(p.description||'')+'</td>'+
+          '<td style="padding:6px;border:1px solid var(--border);text-align:right;font-family:var(--mono)">'+(Number(p.qty)||0).toFixed(2)+'</td>'+
+          '<td style="padding:6px;border:1px solid var(--border);text-align:right;font-family:var(--mono)">'+_fmtMoney(p.unit_price)+'</td>'+
+          '<td style="padding:6px;border:1px solid var(--border);text-align:right;font-family:var(--mono)">'+_fmtMoney(p.discount)+'</td>'+
+          '<td style="padding:6px;border:1px solid var(--border);text-align:right;font-family:var(--mono)">'+_fmtMoney(p.vat)+'</td>'+
+          '<td style="padding:6px;border:1px solid var(--border);text-align:right;font-family:var(--mono);font-weight:700;color:var(--green-d)">'+_fmtMoney(p.amount)+'</td>'+
+        '</tr>';
+      }).join('')+
+      '</tbody></table>';
+  } else {
+    partsHtml = '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#F3F4F6">'+
+      '<th style="padding:8px 6px;border:1px solid var(--border);width:80px;text-align:center">จำนวน</th>'+
+      '<th style="padding:8px 6px;border:1px solid var(--border)">รายการ</th>'+
+      '<th style="padding:8px 6px;border:1px solid var(--border);width:110px;text-align:right">หน่วยละ</th>'+
+      '<th style="padding:8px 6px;border:1px solid var(--border);width:120px;text-align:right">จำนวนเงิน</th>'+
+      '</tr></thead><tbody>'+
+      parts.map(function(p){
+        return '<tr>'+
+          '<td style="padding:8px;border:1px solid var(--border);text-align:center;font-family:var(--mono)">'+(Number(p.qty)||0).toFixed(2)+'</td>'+
+          '<td style="padding:8px;border:1px solid var(--border)">'+_esc(p.description||'')+'</td>'+
+          '<td style="padding:8px;border:1px solid var(--border);text-align:right;font-family:var(--mono)">'+_fmtMoney(p.unit_price)+'</td>'+
+          '<td style="padding:8px;border:1px solid var(--border);text-align:right;font-family:var(--mono);font-weight:700;color:var(--green-d)">'+_fmtMoney(p.amount)+'</td>'+
+        '</tr>';
+      }).join('')+
+      '</tbody></table>';
+  }
+
+  var filesHtml = '';
+  if(r.receipt_files && r.receipt_files.length){
+    filesHtml = '<div style="margin-top:14px;padding:10px;background:#F0FDF4;border-radius:6px"><div style="font-size:12px;font-weight:700;color:var(--green-d);margin-bottom:6px">📎 ไฟล์แนบ ('+r.receipt_files.length+')</div>'+
+      r.receipt_files.map(function(f){
+        var url = typeof f === 'string' ? f : (f.url||'');
+        var name = typeof f === 'string' ? f.split('/').pop() : (f.name||'file');
+        return '<a href="'+_esc(url)+'" target="_blank" style="display:inline-block;padding:4px 10px;margin:2px;background:#fff;border:1px solid var(--green-m);border-radius:4px;font-size:11px;color:var(--green-d);text-decoration:none">📄 '+_esc(name)+'</a>';
+      }).join('')+
+      '</div>';
+  }
+
+  var modal = document.getElementById('modal-maintenance-view');
+  if(modal) modal.remove();
+  var div = document.createElement('div');
+  div.id = 'modal-maintenance-view';
+  div.className = 'modal-overlay open';
+  div.innerHTML = '<div class="modal" style="max-width:900px">'+
+    '<div class="modal-head">'+
+      '<div>'+
+        '<div class="modal-title">📋 รายละเอียดบันทึกซ่อม</div>'+
+        '<div class="modal-sub">'+
+          '<strong>🚚 '+_esc(v?v.plate:'(รถถูกลบ)')+'</strong> · '+
+          '🏪 '+_esc(sh?sh.name:'(อู่ถูกลบ)')+' '+
+          (isVat ? '<span style="background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">🧾 VAT</span>' : '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">💵 เงินสด</span>')+
+        '</div>'+
+      '</div>'+
+      '<button class="close-x" onclick="document.getElementById(\'modal-maintenance-view\').remove()">&times;</button>'+
+    '</div>'+
+    '<div class="modal-body">'+
+      // Top info grid
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;background:#FAFAF7;padding:12px;border-radius:6px;margin-bottom:14px;font-size:12px">'+
+        '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">📅 วันที่ซ่อม</div><strong>'+_fmtBE(r.service_date)+'</strong></div>'+
+        '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">📅 บันทึกเมื่อ</div><strong>'+_fmtBE(r.created_at)+'</strong></div>'+
+        '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">📏 เลขไมล์</div><strong>'+(Number(r.mileage)||0).toLocaleString()+' km</strong></div>'+
+        '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">'+(isVat?'🧾 Invoice No':'💵 Bill No')+'</div><strong>'+_esc((isVat?r.invoice_no:r.bill_no)||'—')+'</strong></div>'+
+        (r.next_service_km ? '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">🔔 ครั้งหน้า (km)</div><strong>'+Number(r.next_service_km).toLocaleString()+'</strong></div>' : '')+
+        (r.next_service_date ? '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">🔔 ครั้งหน้า (วัน)</div><strong>'+_fmtBE(r.next_service_date)+'</strong></div>' : '')+
+      '</div>'+
+      // Parts table
+      '<div style="font-size:13px;font-weight:700;color:var(--text-2);margin-bottom:6px">🔧 รายการอะไหล่/บริการ ('+parts.length+' รายการ)</div>'+
+      '<div style="overflow-x:auto">'+partsHtml+'</div>'+
+      // Totals
+      '<div style="margin-top:14px;padding:12px;background:linear-gradient(135deg,#F0FDF4,#DCFCE7);border-radius:6px;border:1px solid var(--green-m)">'+
+        (isVat ?
+          '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-2);margin-bottom:4px"><span>ยอดก่อน VAT</span><span style="font-family:var(--mono)">฿'+_fmtMoney(r.amount_before_vat)+'</span></div>'+
+          '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-2);margin-bottom:4px"><span>VAT 7%</span><span style="font-family:var(--mono)">฿'+_fmtMoney(r.vat_amount)+'</span></div>'+
+          '<div style="border-top:1.5px solid var(--green-m);margin:6px 0"></div>' : '')+
+        '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:var(--green-d)"><span>ยอดรวมทั้งสิ้น</span><span style="font-family:var(--mono)">฿'+_fmtMoney(r.total_amount)+'</span></div>'+
+      '</div>'+
+      (r.note ? '<div style="margin-top:14px;padding:10px;background:#FEF3C7;border-radius:6px;border-left:3px solid #F59E0B"><div style="font-size:11px;color:#92400E;font-weight:700;margin-bottom:4px">📝 หมายเหตุ</div><div style="font-size:12px;color:#78350F;white-space:pre-wrap">'+_esc(r.note)+'</div></div>' : '')+
+      filesHtml+
+    '</div>'+
+    '<div class="modal-foot">'+
+      '<button class="btn btn-ghost" onclick="document.getElementById(\'modal-maintenance-view\').remove()">ปิด</button>'+
+      '<button class="btn" onclick="document.getElementById(\'modal-maintenance-view\').remove();mtOpenMaintenance('+id+')" style="background:#F59E0B;color:#fff;border:none">✏️ แก้ไขบันทึกนี้</button>'+
+    '</div>'+
+  '</div>';
+  div.onclick = function(e){ if(e.target===div) div.remove(); };
+  document.body.appendChild(div);
 }
 
 // ── Open maintenance modal ──
