@@ -23204,7 +23204,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.129';
+const APP_VERSION = '2026.04.29.130';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24279,13 +24279,69 @@ function renderMaintenance(){
 }
 
 // ── Open maintenance modal ──
+// 🆕 v130 — Init Buddhist year flatpickr for maintenance date inputs (idempotent)
+function _mmInitBEPicker(inputId){
+  if(typeof flatpickr === 'undefined') return null;
+  var input = document.getElementById(inputId);
+  if(!input) return null;
+  if(input._flatpickr){ return input._flatpickr; }
+  return flatpickr(input, {
+    parseDate: function(datestr){
+      if(!datestr) return undefined;
+      var s = String(datestr).trim();
+      // accept ISO too
+      if(/^\d{4}-\d{2}-\d{2}/.test(s)){
+        var parts = s.slice(0,10).split('-');
+        return new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10));
+      }
+      var p = s.split('/');
+      if(p.length !== 3) return undefined;
+      var d = parseInt(p[0],10), m = parseInt(p[1],10), y = parseInt(p[2],10);
+      if(isNaN(d)||isNaN(m)||isNaN(y)) return undefined;
+      if(y >= 2400) y -= 543;
+      else if(y < 100) y += 2500; // user typed "69" → 2569 BE → 2026 AD
+      else if(y < 1000) y += 2543;
+      if(y >= 2400) y -= 543; // re-normalize if still BE-like
+      return new Date(y, m-1, d);
+    },
+    formatDate: function(date){
+      // เก็บเป็น ISO ใน input.value เพื่อ save ได้ทันที
+      var iso = date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0');
+      // แต่ที่ผู้ใช้เห็น (ผ่าน altInput) เป็น BE
+      return iso;
+    },
+    altInput: true,
+    altFormat: 'd/m/Y',  // จะถูก override ด้วย parseAlt format ด้านล่าง
+    locale: (flatpickr.l10ns && flatpickr.l10ns.th) ? 'th' : 'default',
+    allowInput: false,
+    disableMobile: true,
+    onReady: function(selectedDates, dateStr, instance){
+      // override altInput formatter เป็น BE
+      var origFmt = instance.formatDate;
+      instance.formatDate = function(date, format){
+        if(format === 'd/m/Y'){
+          return String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+String(date.getFullYear()+543).slice(-2);
+        }
+        return origFmt(date, format);
+      };
+      if(selectedDates.length) instance.setDate(selectedDates[0], false);
+    }
+  });
+}
+
 function mtOpenMaintenance(id){
   editMaintenanceId = id || null;
   document.getElementById('mm-title').textContent = id ? 'แก้ไขบันทึกการซ่อม' : 'บันทึกการซ่อมใหม่';
   document.getElementById('mm-delete-btn').style.display = id ? 'inline-block' : 'none';
 
   // Reset form
-  document.getElementById('mm-date').value = new Date().toISOString().slice(0,10);
+  // 🆕 v130 — Init BE date pickers + set วันนี้ผ่าน flatpickr (auto-format BE)
+  var dpDate = _mmInitBEPicker('mm-date');
+  var dpNext = _mmInitBEPicker('mm-next-date');
+  if(dpDate){ dpDate.setDate(new Date(), true); }
+  else { document.getElementById('mm-date').value = new Date().toISOString().slice(0,10); }
+  if(dpNext){ dpNext.clear(); }
+  else { document.getElementById('mm-next-date').value = ''; }
   document.getElementById('mm-mileage').value = '';
   document.getElementById('mm-bill-no').value = '';
   document.getElementById('mm-invoice-no').value = '';
@@ -24328,7 +24384,9 @@ function mtOpenMaintenance(id){
   if(id){
     var r = (maintenanceRecords||[]).find(function(x){return x.id===id;});
     if(r){
-      document.getElementById('mm-date').value = r.service_date||'';
+      // 🆕 v130 — set via flatpickr so altInput shows BE
+      if(dpDate && r.service_date){ dpDate.setDate(r.service_date, true); }
+      else { document.getElementById('mm-date').value = r.service_date||''; }
       document.getElementById('mm-mileage').value = r.mileage||'';
       vSelect.value = (r.vehicle_type||'') + ':' + (r.vehicle_id||'');
       sSelect.value = r.shop_id||'';
@@ -24338,7 +24396,9 @@ function mtOpenMaintenance(id){
       document.getElementById('mm-vat').value = r.vat_amount||'';
       document.getElementById('mm-total').value = r.total_amount||'';
       document.getElementById('mm-next-km').value = r.next_service_km||'';
-      document.getElementById('mm-next-date').value = r.next_service_date||'';
+      // 🆕 v130 — set via flatpickr
+      if(dpNext && r.next_service_date){ dpNext.setDate(r.next_service_date, true); }
+      else { document.getElementById('mm-next-date').value = r.next_service_date||''; }
       document.getElementById('mm-note').value = r.note||'';
       _currentReceiptFiles = (r.receipt_files || []).map(function(f){
         return typeof f === 'string' ? {url:f, name:f.split('/').pop(), type:''} : f;
@@ -28053,7 +28113,9 @@ async function rcptLoadDoneList(){
   </div>
   <div class="modal-body">
     <div class="fg-row">
-      <div class="fg" style="flex:1"><label class="fl">วันที่ซ่อม <span style="color:red">*</span></label><input class="fi" type="date" id="mm-date"></div>
+      <div class="fg" style="flex:1"><label class="fl">วันที่ซ่อม <span style="color:red">*</span></label>
+        <div style="display:flex"><input class="fi" type="text" id="mm-date" placeholder="วว/ดด/พ.ศ." readonly style="background:#fff;border-right:none;border-radius:6px 0 0 6px;cursor:pointer"><button type="button" onclick="document.getElementById('mm-date')._flatpickr&&document.getElementById('mm-date')._flatpickr.open()" style="padding:0 14px;border:1px solid var(--border);border-left:none;border-radius:0 6px 6px 0;background:var(--green-l);cursor:pointer;font-size:16px">📅</button></div>
+      </div>
       <div class="fg" style="flex:1"><label class="fl">เลขไมล์ (km)</label><input class="fi" type="number" id="mm-mileage" placeholder="เช่น 125000"></div>
     </div>
     <div class="fg-row">
@@ -28083,7 +28145,9 @@ async function rcptLoadDoneList(){
 
     <div class="fg-row">
       <div class="fg" style="flex:1"><label class="fl">กำหนดซ่อมครั้งหน้า (km)</label><input class="fi" type="number" id="mm-next-km" placeholder="—"></div>
-      <div class="fg" style="flex:1"><label class="fl">กำหนดซ่อมครั้งหน้า (วันที่)</label><input class="fi" type="date" id="mm-next-date"></div>
+      <div class="fg" style="flex:1"><label class="fl">กำหนดซ่อมครั้งหน้า (วันที่)</label>
+        <div style="display:flex"><input class="fi" type="text" id="mm-next-date" placeholder="วว/ดด/พ.ศ." readonly style="background:#fff;border-right:none;border-radius:6px 0 0 6px;cursor:pointer"><button type="button" onclick="document.getElementById('mm-next-date')._flatpickr&&document.getElementById('mm-next-date')._flatpickr.open()" style="padding:0 14px;border:1px solid var(--border);border-left:none;border-radius:0 6px 6px 0;background:var(--green-l);cursor:pointer;font-size:16px">📅</button></div>
+      </div>
     </div>
 
     <div class="fg-row">
