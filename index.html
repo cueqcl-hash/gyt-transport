@@ -23245,7 +23245,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.142';
+const APP_VERSION = '2026.04.29.143';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24706,15 +24706,24 @@ function mmRenderPartsTable(mode, initialRows){
   var html;
   if(mode === 'vat'){
     // 8 cols: PC | รหัส | รายละเอียด | จำนวน | ราคาขาย/หน่วย | ส่วนลด | VAT | จำนวนเงิน
-    // 🆕 v141 — รวมคอลัมน์แบบ stacked ให้พอดีจอ: PC+รหัส, ส่วนลด+VAT
-    html = '<table style="width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed"><thead><tr style="background:#F3F4F6">'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:95px">PC / รหัส</th>'+
+    // 🆕 v143 — explicit width ทุกคอลัมน์ via colgroup + table ขนาดคงที่ 740px
+    // Total = 90+340+55+75+70+85+25 = 740px (พอดี modal ทุก resolution ไม่ล้นแน่นอน)
+    html = '<table style="width:740px;max-width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed"><colgroup>'+
+      '<col style="width:90px">'+
+      '<col style="width:340px">'+
+      '<col style="width:55px">'+
+      '<col style="width:75px">'+
+      '<col style="width:70px">'+
+      '<col style="width:85px">'+
+      '<col style="width:25px">'+
+      '</colgroup><thead><tr style="background:#F3F4F6">'+
+      '<th style="padding:6px 3px;border:1px solid var(--border)">PC / รหัส</th>'+
       '<th style="padding:6px 3px;border:1px solid var(--border)">รายละเอียด</th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:55px">จำนวน</th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:75px">ราคา/หน่วย</th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:70px">ส่วนลด %<br><span style="font-size:9px;color:var(--text-3);font-weight:400">/ VAT บาท</span></th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:85px">จำนวนเงิน</th>'+
-      '<th style="padding:6px 3px;border:1px solid var(--border);width:26px"></th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border)">จำนวน</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border)">ราคา/หน่วย</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border)">ส่วนลด %<br><span style="font-size:9px;color:var(--text-3);font-weight:400">/ VAT บาท</span></th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border)">จำนวนเงิน</th>'+
+      '<th style="padding:6px 3px;border:1px solid var(--border)"></th>'+
       '</tr></thead><tbody id="mm-parts-tbody"></tbody>'+
       '<tfoot><tr style="background:#FAFAF7;font-weight:600"><td colspan="5" style="padding:6px;border:1px solid var(--border);text-align:right">รวม</td>'+
       '<td style="padding:6px;border:1px solid var(--border);text-align:right;font-family:var(--mono)" id="mm-parts-grand">0.00</td>'+
@@ -28589,7 +28598,7 @@ async function rcptLoadDoneList(){
 
 <!-- MODAL: MAINTENANCE (บันทึกซ่อม) — 🆕 v129 re-added -->
 <div class="modal-overlay" id="modal-maintenance">
-<div class="modal" style="max-width:min(1180px, 96vw); width:min(1180px, 96vw)">
+<div class="modal" style="max-width:min(880px, 96vw); width:min(880px, 96vw)">
   <div class="modal-head">
     <div>
       <div class="modal-title" id="mm-title">บันทึกการซ่อมใหม่</div>
