@@ -575,6 +575,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   -webkit-appearance:none;margin:0
 }
 #modal-maintenance input[type="number"]{-moz-appearance:textfield;appearance:textfield}
+/* 🆕 v142 — บังคับ input ในตารางอะไหล่ ให้ shrink ได้ ไม่ขยายเซลล์ */
+#mm-parts-table-wrap input{min-width:0!important;box-sizing:border-box!important;max-width:100%!important}
+#mm-parts-table-wrap table{table-layout:fixed!important;width:100%!important;max-width:100%!important}
+#mm-parts-table-wrap td, #mm-parts-table-wrap th{overflow:hidden}
 .mm-file-card{position:relative;border:1.5px solid var(--border);border-radius:8px;padding:6px;background:#fff;transition:.15s}
 .mm-file-card:hover{border-color:var(--green);box-shadow:0 2px 6px rgba(0,0,0,.08)}
 .mm-file-card img{width:100%;height:80px;object-fit:cover;border-radius:6px;display:block;cursor:pointer}
@@ -23241,7 +23245,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.141';
+const APP_VERSION = '2026.04.29.142';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
