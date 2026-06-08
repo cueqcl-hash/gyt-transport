@@ -23263,7 +23263,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.148';
+const APP_VERSION = '2026.04.29.149';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -23799,11 +23799,26 @@ async function loadDeletedJobsFromCloud(){
 }
 
 // 🆕 v148 — อัปเดต badge ถังขยะของหน้าซ่อมบำรุง
+// 🆕 v149 — แสดงปุ่มตลอด (ไม่ซ่อนตอนว่าง) + เปลี่ยนสีตามมี/ไม่มีรายการ
 function updateMaintenanceTrashBadge(){
+  var n = deletedMaintenance.length;
   var el = document.getElementById('mt-trash-count');
-  if(el) el.textContent = deletedMaintenance.length;
+  if(el) el.textContent = n;
   var btn = document.getElementById('mt-trash-btn');
-  if(btn) btn.style.display = deletedMaintenance.length ? '' : 'none';
+  if(btn){
+    btn.style.display = '';  // แสดงตลอด
+    if(n > 0){
+      // มีรายการ: สีเหลือง alert
+      btn.style.background = '#FEF3C7';
+      btn.style.color = '#92400E';
+      btn.style.borderColor = '#F59E0B';
+    } else {
+      // ว่าง: สีเทาเงียบๆ
+      btn.style.background = '#F3F4F6';
+      btn.style.color = '#6B7280';
+      btn.style.borderColor = '#D1D5DB';
+    }
+  }
 }
 
 // 🔧 v056 — ลบ row จาก cloud ตอน restore หรือ permanent delete
