@@ -1852,7 +1852,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <div class="mt-card">
             <div class="mt-card-header">
               <div class="mt-card-title">📋 ประวัติการซ่อม — <span id="mt-records-count" style="color:var(--green)">0</span> รายการ</div>
-              <button class="btn btn-green" onclick="mtOpenMaintenance()">+ บันทึกซ่อมใหม่</button>
+              <div style="display:flex;gap:8px">
+                <button class="btn" onclick="mtOpenMaintenanceTrash()" id="mt-trash-btn" style="background:#FEF3C7;color:#92400E;border:1px solid #F59E0B" title="ถังขยะ — ดู/กู้คืนบันทึกซ่อมที่ลบไป">🗑️ ถังขยะ <span id="mt-trash-count" style="font-weight:700">0</span></button>
+                <button class="btn btn-green" onclick="mtOpenMaintenance()">+ บันทึกซ่อมใหม่</button>
+              </div>
             </div>
             <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
               <input class="fi" id="mt-records-search" placeholder="ค้นหา ทะเบียน / อู่ / เลขที่บิล..." oninput="renderMaintenance()" style="flex:1;min-width:200px">
@@ -4730,6 +4733,12 @@ let deletedJobs = []; // {job, reason, deletedAt, deletedBy, cloudId}
 try {
   var _cachedTrash = localStorage.getItem('gyt_deleted_jobs');
   if(_cachedTrash){ deletedJobs = JSON.parse(_cachedTrash) || []; }
+} catch(_){}
+// 🆕 v148 — ถังขยะของบันทึกซ่อม (ใช้ตาราง gyt_deleted_jobs ร่วมกัน + JSONB marker _kind:'maintenance')
+let deletedMaintenance = []; // {record, deletedAt, deletedBy, cloudId}
+try {
+  var _cachedMtTrash = localStorage.getItem('gyt_deleted_maintenance');
+  if(_cachedMtTrash){ deletedMaintenance = JSON.parse(_cachedMtTrash) || []; }
 } catch(_){}
 let editJID = null;
 let jPage = 1;
@@ -23254,7 +23263,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.147';
+const APP_VERSION = '2026.04.29.148';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -23758,8 +23767,10 @@ async function loadDeletedJobsFromCloud(){
   try {
     var rows = await sbFetch('gyt_deleted_jobs','GET',null,'?order=deleted_at.desc&limit=2000');
     if(!rows) return;
-    deletedJobs = rows.map(function(r){
-      // เก็บ row.id (จาก cloud) ไว้ด้วย เพื่อใช้ลบ/restore
+    // 🆕 v148 — แยก jobs ออกจาก maintenance (ใช้ตารางร่วมกันโดย _kind marker)
+    var jobRows = rows.filter(function(r){ return !(r.job && r.job._kind === 'maintenance'); });
+    var mtRows = rows.filter(function(r){ return r.job && r.job._kind === 'maintenance'; });
+    deletedJobs = jobRows.map(function(r){
       return {
         cloudId: r.id,
         job: r.job || {},
@@ -23768,12 +23779,31 @@ async function loadDeletedJobsFromCloud(){
         deletedBy: r.deleted_by || ''
       };
     });
+    deletedMaintenance = mtRows.map(function(r){
+      var rec = Object.assign({}, r.job); delete rec._kind;
+      return {
+        cloudId: r.id,
+        record: rec,
+        deletedAt: r.deleted_at,
+        deletedBy: r.deleted_by || ''
+      };
+    });
     saveDeletedJobsLocal();
+    try{ localStorage.setItem('gyt_deleted_maintenance', JSON.stringify(deletedMaintenance)); }catch(_){}
     updateBinBadge();
-    console.log('[Trash] loaded '+deletedJobs.length+' deleted jobs from cloud');
+    if(typeof updateMaintenanceTrashBadge === 'function') updateMaintenanceTrashBadge();
+    console.log('[Trash] loaded '+deletedJobs.length+' jobs + '+deletedMaintenance.length+' maintenance from cloud');
   } catch(e){
     console.warn('loadDeletedJobsFromCloud error:', e.message);
   }
+}
+
+// 🆕 v148 — อัปเดต badge ถังขยะของหน้าซ่อมบำรุง
+function updateMaintenanceTrashBadge(){
+  var el = document.getElementById('mt-trash-count');
+  if(el) el.textContent = deletedMaintenance.length;
+  var btn = document.getElementById('mt-trash-btn');
+  if(btn) btn.style.display = deletedMaintenance.length ? '' : 'none';
 }
 
 // 🔧 v056 — ลบ row จาก cloud ตอน restore หรือ permanent delete
@@ -24266,6 +24296,8 @@ function getAllVehicles(){
 
 // ── Render maintenance records list ──
 function renderMaintenance(){
+  // 🆕 v148 — refresh trash badge
+  if(typeof updateMaintenanceTrashBadge === 'function') updateMaintenanceTrashBadge();
   // 🆕 v134 — populate plate dropdown on every render (ensures it stays in sync)
   _mtPopulatePlateFilter('mt-records-plate');
   var q = ((document.getElementById('mt-records-search')||{}).value || '').toLowerCase().trim();
@@ -25082,19 +25114,138 @@ async function saveMaintenance(){
   }
 }
 
+// 🆕 v148 — soft-delete: ย้ายเข้าถังขยะแทนการลบจริง
 async function deleteMaintenance(){
   if(!editMaintenanceId) return;
-  if(!confirm('ลบบันทึกการซ่อมนี้? (ลบถาวร — กู้คืนไม่ได้)')) return;
+  if(!confirm('ย้ายบันทึกการซ่อมนี้ไปถังขยะ?\n(กู้คืนได้ — เปิดถังขยะที่ปุ่ม 🗑️)')) return;
   var idx = (maintenanceRecords||[]).findIndex(function(x){return x.id===editMaintenanceId;});
   if(idx<0) return;
+  var rec = maintenanceRecords[idx];
   var deletedId = editMaintenanceId;
+  var deletedAt = new Date().toISOString();
+  var deletedBy = currentUser ? (currentUser.fname+' '+currentUser.lname) : 'unknown';
+  // local ก่อน
   maintenanceRecords.splice(idx,1);
+  var trashEntry = {
+    cloudId: null,
+    record: Object.assign({_kind:'maintenance', _origId:deletedId}, rec),
+    deletedAt: deletedAt,
+    deletedBy: deletedBy
+  };
+  deletedMaintenance.unshift(trashEntry);
+  try{ localStorage.setItem('gyt_deleted_maintenance', JSON.stringify(deletedMaintenance)); }catch(_){}
   closeModal('modal-maintenance');
   renderMaintenance();
-  showToast('ลบเรียบร้อย ✓');
+  updateMaintenanceTrashBadge();
+  showToast('ย้ายไปถังขยะแล้ว ✓ (กู้คืนได้ที่ 🗑️)');
+  // sync: POST ลงถังขยะ + DELETE จาก gyt_maintenance
   try {
-    if(_onlineMode) await sbFetch('gyt_maintenance','DELETE',null,'?id=eq.'+deletedId);
+    if(_onlineMode){
+      var r = await sbFetch('gyt_deleted_jobs','POST',[{
+        job: trashEntry.record,
+        reason: 'maintenance',
+        deleted_by: deletedBy,
+        deleted_at: deletedAt
+      }]);
+      if(r && r[0] && r[0].id){
+        trashEntry.cloudId = r[0].id;
+        try{ localStorage.setItem('gyt_deleted_maintenance', JSON.stringify(deletedMaintenance)); }catch(_){}
+      }
+      await sbFetch('gyt_maintenance','DELETE',null,'?id=eq.'+deletedId);
+    }
   } catch(e){ console.warn('deleteMaintenance sync error:', e); }
+}
+
+// 🆕 v148 — กู้คืนบันทึกซ่อมจากถังขยะ
+async function restoreMaintenance(idx){
+  var entry = deletedMaintenance[idx];
+  if(!entry) return;
+  var rec = Object.assign({}, entry.record);
+  delete rec._kind; delete rec._origId;
+  deletedMaintenance.splice(idx,1);
+  maintenanceRecords.push(rec);
+  try{ localStorage.setItem('gyt_deleted_maintenance', JSON.stringify(deletedMaintenance)); }catch(_){}
+  showToast('กู้คืนเรียบร้อย ✓');
+  renderMaintenanceTrash();
+  renderMaintenance();
+  updateMaintenanceTrashBadge();
+  try{
+    if(_onlineMode){
+      // POST กลับเข้า gyt_maintenance
+      await sbFetch('gyt_maintenance','POST',[rec],'?on_conflict=id');
+      // ลบออกจาก gyt_deleted_jobs
+      if(entry.cloudId) await sbFetch('gyt_deleted_jobs','DELETE',null,'?id=eq.'+entry.cloudId);
+    }
+  }catch(e){ console.warn('restoreMaintenance sync error:', e); }
+}
+
+// 🆕 v148 — ลบถาวรจากถังขยะ
+async function purgeMaintenance(idx){
+  var entry = deletedMaintenance[idx];
+  if(!entry) return;
+  if(!confirm('ลบถาวร? กู้คืนไม่ได้อีก')) return;
+  deletedMaintenance.splice(idx,1);
+  try{ localStorage.setItem('gyt_deleted_maintenance', JSON.stringify(deletedMaintenance)); }catch(_){}
+  renderMaintenanceTrash();
+  updateMaintenanceTrashBadge();
+  showToast('ลบถาวรแล้ว ✓');
+  try{
+    if(_onlineMode && entry.cloudId){
+      await sbFetch('gyt_deleted_jobs','DELETE',null,'?id=eq.'+entry.cloudId);
+    }
+  }catch(e){ console.warn('purgeMaintenance sync error:', e); }
+}
+
+// 🆕 v148 — เปิด modal ถังขยะ + render
+function mtOpenMaintenanceTrash(){
+  var modal = document.getElementById('modal-maintenance-trash');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'modal-maintenance-trash';
+    modal.className = 'modal-overlay open';
+    document.body.appendChild(modal);
+  }
+  modal.classList.add('open');
+  renderMaintenanceTrash();
+}
+
+function renderMaintenanceTrash(){
+  var modal = document.getElementById('modal-maintenance-trash');
+  if(!modal) return;
+  var shopMap = {}; (repairShops||[]).forEach(function(s){shopMap[s.id]=s;});
+  var allV = (typeof getAllVehicles==='function')?getAllVehicles():[];
+  var vMap = {}; allV.forEach(function(v){ vMap[v.vehicle_type+':'+v.id]=v; });
+  var _fmt = function(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return iso; var p=function(n){return String(n).padStart(2,'0');}; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+String(d.getFullYear()+543).slice(-2)+' '+p(d.getHours())+':'+p(d.getMinutes()); };
+  var rowsHtml = deletedMaintenance.length ? deletedMaintenance.map(function(e, i){
+    var r = e.record || {};
+    var v = vMap[(r.vehicle_type||'')+':'+(r.vehicle_id||'')];
+    var sh = shopMap[r.shop_id];
+    return '<tr>'+
+      '<td>'+_fmt(e.deletedAt)+'<div style="font-size:10px;color:var(--text-3)">โดย '+escapeHtml(e.deletedBy||'—')+'</div></td>'+
+      '<td><strong>'+_fmt(r.service_date)+'</strong></td>'+
+      '<td><strong>'+escapeHtml(v?v.plate:'(รถถูกลบ)')+'</strong></td>'+
+      '<td>'+escapeHtml(sh?sh.name:'—')+'<div style="font-size:10px;color:var(--text-3)">'+(sh&&sh.type==='vat'?'🧾 VAT':'💵 เงินสด')+'</div></td>'+
+      '<td style="text-align:right;font-weight:700;font-family:var(--mono)">฿'+(Number(r.total_amount)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'+
+      '<td style="text-align:center"><button class="btn" onclick="restoreMaintenance('+i+')" style="background:#D1FAE5;color:#065F46;font-size:11px;padding:4px 8px">↩ กู้คืน</button> '+
+      '<button class="btn" onclick="purgeMaintenance('+i+')" style="background:#FEE2E2;color:#991B1B;font-size:11px;padding:4px 8px" title="ลบถาวร">🗑️</button></td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-3)">— ถังขยะว่างเปล่า —</td></tr>';
+  modal.innerHTML = '<div class="modal" style="max-width:min(880px, 96vw); width:min(880px, 96vw)">'+
+    '<div class="modal-head"><div><div class="modal-title">🗑️ ถังขยะ — บันทึกการซ่อม</div>'+
+    '<div class="modal-sub">รายการที่ลบไว้ ('+deletedMaintenance.length+' รายการ) — กู้คืนได้เสมอ ถ้ายังไม่ได้ลบถาวร</div></div>'+
+    '<button class="close-x" onclick="document.getElementById(\'modal-maintenance-trash\').classList.remove(\'open\')">&times;</button></div>'+
+    '<div class="modal-body">'+
+    '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#F3F4F6">'+
+    '<th style="padding:6px;border:1px solid var(--border)">ลบเมื่อ</th>'+
+    '<th style="padding:6px;border:1px solid var(--border)">วันที่ซ่อม</th>'+
+    '<th style="padding:6px;border:1px solid var(--border)">ทะเบียน</th>'+
+    '<th style="padding:6px;border:1px solid var(--border)">อู่</th>'+
+    '<th style="padding:6px;border:1px solid var(--border);text-align:right">ยอด</th>'+
+    '<th style="padding:6px;border:1px solid var(--border)">การกระทำ</th>'+
+    '</tr></thead><tbody>'+rowsHtml+'</tbody></table>'+
+    '</div>'+
+    '<div class="modal-foot"><button class="btn btn-ghost" onclick="document.getElementById(\'modal-maintenance-trash\').classList.remove(\'open\')">ปิด</button></div>'+
+    '</div>';
 }
 
 // ════════════════════════════════════════════════════════════════════════
