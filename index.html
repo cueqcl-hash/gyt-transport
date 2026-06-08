@@ -23110,9 +23110,9 @@ document.querySelectorAll('.modal-overlay').forEach(function(el){
     el.classList.remove('open');
   });
 });
-function showToast(msg){
+function showToast(msg, duration){
   var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
-  setTimeout(function(){t.classList.remove('show');},3000);
+  setTimeout(function(){t.classList.remove('show');}, duration || 3000);
 }
 
 // กด ESC ปิด modal
@@ -23254,7 +23254,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.146';
+const APP_VERSION = '2026.04.29.147';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24997,6 +24997,8 @@ async function saveMaintenance(){
   if(!serviceTypes.length){
     serviceTypes = partsRows.map(function(r){ return (r.description||'').trim(); }).filter(Boolean);
   }
+  // 🆕 v147 — เอา parts_mode ออก (DB ไม่มีคอลัมน์นี้ → 400 → save fail)
+  //   parts_mode จะ derive จาก shop.type ตอน render เอง
   var obj = {
     vehicle_id: parseInt(vid),
     vehicle_type: vt,
@@ -25007,7 +25009,6 @@ async function saveMaintenance(){
     invoice_no: (sh && sh.type==='vat') ? document.getElementById('mm-invoice-no').value || null : null,
     service_types: serviceTypes,
     parts_list: partsRows,
-    parts_mode: partsMode,
     labor_cost: 0,
     amount_before_vat: parseFloat(document.getElementById('mm-before-vat').value||0) || 0,
     vat_amount: parseFloat(document.getElementById('mm-vat').value||0) || 0,
@@ -25019,6 +25020,8 @@ async function saveMaintenance(){
     created_by: currentUser ? (currentUser.fname + ' ' + currentUser.lname) : null,
     updated_at: new Date().toISOString()
   };
+  // เก็บ partsMode ไว้ใน memory เฉยๆ ไม่ส่งไป cloud (กันคอลัมน์ไม่ตรง)
+  var _objLocalPartsMode = partsMode;
   if(editMaintenanceId){
     obj.id = editMaintenanceId;
     var idx = maintenanceRecords.findIndex(function(x){return x.id===editMaintenanceId;});
@@ -25029,18 +25032,54 @@ async function saveMaintenance(){
     maintenanceRecords.push(obj);
   }
   closeModal('modal-maintenance');
+  // เก็บ partsMode ลง local record ด้วย (ไม่ส่งไป DB)
+  if(_objLocalPartsMode){
+    var localIdx = maintenanceRecords.findIndex(function(x){return x.id===obj.id;});
+    if(localIdx>=0) maintenanceRecords[localIdx].parts_mode = _objLocalPartsMode;
+  }
   renderMaintenance();
-  showToast(editMaintenanceId ? 'แก้ไขบันทึกซ่อมเรียบร้อย ✓' : 'บันทึกซ่อมใหม่เรียบร้อย ✓');
-  // Sync to cloud
-  try {
-    if(_onlineMode){
-      var r = await sbFetch('gyt_maintenance','POST',[obj],'?on_conflict=id');
-      if(r && r[0] && r[0].id){
-        var idx2 = maintenanceRecords.findIndex(function(x){return x.id===obj.id;});
-        if(idx2>=0) maintenanceRecords[idx2].id = r[0].id;
+  // 🆕 v147 — Sync to cloud + ตรวจ HTTP status จริง + แสดง error ให้ผู้ใช้รู้ถ้า fail
+  var syncOk = !_onlineMode;  // offline mode = ถือว่า "ok" (ไว้ sync ทีหลัง)
+  var syncErr = '';
+  if(_onlineMode){
+    try {
+      var url = SUPA_URL + '/rest/v1/gyt_maintenance?on_conflict=id';
+      var resp = await fetch(url, {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'apikey': SUPA_KEY,
+          'Authorization': 'Bearer ' + SUPA_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=representation'
+        },
+        body: JSON.stringify([obj])
+      });
+      if(resp.ok){
+        syncOk = true;
+        var json = await resp.json();
+        if(json && json[0] && json[0].id){
+          var idx2 = maintenanceRecords.findIndex(function(x){return x.id===obj.id;});
+          if(idx2>=0) maintenanceRecords[idx2].id = json[0].id;
+        }
+      } else {
+        // จับ error response เพื่อโชว์ให้ผู้ใช้
+        var errBody = await resp.text();
+        syncErr = 'HTTP ' + resp.status + ' — ' + (errBody.slice(0,200) || resp.statusText);
+        console.error('saveMaintenance sync failed:', syncErr);
       }
+    } catch(e){
+      syncErr = 'Network: ' + (e.message || e);
+      console.error('saveMaintenance sync exception:', e);
     }
-  } catch(e){ console.warn('saveMaintenance sync error:', e); }
+  }
+  // toast ตาม status จริง
+  if(syncOk){
+    showToast(editMaintenanceId ? 'แก้ไขบันทึกซ่อมเรียบร้อย ✓' : 'บันทึกซ่อมใหม่เรียบร้อย ✓');
+  } else {
+    showToast('⚠️ บันทึกลง Cloud ไม่สำเร็จ: ' + syncErr + ' — ข้อมูลยังอยู่บนหน้าจอ แต่จะหายเมื่อ refresh', 8000);
+  }
 }
 
 async function deleteMaintenance(){
