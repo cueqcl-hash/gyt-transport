@@ -841,7 +841,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <option value="เสร็จสิ้น">เสร็จสิ้น</option>
           </select>
           <button class="btn btn-ghost" onclick="refreshJobsFromCloud()" id="btn-refresh-jobs" title="ดึงข้อมูลล่าสุดจาก Cloud — เห็นที่ทีมแก้ไข"><span id="refresh-icon">🔄</span> รีเฟรช</button>
-          <button class="btn btn-ghost" id="btn-load-all-jobs" onclick="jobsLoadAll()" style="display:none;border-color:#F59E0B;color:#92400E" title="ค่าเริ่มต้นโหลดงาน 93 วันล่าสุดเพื่อความเร็ว — กดเพื่อโหลดงานเก่ากว่านั้นทั้งหมดทันที">📅 โหลดงานเก่าทั้งหมด</button>
+          <button class="btn btn-ghost" id="btn-load-all-jobs" onclick="jobsLoadAll()" style="border-color:#F59E0B;color:#92400E" title="สถานะการโหลดงาน — ค่าเริ่มต้นโหลด 93 วันล่าสุดเพื่อความเร็ว แล้วดึงงานเก่าให้ครบอัตโนมัติ">📅 โหลดงานเก่าทั้งหมด</button>
           <button class="btn btn-ghost" onclick="openColManager()" title="จัดเรียง Column">⚙ Column</button>
           <button class="btn btn-ghost" onclick="openActivityLog()" id="activity-log-btn" style="color:#2563EB;border-color:#93C5FD" title="ดูประวัติ: ใครทำอะไร เมื่อไหร่">📋 Activity Log</button>
           <button class="btn btn-ghost" onclick="openBin()" id="bin-btn" style="color:var(--red);border-color:var(--red-m)" title="ถังขยะ — งานที่ลบไปแล้ว">🗑 ถังขยะ<span class="bin-badge" id="bin-badge" style="display:none">0</span></button>
@@ -18766,6 +18766,8 @@ function renderJobs(){
   document.getElementById('j-pbtns').innerHTML=ph;
   // อัปเดต top scrollbar mirror หลัง render เสร็จ
   if(typeof setupTableScrollSync === 'function') setupTableScrollSync();
+  // 🆕 v156 — อัปเดตตัวบอกสถานะจำนวนงานให้สดเมื่อเพิ่ม/ลบงาน
+  if(typeof _setJobsLoadBtn === 'function') _setJobsLoadBtn();
 }
 function gJP(p){jPage=p;renderJobs();}
 function clearDates(){document.getElementById('j-date-from').value='';document.getElementById('j-date-to').value='';jPage=1;renderJobs();}
@@ -23445,7 +23447,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.155';
+const APP_VERSION = '2026.04.29.156';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -23759,10 +23761,21 @@ function _snapshotForCache(){
 function _setJobsLoadBtn(){
   var btn = document.getElementById('btn-load-all-jobs');
   if(!btn) return;
-  if(_jobsAllLoaded){ btn.style.display='none'; return; }
-  btn.style.display='';
-  btn.disabled = _jobsBgLoading;
-  btn.innerHTML = _jobsBgLoading ? '⏳ กำลังโหลดงานเก่า...' : '📅 โหลดงานเก่าทั้งหมด';
+  btn.style.display='';  // 🆕 v156 — แสดงเป็นตัวบอกสถานะตลอด (ไม่ซ่อน)
+  var n = (typeof jobs!=='undefined' && jobs) ? jobs.length.toLocaleString() : '0';
+  if(_jobsBgLoading){
+    btn.disabled = true;
+    btn.style.borderColor='#F59E0B'; btn.style.color='#92400E';
+    btn.innerHTML = '⏳ กำลังโหลดงานเก่า...';
+  } else if(_jobsAllLoaded){
+    btn.disabled = false;  // กดได้ (โชว์ toast ว่าครบแล้ว) — คงสีเขียวไว้
+    btn.style.borderColor='#10B981'; btn.style.color='#065F46';
+    btn.innerHTML = '🗂 งานทั้งหมด ' + n + ' รายการ';
+  } else {
+    btn.disabled = false;
+    btn.style.borderColor='#F59E0B'; btn.style.color='#92400E';
+    btn.innerHTML = '📅 โหลดงานเก่าทั้งหมด';
+  }
 }
 async function _bgLoadOlderJobs(){
   if(_jobsAllLoaded || _jobsBgLoading) return;
