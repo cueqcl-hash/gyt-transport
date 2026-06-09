@@ -23769,7 +23769,8 @@ async function _bgLoadOlderJobs(){
   if(!_canSyncNow()) return;
   _jobsBgLoading = true; _setJobsLoadBtn();
   try {
-    var older = await sbFetchAll('gyt_jobs', '?startdate=lt.'+_jobsCutoffISO()+'&order=startdate.desc');
+    // รวม startdate=null ด้วย (ข้อมูล import เก่าบางแถวไม่มีวันที่) กันงานตกหล่น
+    var older = await sbFetchAll('gyt_jobs', '?or=(startdate.lt.'+_jobsCutoffISO()+',startdate.is.null)&order=startdate.desc');
     if(older && older.length){
       var seen = {};
       for(var i=0;i<jobs.length;i++){ if(jobs[i] && jobs[i].id) seen[jobs[i].id]=1; }
