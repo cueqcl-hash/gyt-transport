@@ -23263,7 +23263,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.150';
+const APP_VERSION = '2026.04.29.151';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24653,7 +24653,8 @@ function mtOpenMaintenance(id){
         }
       });
       // 🆕 v131 — restore parts_list into table
-      var pm = r.parts_mode || (sh && sh.type==='vat' ? 'vat' : 'cash');
+      // 🆕 v151 — derive จาก shop.type อย่างเดียว (ไม่อ่าน r.parts_mode — field ไม่มีใน DB)
+      var pm = (sh && sh.type==='vat' ? 'vat' : 'cash');
       _mmCurrentParts = { _mode: pm, rows: (r.parts_list && r.parts_list.length ? r.parts_list.slice() : [{}]) };
       // Trigger shop info display + render table (mmSelectShop will see existing rows)
       mmSelectShop();
@@ -25080,17 +25081,16 @@ async function saveMaintenance(){
     maintenanceRecords.push(obj);
   }
   closeModal('modal-maintenance');
-  // เก็บ partsMode ลง local record ด้วย (ไม่ส่งไป DB)
-  if(_objLocalPartsMode){
-    var localIdx = maintenanceRecords.findIndex(function(x){return x.id===obj.id;});
-    if(localIdx>=0) maintenanceRecords[localIdx].parts_mode = _objLocalPartsMode;
-  }
+  // 🆕 v151 — เลิกเก็บ parts_mode ใน local record (เพราะ leak ได้ตอน restore จาก trash)
+  //   mode derive จาก shop.type ตอน render เอา (ดู openMaintenance / mtOpenMaintenance)
   renderMaintenance();
   // 🆕 v147 — Sync to cloud + ตรวจ HTTP status จริง + แสดง error ให้ผู้ใช้รู้ถ้า fail
   var syncOk = !_onlineMode;  // offline mode = ถือว่า "ok" (ไว้ sync ทีหลัง)
   var syncErr = '';
   if(_onlineMode){
     try {
+      // 🆕 v151 — belt-and-suspenders: ลบ field ที่ไม่มีใน DB ออกก่อนส่ง
+      delete obj.parts_mode;
       var url = SUPA_URL + '/rest/v1/gyt_maintenance?on_conflict=id';
       var resp = await fetch(url, {
         method: 'POST',
@@ -25177,7 +25177,8 @@ async function restoreMaintenance(idx){
   var entry = deletedMaintenance[idx];
   if(!entry) return;
   var rec = Object.assign({}, entry.record);
-  delete rec._kind; delete rec._origId;
+  // 🆕 v151 — strip ทุก marker + field ที่ DB ไม่มี
+  delete rec._kind; delete rec._origId; delete rec.parts_mode;
   deletedMaintenance.splice(idx,1);
   maintenanceRecords.push(rec);
   try{ localStorage.setItem('gyt_deleted_maintenance', JSON.stringify(deletedMaintenance)); }catch(_){}
