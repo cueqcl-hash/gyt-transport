@@ -23263,7 +23263,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.151';
+const APP_VERSION = '2026.04.29.152';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24562,6 +24562,15 @@ function _mmInitBEPicker(inputId){
 }
 
 function mtOpenMaintenance(id){
+  try {
+    return _mtOpenMaintenanceInner(id);
+  } catch(e){
+    console.error('mtOpenMaintenance error:', e);
+    if(typeof showToast === 'function') showToast('⚠️ เปิดฟอร์มไม่สำเร็จ: ' + (e.message || e), 6000);
+  }
+}
+// 🆕 v152 — แยก inner function เพื่อครอบ try/catch จาก wrapper
+function _mtOpenMaintenanceInner(id){
   editMaintenanceId = id || null;
   document.getElementById('mm-title').textContent = id ? 'แก้ไขบันทึกการซ่อม' : 'บันทึกการซ่อมใหม่';
   document.getElementById('mm-delete-btn').style.display = id ? 'inline-block' : 'none';
@@ -24653,8 +24662,10 @@ function mtOpenMaintenance(id){
         }
       });
       // 🆕 v131 — restore parts_list into table
-      // 🆕 v151 — derive จาก shop.type อย่างเดียว (ไม่อ่าน r.parts_mode — field ไม่มีใน DB)
-      var pm = (sh && sh.type==='vat' ? 'vat' : 'cash');
+      // 🆕 v152 — fix ReferenceError: sh ไม่อยู่ใน scope นี้ (เป็นแค่ตัวแปร callback ของ .map() ด้านบน)
+      //   → lookup curShop จาก r.shop_id ก่อน แล้วอ่าน .type
+      var curShop = (repairShops||[]).find(function(s){ return s.id === r.shop_id; }) || {};
+      var pm = (curShop.type === 'vat' ? 'vat' : 'cash');
       _mmCurrentParts = { _mode: pm, rows: (r.parts_list && r.parts_list.length ? r.parts_list.slice() : [{}]) };
       // Trigger shop info display + render table (mmSelectShop will see existing rows)
       mmSelectShop();
