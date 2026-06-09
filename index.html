@@ -2104,6 +2104,109 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
       </div>
 
+      <!-- 🆕 v153 — DRIVER PAYOUTS (ค่าใช้จ่ายคนรถ) -->
+      <div id="pg-payouts" class="screen">
+        <!-- Tabs -->
+        <div class="mt-tabs">
+          <button class="mt-tab active" id="dp-tab-list" onclick="dpSwitchTab('list')">📋 ประวัติทั้งหมด</button>
+          <button class="mt-tab" id="dp-tab-summary" onclick="dpSwitchTab('summary')">📊 สรุปยอด</button>
+          <button class="mt-tab" id="dp-tab-dups" onclick="dpSwitchTab('dups')">⚠️ ตรวจซ้ำ <span id="dp-dup-count" style="background:#FEE2E2;color:#991B1B;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px">0</span></button>
+        </div>
+
+        <!-- Tab: List -->
+        <div id="dp-pane-list" class="mt-pane" style="display:block">
+          <div class="mt-help">
+            💸 <strong>ค่าใช้จ่ายคนรถ</strong> — ติดตามค่าเที่ยว, รับตู้, คืนตู้ ที่จ่ายให้คนขับ (ทั้งเงินสดและโอน)
+            <br>💡 ทุกรายการผูกกับ "งาน" เพื่อคำนวณต้นทุนต่อเที่ยว · ระบบจะตรวจสอบรายการซ้ำใน 7 วันให้อัตโนมัติ
+          </div>
+          <div class="mt-card">
+            <div class="mt-card-header">
+              <div class="mt-card-title">📋 ประวัติทั้งหมด — <span id="dp-count" style="color:var(--green)">0</span> รายการ</div>
+              <div style="display:flex;gap:8px">
+                <button class="btn" onclick="dpOpenBulk()" style="background:#FEF3C7;color:#92400E;border:1px solid #F59E0B" title="เพิ่มหลายแถวรวด">📋 เพิ่มหลายแถว</button>
+                <button class="btn btn-green" onclick="dpOpenSingle()">+ เพิ่มรายการ</button>
+              </div>
+            </div>
+            <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <input class="fi" id="dp-search" placeholder="🔍 ค้นหา ทะเบียน / คนขับ / อ้างอิง..." oninput="renderPayouts()" style="flex:1;min-width:200px">
+              <select class="fi" id="dp-filter-driver" onchange="renderPayouts()" style="width:170px"><option value="">👤 ทุกคนขับ</option></select>
+              <select class="fi" id="dp-filter-type" onchange="renderPayouts()" style="width:150px">
+                <option value="">📑 ทุกประเภท</option>
+                <option value="trip">🚚 ค่าเที่ยว</option>
+                <option value="pickup">📦 รับตู้</option>
+                <option value="return">📤 คืนตู้</option>
+                <option value="other">💸 อื่นๆ</option>
+              </select>
+              <select class="fi" id="dp-filter-method" onchange="renderPayouts()" style="width:140px">
+                <option value="">💳 ทุกวิธีจ่าย</option>
+                <option value="cash">💵 เงินสด</option>
+                <option value="transfer">🏦 โอน</option>
+              </select>
+              <input class="fi" type="date" id="dp-filter-from" onchange="renderPayouts()" style="width:150px" title="ตั้งแต่วันที่">
+              <input class="fi" type="date" id="dp-filter-to" onchange="renderPayouts()" style="width:150px" title="ถึงวันที่">
+              <button class="btn btn-ghost" onclick="dpClearFilters()" style="font-size:12px">🔄 ล้าง</button>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="mt-table" id="dp-table">
+                <thead>
+                  <tr>
+                    <th>วันที่</th>
+                    <th>คนขับ</th>
+                    <th>ทะเบียน / งาน</th>
+                    <th>ประเภท</th>
+                    <th>วิธีจ่าย</th>
+                    <th style="text-align:right">ยอด</th>
+                    <th>อ้างอิง</th>
+                    <th>หมายเหตุ</th>
+                    <th style="width:90px">การกระทำ</th>
+                  </tr>
+                </thead>
+                <tbody id="dp-tbody"></tbody>
+                <tfoot>
+                  <tr style="background:#FAFAF7;font-weight:700">
+                    <td colspan="5" style="text-align:right;padding:8px">รวมทั้งหมด:</td>
+                    <td style="text-align:right;padding:8px;color:var(--green-d);font-family:var(--mono)">฿<span id="dp-total">0.00</span></td>
+                    <td colspan="3"></td>
+                  </tr>
+                </tfoot>
+              </table>
+              <div class="mt-empty" id="dp-empty" style="display:none">ยังไม่มีรายการ — กด "+ เพิ่มรายการ" เพื่อเริ่มต้น</div>
+              <div class="mt-empty" id="dp-no-table" style="display:none;background:#FEF3C7;color:#92400E;border:1px solid #F59E0B">
+                ⚠️ <strong>ตารางยังไม่ได้สร้างใน Cloud</strong> — รัน SQL ไฟล์ <code>gyt_driver_payouts_setup.sql</code> ที่ Supabase Studio ก่อน แล้ว refresh หน้านี้
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Summary -->
+        <div id="dp-pane-summary" class="mt-pane" style="display:none">
+          <div class="mt-card">
+            <div class="mt-card-header">
+              <div class="mt-card-title">📊 สรุปยอด</div>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost" onclick="dpSummaryPeriod('day')" id="dp-sp-day">รายวัน</button>
+                <button class="btn" onclick="dpSummaryPeriod('week')" id="dp-sp-week" style="background:var(--green-l);color:var(--green-d)">รายสัปดาห์</button>
+                <button class="btn" onclick="dpSummaryPeriod('month')" id="dp-sp-month" style="background:var(--green);color:#fff">รายเดือน</button>
+                <button class="btn btn-ghost" onclick="dpSummaryPeriod('year')" id="dp-sp-year">รายปี</button>
+              </div>
+            </div>
+            <div id="dp-summary-content" style="padding:8px"></div>
+          </div>
+        </div>
+
+        <!-- Tab: Duplicates -->
+        <div id="dp-pane-dups" class="mt-pane" style="display:none">
+          <div class="mt-card">
+            <div class="mt-card-title">⚠️ รายการที่ระบบสงสัยว่าซ้ำ — รอตัดสินใจ</div>
+            <div style="font-size:12px;color:var(--text-3);margin:8px 0">
+              ระบบ flag ให้อัตโนมัติเมื่อพบ <strong>(คนขับ + ประเภท + วิธีจ่าย + ยอด)</strong> ตรงกันใน 7 วันล่าสุด —
+              ตัดสินใจว่า "ไม่ใช่ซ้ำ" (ปลด flag) หรือ "ลบ" (ลบออก)
+            </div>
+            <div id="dp-dups-content" style="padding:8px"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- INSPECTION — Phase 4 (3 tabs) -->
       <div id="pg-inspection" class="screen">
         <!-- Tabs -->
@@ -4979,6 +5082,9 @@ function initApp(){
 
   // Sidebar menu — กรองตาม perm ของ user (ไม่ hard-code ตาม role อีกแล้ว)
   // ratecalc ไม่ผูกกับ perm เฉพาะ — admin/supervisor เห็น (มี dashboard)
+  // 🆕 v154 — payouts เปิดเฉพาะ staging branch (preview URL) เท่านั้น — main hide เพื่อรอ test ก่อน
+  //   หลังทดสอบเสร็จเรียบร้อย ค่อยลบ check นี้ออก (1 บรรทัด) เพื่อเปิดบน main
+  const _onMain = (window.location.host || '').toLowerCase() === 'gyt-transport.vercel.app';
   const ALL_NAV=[
     {id:'jobs',     icon:'🚛',label:'ตารางงาน',           perm:'view_jobs'},
     {id:'users',    icon:'👥',label:'จัดการสิทธิ์',       perm:'manage_users'},
@@ -4990,10 +5096,14 @@ function initApp(){
     {id:'receipts',icon:'📋',label:'บันทึกใบเสร็จ',     perm:'manage_receipts'},  // 🆕 v083
     {id:'billing', icon:'📑',label:'ใบวางบิล',           perm:'manage_billing'},   // 🆕 v114
     {id:'maintenance',icon:'🛠',label:'ซ่อมบำรุงรถ',       perm:'view_maintenance'}, // Phase 1A
+    {id:'payouts',  icon:'💸',label:'ค่าใช้จ่ายคนรถ',       perm:'manage_finance', stagingOnly:true},   // 🆕 v153 — Driver Payouts (staging only)
     {id:'inspection',icon:'✅',label:'ตรวจสภาพรถ',          perm:'view_inspection'},   // Phase 1A
     {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
   ];
-  const visibleNav = ALL_NAV.filter(function(n){return hasPerm(n.perm);});
+  const visibleNav = ALL_NAV.filter(function(n){
+    if(n.stagingOnly && _onMain) return false;  // ซ่อนบน production
+    return hasPerm(n.perm);
+  });
   // ใช้ <a href> เพื่อรองรับ Ctrl+Click / Middle-Click → เปิด tab ใหม่ (browser handle เอง)
   // Normal click → preventDefault แล้วเรียก goPage() (SPA navigation)
   document.getElementById('sb-nav').innerHTML=visibleNav.map(n=>`
@@ -5061,7 +5171,7 @@ function goPage(id, opts){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('pg-'+id)?.classList.add('active');
   document.getElementById('nav-'+id)?.classList.add('active');
-  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ',receipts:'บันทึกใบเสร็จเข้าออฟฟิศ',finance:'การเงิน',billing:'ใบวางบิล (น้าปุ้ม)'};
+  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ',receipts:'บันทึกใบเสร็จเข้าออฟฟิศ',finance:'การเงิน',billing:'ใบวางบิล (น้าปุ้ม)',payouts:'ค่าใช้จ่ายคนรถ'};
   document.getElementById('topbar-title').textContent=titles[id]||'';
   const badge=document.getElementById('topbar-badge');
   if(id==='jobs'){badge.style.display='block';badge.textContent='Green Yello Transport';}
@@ -5071,6 +5181,7 @@ function goPage(id, opts){
   if(id==='users')renderUsers();
   if(id==='receipts' && typeof rcptInit==='function') rcptInit();  // 🆕 v083
   if(id==='billing'  && typeof billingInit==='function') billingInit();  // 🆕 v114
+  if(id==='payouts'  && typeof renderPayouts==='function'){ renderPayouts(); dpSwitchTab('list'); }  // 🆕 v153
   // อัปเดตการซ่อน/แสดงปุ่มตาม perms (สำหรับหน้าใหม่ที่เพิ่งเปิด)
   if(typeof applyPermsToUI === 'function') setTimeout(applyPermsToUI, 0);
   // อัปเดต URL ให้ตรงกับหน้าปัจจุบัน → refresh จะอยู่หน้าเดิม + share link ได้
@@ -23263,7 +23374,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.152';
+const APP_VERSION = '2026.04.29.154';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -23671,6 +23782,8 @@ async function loadFromSupabase(forceRefresh) {
     showToast('โหลดข้อมูลจาก Cloud สำเร็จ ✓');
     // 🔧 v056 — โหลดถังขยะจาก cloud
     try { await loadDeletedJobsFromCloud(); } catch(_){}
+    // 🆕 v153 — โหลด driver payouts จาก cloud
+    try { await loadDriverPayoutsFromCloud(); } catch(_){}
     renderJobs();
     // 🆕 v080 — save snapshot to cache (next page reload จะใช้ cache)
     try {
@@ -24333,7 +24446,11 @@ function renderMaintenance(){
     if(dfrom && r.service_date < dfrom) return false;
     if(dto && r.service_date > dto) return false;
     // 🆕 v134 — plate filter (value is "vehicle_type:vehicle_id")
-    if(fplate && (r.vehicle_type+':'+r.vehicle_id) !== fplate) return false;
+    if(fplate){
+      // 🆕 v154 — รองรับ filter "ไม่ระบุคัน"
+      if(fplate === '__no_vehicle__'){ if(r.vehicle_id) return false; }
+      else if((r.vehicle_type+':'+r.vehicle_id) !== fplate) return false;
+    }
     if(!q) return true;
     return ((v?v.plate:'').toLowerCase().includes(q)) ||
            ((sh?sh.name:'').toLowerCase().includes(q)) ||
@@ -24370,8 +24487,9 @@ function renderMaintenance(){
     return '<tr>' +
       '<td><strong>' + _mtFmtBE(r.service_date) + '</strong></td>' +
       '<td style="font-size:11.5px;color:var(--text-2)">' + createdBE + (createdHM ? '<div style="font-size:10px;color:var(--text-3)">'+createdHM+' น.</div>' : '') + '</td>' +
-      '<td><strong>' + escapeHtml(v?v.plate:'(รถถูกลบ)') + '</strong>' +
-        '<div style="font-size:10px;color:var(--text-3)">' + (v?v.vehicle_type:r.vehicle_type||'—') + '</div>' +
+      // 🆕 v154 — guard "ไม่ระบุคัน" (vehicle_id null) vs "รถถูกลบ" (vehicle_id ระบุแต่หาไม่เจอ)
+      '<td><strong>' + (r.vehicle_id ? escapeHtml(v ? v.plate : '(รถถูกลบ)') : '🔧 ไม่ระบุคัน') + '</strong>' +
+        '<div style="font-size:10px;color:var(--text-3)">' + (r.vehicle_id ? (v?v.vehicle_type:r.vehicle_type||'—') : 'คนรถเบิก') + '</div>' +
       '</td>' +
       '<td>' + escapeHtml(sh?sh.name:'(อู่ถูกลบ)') +
         '<div style="font-size:10px;color:var(--text-3)">' + billText +
@@ -24470,7 +24588,7 @@ function mtViewMaintenance(id){
       '<div>'+
         '<div class="modal-title">📋 รายละเอียดบันทึกซ่อม</div>'+
         '<div class="modal-sub">'+
-          '<strong>🚚 '+_esc(v?v.plate:'(รถถูกลบ)')+'</strong> · '+
+          '<strong>'+(r.vehicle_id ? '🚚 '+_esc(v?v.plate:'(รถถูกลบ)') : '🔧 ไม่ระบุคัน')+'</strong> · '+
           '🏪 '+_esc(sh?sh.name:'(อู่ถูกลบ)')+' '+
           (isVat ? '<span style="background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">🧾 VAT</span>' : '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">💵 เงินสด</span>')+
         '</div>'+
@@ -24598,8 +24716,10 @@ function _mtOpenMaintenanceInner(id){
   if(typeof mmRenderFilesList==='function') mmRenderFilesList();
 
   // Populate vehicle dropdown
+  // 🆕 v154 — เพิ่ม option "ไม่ระบุคัน" สำหรับเคสคนรถเบิกของจิปาถะ/ใช้รวมหลายคัน
   var vSelect = document.getElementById('mm-vehicle');
   vSelect.innerHTML = '<option value="">— เลือกทะเบียนรถ —</option>' +
+    '<option value="__no_vehicle__" style="background:#FEF3C7;color:#92400E;font-weight:700">🔧 ไม่ระบุคัน (คนรถเบิกซื้อ/ซ่อมเอง)</option>' +
     getAllVehicles().map(function(v){
       return '<option value="' + v.vehicle_type + ':' + v.id + '">' + escapeHtml(v.label) + '</option>';
     }).join('');
@@ -24637,7 +24757,12 @@ function _mtOpenMaintenanceInner(id){
       if(dpDate && r.service_date){ dpDate.setDate(r.service_date, true); }
       else { document.getElementById('mm-date').value = r.service_date||''; }
       document.getElementById('mm-mileage').value = r.mileage||'';
-      vSelect.value = (r.vehicle_type||'') + ':' + (r.vehicle_id||'');
+      // 🆕 v154 — ถ้า vehicle_id เป็น null → set dropdown เป็น "ไม่ระบุคัน"
+      if(!r.vehicle_id){
+        vSelect.value = '__no_vehicle__';
+      } else {
+        vSelect.value = (r.vehicle_type||'') + ':' + (r.vehicle_id||'');
+      }
       sSelect.value = r.shop_id||'';
       document.getElementById('mm-bill-no').value = r.bill_no||'';
       document.getElementById('mm-invoice-no').value = r.invoice_no||'';
@@ -25002,7 +25127,8 @@ async function saveMaintenance(){
   var total = parseFloat(document.getElementById('mm-total').value||0);
   if(!date){ showToast('กรอกวันที่ก่อน'); return; }
   // 🆕 v139 — ปลดล็อค เลขไมล์ ไม่บังคับกรอกแล้ว (บางครั้งช่างไม่ได้บันทึก)
-  if(!vehicleStr){ showToast('เลือกรถก่อน'); return; }
+  // 🆕 v154 — รองรับ "ไม่ระบุคัน" — ผู้ใช้ต้องเลือก option บางอย่าง (รถจริง หรือ "ไม่ระบุคัน")
+  if(!vehicleStr){ showToast('เลือกทะเบียนรถ หรือ "ไม่ระบุคัน" ก่อน'); return; }
   if(!shopVal){ showToast('เลือกอู่ก่อน'); return; }
   if(!total){ showToast('กรอกราคารวมก่อน'); return; }
   // 🆕 v136 — handle inline new shop creation
@@ -25045,7 +25171,11 @@ async function saveMaintenance(){
     shopId = parseInt(shopVal||0);
     if(!shopId){ showToast('เลือกอู่ก่อน'); return; }
   }
-  var vparts = vehicleStr.split(':'); var vt = vparts[0]; var vid = vparts[1];
+  // 🆕 v154 — รองรับ "ไม่ระบุคัน"
+  var vt = null, vid = null;
+  if(vehicleStr && vehicleStr !== '__no_vehicle__'){
+    var vparts = vehicleStr.split(':'); vt = vparts[0]; vid = vparts[1];
+  }
   var sh = (repairShops||[]).find(function(x){return x.id===shopId;});
   // 🆕 v131 — collect parts table rows + auto-derive service_types from descriptions
   var partsRows = (_mmCurrentParts && _mmCurrentParts.rows ? _mmCurrentParts.rows : []).filter(function(r){
@@ -25059,8 +25189,9 @@ async function saveMaintenance(){
   // 🆕 v147 — เอา parts_mode ออก (DB ไม่มีคอลัมน์นี้ → 400 → save fail)
   //   parts_mode จะ derive จาก shop.type ตอน render เอง
   var obj = {
-    vehicle_id: parseInt(vid),
-    vehicle_type: vt,
+    // 🆕 v154 — รองรับ null สำหรับเคส "ไม่ระบุคัน"
+    vehicle_id: vid ? parseInt(vid) : null,
+    vehicle_type: vt || null,
     shop_id: shopId,
     service_date: date,
     // 🆕 v150 — DB constraint NOT NULL บน mileage → ส่ง 0 ถ้าผู้ใช้เว้นว่าง (render เป็น "—")
@@ -25251,7 +25382,7 @@ function renderMaintenanceTrash(){
     return '<tr>'+
       '<td>'+_fmt(e.deletedAt)+'<div style="font-size:10px;color:var(--text-3)">โดย '+escapeHtml(e.deletedBy||'—')+'</div></td>'+
       '<td><strong>'+_fmt(r.service_date)+'</strong></td>'+
-      '<td><strong>'+escapeHtml(v?v.plate:'(รถถูกลบ)')+'</strong></td>'+
+      '<td><strong>'+(r.vehicle_id ? escapeHtml(v?v.plate:'(รถถูกลบ)') : '🔧 ไม่ระบุคัน')+'</strong></td>'+
       '<td>'+escapeHtml(sh?sh.name:'—')+'<div style="font-size:10px;color:var(--text-3)">'+(sh&&sh.type==='vat'?'🧾 VAT':'💵 เงินสด')+'</div></td>'+
       '<td style="text-align:right;font-weight:700;font-family:var(--mono)">฿'+(Number(r.total_amount)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'+
       '<td style="text-align:center"><button class="btn" onclick="restoreMaintenance('+i+')" style="background:#D1FAE5;color:#065F46;font-size:11px;padding:4px 8px">↩ กู้คืน</button> '+
@@ -25274,6 +25405,644 @@ function renderMaintenanceTrash(){
     '</div>'+
     '<div class="modal-foot"><button class="btn btn-ghost" onclick="document.getElementById(\'modal-maintenance-trash\').classList.remove(\'open\')">ปิด</button></div>'+
     '</div>';
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// 🆕 v153 — DRIVER PAYOUTS (ค่าใช้จ่ายคนรถ)
+// ════════════════════════════════════════════════════════════════════════
+let driverPayouts = [];          // {id, driver_id, job_id, payout_date, expense_type, amount, payment_method, reference_no, note, suspected_duplicate, ...}
+let editingPayoutId = null;
+let _dpBulkRows = [];
+let _dpSummaryPeriod = 'month';
+let _dpDbAvailable = true;       // false = ตารางยังไม่ได้สร้าง (404 จาก Supabase)
+let _dpActiveTab = 'list';
+// Load cached
+try { var _dpCache = localStorage.getItem('gyt_driver_payouts'); if(_dpCache) driverPayouts = JSON.parse(_dpCache) || []; } catch(_){}
+
+// ── Permission ──
+function dpCanEdit(){
+  if(!currentUser) return false;
+  var role = String(currentUser.role||'').toLowerCase();
+  return role === 'admin' || role === 'supervisor';
+}
+
+// ── Helpers ──
+function _dpFmtBE(iso){ if(!iso) return '—'; try{ var d=new Date(iso); if(isNaN(d.getTime())) return iso; var p=function(n){return String(n).padStart(2,'0');}; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+String(d.getFullYear()+543).slice(-2); }catch(e){ return iso; } }
+function _dpTypeLabel(t){ return {trip:'🚚 ค่าเที่ยว', pickup:'📦 รับตู้', return:'📤 คืนตู้', other:'💸 อื่นๆ'}[t] || t; }
+function _dpMethodLabel(m){ return m==='cash' ? '💵 เงินสด' : (m==='transfer' ? '🏦 โอน' : m); }
+function _dpDriverName(id){ var d = (drivers||[]).find(function(x){return x.id===id;}); return d ? d.name : '(ไม่ทราบ)'; }
+function _dpJobLabel(jobId){
+  if(!jobId) return '—';
+  var j = (jobs||[]).find(function(x){return x.id===jobId;});
+  if(!j) return 'Job #'+jobId+' (ไม่พบ)';
+  var dest = j.dest || j.destination || j.to_loc || '—';
+  return (j.plate||'—') + ' · ' + _dpFmtBE(j.date) + ' → ' + dest;
+}
+
+// ── Tab switch ──
+function dpSwitchTab(tab){
+  _dpActiveTab = tab;
+  ['list','summary','dups'].forEach(function(t){
+    var btn = document.getElementById('dp-tab-'+t);
+    var pane = document.getElementById('dp-pane-'+t);
+    if(btn) btn.classList.toggle('active', t===tab);
+    if(pane) pane.style.display = (t===tab ? 'block' : 'none');
+  });
+  if(tab==='summary') renderPayoutsSummary();
+  if(tab==='dups') renderPayoutsDups();
+}
+
+// ── Filters ──
+function dpClearFilters(){
+  ['dp-search','dp-filter-driver','dp-filter-type','dp-filter-method','dp-filter-from','dp-filter-to'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value = '';
+  });
+  renderPayouts();
+}
+
+// ── Populate driver dropdown filter ──
+function _dpPopulateDriverFilter(elId){
+  var el = document.getElementById(elId); if(!el) return;
+  var cur = el.value;
+  var opts = '<option value="">👤 ทุกคนขับ</option>';
+  (drivers||[]).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');}).forEach(function(d){
+    opts += '<option value="'+d.id+'">'+escapeHtml(d.name||'')+'</option>';
+  });
+  el.innerHTML = opts;
+  el.value = cur;
+}
+
+// ── Render main list ──
+function renderPayouts(){
+  if(!_dpDbAvailable){
+    var n = document.getElementById('dp-no-table'); if(n) n.style.display = 'block';
+    var e = document.getElementById('dp-empty'); if(e) e.style.display = 'none';
+    var t = document.getElementById('dp-tbody'); if(t) t.innerHTML = '';
+    return;
+  }
+  _dpPopulateDriverFilter('dp-filter-driver');
+  var q = ((document.getElementById('dp-search')||{}).value||'').toLowerCase().trim();
+  var fDriver = (document.getElementById('dp-filter-driver')||{}).value || '';
+  var fType = (document.getElementById('dp-filter-type')||{}).value || '';
+  var fMethod = (document.getElementById('dp-filter-method')||{}).value || '';
+  var fFrom = (document.getElementById('dp-filter-from')||{}).value || '';
+  var fTo = (document.getElementById('dp-filter-to')||{}).value || '';
+  var filtered = (driverPayouts||[]).filter(function(p){
+    if(fDriver && String(p.driver_id) !== String(fDriver)) return false;
+    if(fType && p.expense_type !== fType) return false;
+    if(fMethod && p.payment_method !== fMethod) return false;
+    if(fFrom && p.payout_date < fFrom) return false;
+    if(fTo && p.payout_date > fTo) return false;
+    if(!q) return true;
+    var hay = (_dpDriverName(p.driver_id)+' '+_dpJobLabel(p.job_id)+' '+(p.reference_no||'')+' '+(p.note||'')).toLowerCase();
+    return hay.indexOf(q) >= 0;
+  });
+  filtered.sort(function(a,b){ return (b.payout_date||'').localeCompare(a.payout_date||''); });
+  var cnt = document.getElementById('dp-count'); if(cnt) cnt.textContent = filtered.length;
+  var total = filtered.reduce(function(s,p){return s + (parseFloat(p.amount)||0);}, 0);
+  var tEl = document.getElementById('dp-total'); if(tEl) tEl.textContent = total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  var noTbl = document.getElementById('dp-no-table'); if(noTbl) noTbl.style.display = 'none';
+  var tbody = document.getElementById('dp-tbody');
+  var empty = document.getElementById('dp-empty');
+  if(!tbody) return;
+  if(!filtered.length){ tbody.innerHTML=''; if(empty) empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+  tbody.innerHTML = filtered.map(function(p){
+    var dupBadge = p.suspected_duplicate ? '<span style="background:#FEE2E2;color:#991B1B;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px" title="'+(p.duplicate_reason||'')+'">⚠️</span>' : '';
+    var canEdit = dpCanEdit();
+    return '<tr>'+
+      '<td><strong>'+_dpFmtBE(p.payout_date)+'</strong>'+dupBadge+'</td>'+
+      '<td>'+escapeHtml(_dpDriverName(p.driver_id))+'</td>'+
+      '<td style="font-size:11.5px">'+escapeHtml(_dpJobLabel(p.job_id))+'</td>'+
+      '<td>'+_dpTypeLabel(p.expense_type)+'</td>'+
+      '<td>'+_dpMethodLabel(p.payment_method)+'</td>'+
+      '<td style="text-align:right;font-family:var(--mono);font-weight:700">฿'+(Number(p.amount)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'+
+      '<td style="font-size:11.5px;color:var(--text-2)">'+escapeHtml(p.reference_no||'—')+'</td>'+
+      '<td style="font-size:11.5px;color:var(--text-2)">'+escapeHtml(p.note||'—')+'</td>'+
+      '<td style="text-align:center">'+
+        (canEdit ? '<button class="btn" onclick="dpOpenSingle('+p.id+')" style="background:#FEF3C7;color:#92400E;font-size:11px;padding:3px 8px">✏️</button>' :
+                   '<span style="font-size:11px;color:var(--text-3)">ดูเท่านั้น</span>')+
+      '</td>'+
+    '</tr>';
+  }).join('');
+  // Update dup badge count
+  var dupCount = (driverPayouts||[]).filter(function(p){return p.suspected_duplicate && !p.reviewed_at;}).length;
+  var dcEl = document.getElementById('dp-dup-count'); if(dcEl) dcEl.textContent = dupCount;
+}
+
+// ── Single entry modal ──
+function dpOpenSingle(id){
+  try {
+    editingPayoutId = id || null;
+    document.getElementById('dp-single-title').textContent = id ? '✏️ แก้ไขค่าใช้จ่าย' : '➕ เพิ่มค่าใช้จ่ายคนรถ';
+    document.getElementById('dp-s-delete-btn').style.display = (id && dpCanEdit()) ? 'inline-block' : 'none';
+    document.getElementById('dp-s-date').value = new Date().toISOString().slice(0,10);
+    // Populate driver dropdown
+    var dEl = document.getElementById('dp-s-driver');
+    var opts = '<option value="">— เลือกคนขับ —</option>';
+    (drivers||[]).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');}).forEach(function(d){
+      opts += '<option value="'+d.id+'">'+escapeHtml(d.name||'')+'</option>';
+    });
+    dEl.innerHTML = opts;
+    document.getElementById('dp-s-driver').value = '';
+    document.getElementById('dp-s-plate-search').value = '';
+    document.getElementById('dp-s-job-id').value = '';
+    document.getElementById('dp-s-job-list').style.display = 'none';
+    document.getElementById('dp-s-job-selected').style.display = 'none';
+    document.getElementById('dp-s-type').value = 'trip';
+    document.getElementById('dp-s-method').value = 'cash';
+    document.getElementById('dp-s-amount').value = '';
+    document.getElementById('dp-s-ref').value = '';
+    document.getElementById('dp-s-note').value = '';
+    document.getElementById('dp-s-dup-warn').style.display = 'none';
+    if(id){
+      var p = driverPayouts.find(function(x){return x.id===id;});
+      if(p){
+        document.getElementById('dp-s-date').value = p.payout_date || '';
+        document.getElementById('dp-s-driver').value = p.driver_id || '';
+        document.getElementById('dp-s-job-id').value = p.job_id || '';
+        if(p.job_id){
+          document.getElementById('dp-s-job-selected').style.display = 'block';
+          document.getElementById('dp-s-job-selected').innerHTML = '✅ '+escapeHtml(_dpJobLabel(p.job_id))+' <button onclick="dpJobClear()" style="float:right;background:none;border:none;cursor:pointer;color:var(--red)">✕</button>';
+        }
+        document.getElementById('dp-s-type').value = p.expense_type || 'trip';
+        document.getElementById('dp-s-method').value = p.payment_method || 'cash';
+        document.getElementById('dp-s-amount').value = p.amount || '';
+        document.getElementById('dp-s-ref').value = p.reference_no || '';
+        document.getElementById('dp-s-note').value = p.note || '';
+      }
+    }
+    openModal('modal-dp-single');
+  } catch(e){
+    console.error('dpOpenSingle error:', e);
+    showToast('⚠️ เปิดฟอร์มไม่สำเร็จ: ' + (e.message||e), 5000);
+  }
+}
+
+// ── Job search by plate ──
+function dpJobSearch(query){
+  var listEl = document.getElementById('dp-s-job-list');
+  if(!listEl) return;
+  var q = (query||'').trim().toLowerCase();
+  if(!q || q.length < 2){ listEl.style.display = 'none'; return; }
+  var matches = (jobs||[]).filter(function(j){ return (j.plate||'').toLowerCase().indexOf(q) >= 0; });
+  matches.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  matches = matches.slice(0, 30);
+  if(!matches.length){
+    listEl.innerHTML = '<div style="padding:8px;color:var(--text-3);font-size:12px">ไม่พบงานสำหรับ "'+escapeHtml(query)+'"</div>';
+    listEl.style.display = 'block';
+    return;
+  }
+  listEl.innerHTML = matches.map(function(j){
+    var dest = j.dest || j.destination || j.to_loc || '—';
+    return '<div style="padding:6px 10px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px" onclick="dpJobSelect('+j.id+')" onmouseover="this.style.background=\'#F0FDF4\'" onmouseout="this.style.background=\'\'">'+
+      '<strong>'+escapeHtml(j.plate||'')+'</strong> · '+_dpFmtBE(j.date)+' → '+escapeHtml(dest)+
+      ' <span style="float:right;color:var(--text-3)">Job #'+j.id+'</span></div>';
+  }).join('');
+  listEl.style.display = 'block';
+}
+
+function dpJobSelect(jobId){
+  document.getElementById('dp-s-job-id').value = jobId;
+  document.getElementById('dp-s-job-selected').style.display = 'block';
+  document.getElementById('dp-s-job-selected').innerHTML = '✅ '+escapeHtml(_dpJobLabel(jobId))+' <button onclick="dpJobClear()" style="float:right;background:none;border:none;cursor:pointer;color:var(--red)">✕</button>';
+  document.getElementById('dp-s-job-list').style.display = 'none';
+  document.getElementById('dp-s-plate-search').value = '';
+}
+
+function dpJobClear(){
+  document.getElementById('dp-s-job-id').value = '';
+  document.getElementById('dp-s-job-selected').style.display = 'none';
+  document.getElementById('dp-s-job-list').style.display = 'none';
+  document.getElementById('dp-s-plate-search').value = '';
+}
+
+// ── Duplicate detection: 7-day window ──
+function dpCheckDuplicate(entry, excludeId){
+  var d = new Date(entry.payout_date); if(isNaN(d.getTime())) return null;
+  var d7 = new Date(d.getTime()); d7.setDate(d7.getDate() - 7);
+  var fromIso = d7.toISOString().slice(0,10);
+  var matches = (driverPayouts||[]).filter(function(p){
+    if(excludeId && p.id === excludeId) return false;
+    if(String(p.driver_id) !== String(entry.driver_id)) return false;
+    if(p.expense_type !== entry.expense_type) return false;
+    if(p.payment_method !== entry.payment_method) return false;
+    if(Math.abs(parseFloat(p.amount||0) - parseFloat(entry.amount||0)) > 0.01) return false;
+    if(p.payout_date < fromIso) return false;
+    if(p.payout_date > entry.payout_date) return false;
+    return true;
+  });
+  if(!matches.length) return null;
+  return { count: matches.length, refs: matches.map(function(p){return p.id;}).join(',') };
+}
+
+// ── Save single ──
+async function dpSaveSingle(){
+  var dateVal = document.getElementById('dp-s-date').value;
+  var driverId = parseInt(document.getElementById('dp-s-driver').value || 0);
+  var jobId = parseInt(document.getElementById('dp-s-job-id').value || 0) || null;
+  var type = document.getElementById('dp-s-type').value;
+  var method = document.getElementById('dp-s-method').value;
+  var amount = parseFloat(document.getElementById('dp-s-amount').value || 0);
+  var refNo = (document.getElementById('dp-s-ref').value||'').trim() || null;
+  var note = (document.getElementById('dp-s-note').value||'').trim() || null;
+  if(!dateVal){ showToast('กรอกวันที่ก่อน'); return; }
+  if(!driverId){ showToast('เลือกคนขับก่อน'); return; }
+  if(type !== 'other' && !jobId){ showToast('ค้นหาและเลือกงาน (Job) ก่อน — หรือเปลี่ยนเป็นประเภท "อื่นๆ"'); return; }
+  if(!amount || amount <= 0){ showToast('กรอกยอดเงินก่อน'); return; }
+  var entry = {
+    driver_id: driverId, job_id: jobId, payout_date: dateVal,
+    expense_type: type, amount: amount, payment_method: method,
+    reference_no: refNo, note: note,
+    suspected_duplicate: false, duplicate_reason: null,
+    created_by: currentUser ? (currentUser.fname + ' ' + currentUser.lname) : 'unknown',
+    updated_at: new Date().toISOString()
+  };
+  var dup = dpCheckDuplicate(entry, editingPayoutId);
+  if(dup){
+    entry.suspected_duplicate = true;
+    entry.duplicate_reason = 'ตรงกับ id='+dup.refs+' ภายใน 7 วัน';
+  }
+  // Local first
+  if(editingPayoutId){
+    entry.id = editingPayoutId;
+    var idx = driverPayouts.findIndex(function(x){return x.id===editingPayoutId;});
+    if(idx>=0) Object.assign(driverPayouts[idx], entry);
+  } else {
+    entry.id = (driverPayouts.length ? Math.max.apply(null, driverPayouts.map(function(x){return x.id||0;}))+1 : 1);
+    entry.created_at = new Date().toISOString();
+    driverPayouts.push(entry);
+  }
+  try{ localStorage.setItem('gyt_driver_payouts', JSON.stringify(driverPayouts)); }catch(_){}
+  closeModal('modal-dp-single');
+  renderPayouts();
+  // Sync to cloud
+  if(_onlineMode){
+    try {
+      var resp = await fetch(SUPA_URL + '/rest/v1/gyt_driver_payouts?on_conflict=id', {
+        method: 'POST',
+        headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify([entry])
+      });
+      if(resp.ok){
+        var json = await resp.json();
+        if(json && json[0] && json[0].id){
+          var i = driverPayouts.findIndex(function(x){return x.id===entry.id;});
+          if(i>=0) driverPayouts[i].id = json[0].id;
+        }
+        showToast((editingPayoutId?'แก้ไข':'บันทึก')+'เรียบร้อย ✓' + (dup?' ⚠️ ระบบสงสัยว่าซ้ำ':''), dup?6000:3000);
+      } else {
+        var errBody = await resp.text();
+        if(resp.status === 404 || errBody.indexOf('PGRST205')>=0){
+          _dpDbAvailable = false; renderPayouts();
+          showToast('⚠️ ตาราง gyt_driver_payouts ยังไม่ได้สร้างใน Cloud — รัน SQL setup ก่อน', 8000);
+        } else {
+          showToast('⚠️ บันทึก Cloud fail: HTTP '+resp.status+' — '+errBody.slice(0,150), 6000);
+        }
+      }
+    } catch(e){
+      showToast('⚠️ Network: '+(e.message||e), 6000);
+    }
+  } else {
+    showToast((editingPayoutId?'แก้ไข':'บันทึก')+'เรียบร้อย ✓ (offline)', 3000);
+  }
+}
+
+// ── Delete single ──
+async function dpDeleteSingle(){
+  if(!editingPayoutId || !dpCanEdit()) return;
+  if(!confirm('ลบรายการนี้ถาวร? กู้คืนไม่ได้')) return;
+  var id = editingPayoutId;
+  var idx = driverPayouts.findIndex(function(x){return x.id===id;});
+  if(idx>=0) driverPayouts.splice(idx,1);
+  try{ localStorage.setItem('gyt_driver_payouts', JSON.stringify(driverPayouts)); }catch(_){}
+  closeModal('modal-dp-single');
+  renderPayouts();
+  showToast('ลบเรียบร้อย ✓');
+  if(_onlineMode){
+    try {
+      await fetch(SUPA_URL + '/rest/v1/gyt_driver_payouts?id=eq.'+id, {
+        method: 'DELETE',
+        headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY}
+      });
+    } catch(e){ console.warn('dpDeleteSingle sync error:', e); }
+  }
+}
+
+// ── Bulk entry modal ──
+function dpOpenBulk(){
+  _dpBulkRows = [];
+  for(var i=0;i<3;i++) _dpBulkRows.push({});
+  document.getElementById('dp-b-default-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('dp-b-default-method').value = 'cash';
+  document.getElementById('dp-b-result').style.display = 'none';
+  _dpRenderBulkRows();
+  openModal('modal-dp-bulk');
+}
+function dpBulkAddRow(){ _dpBulkRows.push({}); _dpRenderBulkRows(); }
+function _dpRenderBulkRows(){
+  var tbody = document.getElementById('dp-b-tbody');
+  if(!tbody) return;
+  var defDate = document.getElementById('dp-b-default-date').value;
+  var defMethod = document.getElementById('dp-b-default-method').value;
+  var driverOpts = '<option value="">—</option>' + (drivers||[]).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');}).map(function(d){return '<option value="'+d.id+'">'+escapeHtml(d.name||'')+'</option>';}).join('');
+  tbody.innerHTML = _dpBulkRows.map(function(r, idx){
+    var jobLabel = r.job_id ? _dpJobLabel(r.job_id) : '';
+    return '<tr id="dp-b-row-'+idx+'">'+
+      '<td style="text-align:center;color:var(--text-3)">'+(idx+1)+'</td>'+
+      '<td><input class="fi" type="date" value="'+(r.payout_date||defDate)+'" oninput="_dpBulkUpdate('+idx+',\'payout_date\',this.value)" style="padding:4px"></td>'+
+      '<td><select class="fi" oninput="_dpBulkUpdate('+idx+',\'driver_id\',parseInt(this.value)||0)" style="padding:4px">'+driverOpts.replace('value="'+(r.driver_id||'')+'"', 'value="'+(r.driver_id||'')+'" selected')+'</select></td>'+
+      '<td><input class="fi" placeholder="🔍 ทะเบียน" value="'+escapeHtml(r._plateSearch||'')+'" oninput="_dpBulkPlateSearch('+idx+',this.value)" style="padding:4px;font-size:11px"><div id="dp-b-jl-'+idx+'" style="display:none;background:#fff;border:1px solid var(--border);max-height:120px;overflow-y:auto;font-size:11px;position:absolute;z-index:5;width:200px"></div>'+
+        (r.job_id ? '<div style="font-size:10px;color:var(--green-d);margin-top:2px">✓ '+escapeHtml(jobLabel)+'</div>' : '')+
+      '</td>'+
+      '<td><select class="fi" oninput="_dpBulkUpdate('+idx+',\'expense_type\',this.value)" style="padding:4px"><option value="trip"'+(r.expense_type==='trip'?' selected':'')+'>🚚 เที่ยว</option><option value="pickup"'+(r.expense_type==='pickup'?' selected':'')+'>📦 รับตู้</option><option value="return"'+(r.expense_type==='return'?' selected':'')+'>📤 คืนตู้</option><option value="other"'+(r.expense_type==='other'?' selected':'')+'>💸 อื่น</option></select></td>'+
+      '<td><select class="fi" oninput="_dpBulkUpdate('+idx+',\'payment_method\',this.value)" style="padding:4px"><option value="cash"'+((r.payment_method||defMethod)==='cash'?' selected':'')+'>💵</option><option value="transfer"'+((r.payment_method||defMethod)==='transfer'?' selected':'')+'>🏦</option></select></td>'+
+      '<td><input class="fi" type="number" step="0.01" value="'+(r.amount||'')+'" oninput="_dpBulkUpdate('+idx+',\'amount\',parseFloat(this.value)||0)" style="padding:4px;text-align:right"></td>'+
+      '<td><input class="fi" value="'+escapeHtml(r.reference_no||'')+'" oninput="_dpBulkUpdate('+idx+',\'reference_no\',this.value)" style="padding:4px;font-size:11px"></td>'+
+      '<td><input class="fi" value="'+escapeHtml(r.note||'')+'" oninput="_dpBulkUpdate('+idx+',\'note\',this.value)" style="padding:4px;font-size:11px"></td>'+
+      '<td style="text-align:center"><button type="button" onclick="_dpBulkRemoveRow('+idx+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:13px">✕</button></td>'+
+    '</tr>';
+  }).join('');
+  _dpBulkRecalc();
+}
+function _dpBulkUpdate(idx, key, val){ if(!_dpBulkRows[idx]) _dpBulkRows[idx]={}; _dpBulkRows[idx][key]=val; _dpBulkRecalc(); }
+function _dpBulkRemoveRow(idx){ _dpBulkRows.splice(idx,1); if(!_dpBulkRows.length) _dpBulkRows.push({}); _dpRenderBulkRows(); }
+function _dpBulkRecalc(){
+  var t = _dpBulkRows.reduce(function(s,r){return s + (parseFloat(r.amount)||0);},0);
+  var el = document.getElementById('dp-b-total'); if(el) el.textContent = t.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function dpBulkApplyDefaults(){
+  var defDate = document.getElementById('dp-b-default-date').value;
+  var defMethod = document.getElementById('dp-b-default-method').value;
+  _dpBulkRows.forEach(function(r){
+    if(!r.payout_date) r.payout_date = defDate;
+    if(!r.payment_method) r.payment_method = defMethod;
+  });
+  _dpRenderBulkRows();
+  showToast('ใช้ค่าเริ่มต้นกับแถวที่ยังว่าง ✓');
+}
+function _dpBulkPlateSearch(idx, query){
+  if(!_dpBulkRows[idx]) _dpBulkRows[idx]={};
+  _dpBulkRows[idx]._plateSearch = query;
+  var listEl = document.getElementById('dp-b-jl-'+idx);
+  if(!listEl) return;
+  var q = (query||'').trim().toLowerCase();
+  if(!q || q.length < 2){ listEl.style.display = 'none'; return; }
+  var matches = (jobs||[]).filter(function(j){ return (j.plate||'').toLowerCase().indexOf(q) >= 0; });
+  matches.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  matches = matches.slice(0, 15);
+  if(!matches.length){ listEl.innerHTML = '<div style="padding:4px 8px;color:var(--text-3)">ไม่พบ</div>'; listEl.style.display='block'; return; }
+  listEl.innerHTML = matches.map(function(j){
+    var dest = j.dest || j.destination || j.to_loc || '';
+    return '<div style="padding:4px 8px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="_dpBulkJobPick('+idx+','+j.id+')" onmouseover="this.style.background=\'#F0FDF4\'" onmouseout="this.style.background=\'\'"><strong>'+escapeHtml(j.plate||'')+'</strong> · '+_dpFmtBE(j.date)+' → '+escapeHtml(dest)+'</div>';
+  }).join('');
+  listEl.style.display = 'block';
+}
+function _dpBulkJobPick(idx, jobId){
+  _dpBulkRows[idx].job_id = jobId;
+  _dpBulkRows[idx]._plateSearch = '';
+  _dpRenderBulkRows();
+}
+function dpBulkCheckDup(){
+  var defDate = document.getElementById('dp-b-default-date').value;
+  var defMethod = document.getElementById('dp-b-default-method').value;
+  var dupCount = 0;
+  _dpBulkRows.forEach(function(r){
+    if(!r.driver_id || !r.amount) return;
+    var entry = {
+      driver_id: r.driver_id,
+      payout_date: r.payout_date || defDate,
+      expense_type: r.expense_type || 'trip',
+      payment_method: r.payment_method || defMethod,
+      amount: r.amount
+    };
+    var dup = dpCheckDuplicate(entry, null);
+    if(dup){ dupCount++; r._dupHint = dup.refs; }
+  });
+  var resEl = document.getElementById('dp-b-result');
+  if(dupCount){
+    resEl.style.display = 'block';
+    resEl.style.background = '#FEF3C7'; resEl.style.color = '#92400E';
+    resEl.style.padding = '8px 12px'; resEl.style.borderRadius = '6px';
+    resEl.innerHTML = '⚠️ <strong>พบรายการที่อาจซ้ำ '+dupCount+' แถว</strong> — ระบบจะ flag ให้ตรวจสอบในแท็บ ⚠️ ตรวจซ้ำ หลังจาก save';
+  } else {
+    resEl.style.display = 'block';
+    resEl.style.background = '#D1FAE5'; resEl.style.color = '#065F46';
+    resEl.style.padding = '8px 12px'; resEl.style.borderRadius = '6px';
+    resEl.innerHTML = '✅ <strong>ไม่พบรายการที่ซ้ำ</strong> — save ได้เลย';
+  }
+}
+async function dpSaveBulk(){
+  var defDate = document.getElementById('dp-b-default-date').value;
+  var defMethod = document.getElementById('dp-b-default-method').value;
+  var ready = _dpBulkRows.filter(function(r){ return r.driver_id && parseFloat(r.amount||0) > 0; });
+  if(!ready.length){ showToast('กรุณากรอกอย่างน้อย 1 แถว (คนขับ + ยอด)'); return; }
+  var nextId = (driverPayouts.length ? Math.max.apply(null, driverPayouts.map(function(x){return x.id||0;}))+1 : 1);
+  var toSave = ready.map(function(r){
+    var entry = {
+      id: nextId++,
+      driver_id: r.driver_id,
+      job_id: r.job_id || null,
+      payout_date: r.payout_date || defDate,
+      expense_type: r.expense_type || 'trip',
+      amount: parseFloat(r.amount||0),
+      payment_method: r.payment_method || defMethod,
+      reference_no: r.reference_no || null,
+      note: r.note || null,
+      suspected_duplicate: false,
+      duplicate_reason: null,
+      created_by: currentUser ? (currentUser.fname+' '+currentUser.lname) : 'unknown',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    if(entry.expense_type !== 'other' && !entry.job_id) entry._missingJob = true;
+    var dup = dpCheckDuplicate(entry, null);
+    if(dup){ entry.suspected_duplicate = true; entry.duplicate_reason = 'ตรงกับ id='+dup.refs+' ภายใน 7 วัน'; }
+    return entry;
+  });
+  var missingCount = toSave.filter(function(e){return e._missingJob;}).length;
+  if(missingCount){
+    if(!confirm(missingCount+' แถวยังไม่ได้เลือก Job — บันทึกต่อไหม? (ระบบจะเก็บไว้แต่จะคำนวณต้นทุนต่อเที่ยวไม่ได้)')) return;
+  }
+  toSave.forEach(function(e){ delete e._missingJob; driverPayouts.push(e); });
+  try{ localStorage.setItem('gyt_driver_payouts', JSON.stringify(driverPayouts)); }catch(_){}
+  closeModal('modal-dp-bulk');
+  renderPayouts();
+  var dupAdded = toSave.filter(function(e){return e.suspected_duplicate;}).length;
+  showToast('บันทึก '+toSave.length+' รายการ ✓' + (dupAdded?' ⚠️ '+dupAdded+' รายการสงสัยซ้ำ':''), 5000);
+  if(_onlineMode){
+    try {
+      var resp = await fetch(SUPA_URL + '/rest/v1/gyt_driver_payouts', {
+        method: 'POST',
+        headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify(toSave)
+      });
+      if(resp.ok){
+        var json = await resp.json();
+        // Update local IDs with cloud-assigned IDs
+        if(json && Array.isArray(json)){
+          json.forEach(function(saved, i){
+            var local = toSave[i];
+            if(local && saved && saved.id !== local.id){
+              var idx = driverPayouts.findIndex(function(x){return x.id===local.id;});
+              if(idx>=0) driverPayouts[idx].id = saved.id;
+            }
+          });
+        }
+      } else {
+        var errBody = await resp.text();
+        if(resp.status === 404 || errBody.indexOf('PGRST205')>=0){
+          _dpDbAvailable = false; renderPayouts();
+          showToast('⚠️ ตารางยังไม่ได้สร้าง — รัน SQL setup', 8000);
+        } else {
+          showToast('⚠️ Cloud sync fail: HTTP '+resp.status+' '+errBody.slice(0,150), 6000);
+        }
+      }
+    } catch(e){ console.warn('dpSaveBulk sync error:', e); }
+  }
+}
+
+// ── Summary ──
+function dpSummaryPeriod(period){
+  _dpSummaryPeriod = period;
+  ['day','week','month','year'].forEach(function(p){
+    var btn = document.getElementById('dp-sp-'+p);
+    if(!btn) return;
+    if(p === period){ btn.style.background = 'var(--green)'; btn.style.color='#fff'; btn.className = 'btn'; }
+    else { btn.style.background = ''; btn.style.color = ''; btn.className = 'btn btn-ghost'; }
+  });
+  renderPayoutsSummary();
+}
+function renderPayoutsSummary(){
+  var contentEl = document.getElementById('dp-summary-content');
+  if(!contentEl) return;
+  var now = new Date();
+  var fromDate, label;
+  if(_dpSummaryPeriod === 'day'){ fromDate = new Date(now); fromDate.setHours(0,0,0,0); label = 'วันนี้ ('+_dpFmtBE(now.toISOString())+')'; }
+  else if(_dpSummaryPeriod === 'week'){ fromDate = new Date(now); fromDate.setDate(fromDate.getDate()-6); label = '7 วันที่ผ่านมา'; }
+  else if(_dpSummaryPeriod === 'month'){ fromDate = new Date(now.getFullYear(), now.getMonth(), 1); label = 'เดือน '+['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][now.getMonth()]+' '+(now.getFullYear()+543); }
+  else { fromDate = new Date(now.getFullYear(), 0, 1); label = 'ปี '+(now.getFullYear()+543); }
+  var fromIso = fromDate.toISOString().slice(0,10);
+  var filtered = (driverPayouts||[]).filter(function(p){ return p.payout_date >= fromIso; });
+  var total = filtered.reduce(function(s,p){return s + (parseFloat(p.amount)||0);},0);
+  // By driver
+  var byDriver = {};
+  filtered.forEach(function(p){ byDriver[p.driver_id] = (byDriver[p.driver_id]||0) + (parseFloat(p.amount)||0); });
+  var driverArr = Object.keys(byDriver).map(function(id){return {id:id, name:_dpDriverName(parseInt(id)), amount:byDriver[id]};}).sort(function(a,b){return b.amount-a.amount;});
+  // By type
+  var byType = {trip:0, pickup:0, return:0, other:0};
+  filtered.forEach(function(p){ byType[p.expense_type] = (byType[p.expense_type]||0) + (parseFloat(p.amount)||0); });
+  // By method
+  var byMethod = {cash:0, transfer:0};
+  filtered.forEach(function(p){ byMethod[p.payment_method] = (byMethod[p.payment_method]||0) + (parseFloat(p.amount)||0); });
+  var pct = function(v){ return total>0 ? Math.round(v/total*100) : 0; };
+  var bar = function(v){ return '<div style="display:inline-block;width:'+pct(v)+'%;height:14px;background:var(--green);border-radius:3px;vertical-align:middle"></div>'; };
+  contentEl.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">'+
+      '<div style="background:#F0FDF4;padding:14px;border-radius:8px;border-left:4px solid var(--green)">'+
+        '<div style="font-size:11px;color:var(--text-3)">'+label+'</div>'+
+        '<div style="font-size:24px;font-weight:700;color:var(--green-d);font-family:var(--mono)">฿'+total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>'+
+        '<div style="font-size:11px;color:var(--text-3)">'+filtered.length+' รายการ</div>'+
+      '</div>'+
+      '<div style="background:#FEF3C7;padding:14px;border-radius:8px;border-left:4px solid #F59E0B">'+
+        '<div style="font-size:11px;color:var(--text-3)">💵 เงินสด</div>'+
+        '<div style="font-size:20px;font-weight:700;color:#92400E;font-family:var(--mono)">฿'+byMethod.cash.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>'+
+        '<div style="font-size:11px;color:var(--text-3)">'+pct(byMethod.cash)+'% ของทั้งหมด</div>'+
+      '</div>'+
+      '<div style="background:#EFF6FF;padding:14px;border-radius:8px;border-left:4px solid #3B82F6">'+
+        '<div style="font-size:11px;color:var(--text-3)">🏦 โอน</div>'+
+        '<div style="font-size:20px;font-weight:700;color:#1E40AF;font-family:var(--mono)">฿'+byMethod.transfer.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>'+
+        '<div style="font-size:11px;color:var(--text-3)">'+pct(byMethod.transfer)+'% ของทั้งหมด</div>'+
+      '</div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'+
+      '<div><h4 style="margin-bottom:8px">👤 ตามคนขับ</h4>'+
+        (driverArr.length ? driverArr.map(function(d){return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><div style="width:130px;font-size:12px">'+escapeHtml(d.name)+'</div><div style="flex:1">'+bar(d.amount)+'</div><div style="width:110px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700">฿'+d.amount.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>';}).join('') : '<div style="color:var(--text-3);padding:14px;text-align:center">— ไม่มีข้อมูล —</div>')+
+      '</div>'+
+      '<div><h4 style="margin-bottom:8px">📑 ตามประเภท</h4>'+
+        Object.keys(byType).map(function(t){return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><div style="width:120px;font-size:12px">'+_dpTypeLabel(t)+'</div><div style="flex:1">'+bar(byType[t])+'</div><div style="width:110px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700">฿'+byType[t].toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>';}).join('')+
+      '</div>'+
+    '</div>';
+}
+
+// ── Duplicates review ──
+function renderPayoutsDups(){
+  var el = document.getElementById('dp-dups-content');
+  if(!el) return;
+  var dups = (driverPayouts||[]).filter(function(p){return p.suspected_duplicate && !p.reviewed_at;});
+  if(!dups.length){ el.innerHTML = '<div style="color:var(--text-3);padding:24px;text-align:center">✅ ไม่มีรายการที่ต้องตรวจซ้ำ</div>'; return; }
+  el.innerHTML = dups.map(function(p){
+    var origIds = (p.duplicate_reason||'').match(/id=(\d+)/);
+    var origText = origIds ? 'เทียบกับรายการ id '+origIds[1] : (p.duplicate_reason||'');
+    return '<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:14px;margin-bottom:10px;display:flex;gap:14px;align-items:center">'+
+      '<div style="flex:1">'+
+        '<div style="font-size:13px;font-weight:700">⚠️ '+_dpFmtBE(p.payout_date)+' · '+escapeHtml(_dpDriverName(p.driver_id))+' · '+_dpTypeLabel(p.expense_type)+'</div>'+
+        '<div style="font-size:12px;color:var(--text-2);margin-top:4px">฿'+(Number(p.amount)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' · '+_dpMethodLabel(p.payment_method)+(p.reference_no?' · ref '+escapeHtml(p.reference_no):'')+'</div>'+
+        '<div style="font-size:11px;color:#92400E;margin-top:4px">📌 '+escapeHtml(origText)+'</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:8px">'+
+        '<button class="btn" onclick="dpDecideNotDup('+p.id+')" style="background:#D1FAE5;color:#065F46">✅ ไม่ใช่ซ้ำ</button>'+
+        '<button class="btn" onclick="dpDecideDelete('+p.id+')" style="background:#FEE2E2;color:#991B1B">🗑️ ลบ</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+async function dpDecideNotDup(id){
+  if(!dpCanEdit()){ showToast('ต้องเป็น ADMIN/SUPERVISOR'); return; }
+  var p = driverPayouts.find(function(x){return x.id===id;});
+  if(!p) return;
+  p.suspected_duplicate = false;
+  p.reviewed_by = currentUser ? (currentUser.fname+' '+currentUser.lname) : 'unknown';
+  p.reviewed_at = new Date().toISOString();
+  try{ localStorage.setItem('gyt_driver_payouts', JSON.stringify(driverPayouts)); }catch(_){}
+  showToast('ปลด flag เรียบร้อย ✓');
+  renderPayoutsDups(); renderPayouts();
+  if(_onlineMode){
+    try {
+      await fetch(SUPA_URL + '/rest/v1/gyt_driver_payouts?id=eq.'+id, {
+        method: 'PATCH',
+        headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json'},
+        body: JSON.stringify({suspected_duplicate:false, reviewed_by:p.reviewed_by, reviewed_at:p.reviewed_at})
+      });
+    } catch(e){ console.warn('decideNotDup sync error:', e); }
+  }
+}
+async function dpDecideDelete(id){
+  if(!dpCanEdit()){ showToast('ต้องเป็น ADMIN/SUPERVISOR'); return; }
+  if(!confirm('ลบรายการนี้ถาวร?')) return;
+  var idx = driverPayouts.findIndex(function(x){return x.id===id;});
+  if(idx>=0) driverPayouts.splice(idx,1);
+  try{ localStorage.setItem('gyt_driver_payouts', JSON.stringify(driverPayouts)); }catch(_){}
+  showToast('ลบเรียบร้อย ✓');
+  renderPayoutsDups(); renderPayouts();
+  if(_onlineMode){
+    try { await fetch(SUPA_URL + '/rest/v1/gyt_driver_payouts?id=eq.'+id, {method:'DELETE', headers:{'apikey':SUPA_KEY, 'Authorization':'Bearer '+SUPA_KEY}}); } catch(e){ console.warn('decideDelete sync error:', e); }
+  }
+}
+
+// ── Load from cloud ──
+async function loadDriverPayoutsFromCloud(){
+  if(!_onlineMode) return;
+  try {
+    var resp = await fetch(SUPA_URL+'/rest/v1/gyt_driver_payouts?select=*&order=payout_date.desc&limit=5000', {
+      headers:{'apikey':SUPA_KEY, 'Authorization':'Bearer '+SUPA_KEY}
+    });
+    if(resp.ok){
+      var data = await resp.json();
+      driverPayouts = Array.isArray(data) ? data : [];
+      try{ localStorage.setItem('gyt_driver_payouts', JSON.stringify(driverPayouts)); }catch(_){}
+      _dpDbAvailable = true;
+      console.log('[Payouts] loaded '+driverPayouts.length+' from cloud');
+    } else {
+      var t = await resp.text();
+      if(resp.status === 404 || t.indexOf('PGRST205')>=0){
+        _dpDbAvailable = false;
+        console.warn('[Payouts] ตารางยังไม่ได้สร้าง — รัน SQL setup');
+      } else {
+        console.warn('[Payouts] load fail HTTP '+resp.status+': '+t.slice(0,200));
+      }
+    }
+  } catch(e){ console.warn('loadDriverPayoutsFromCloud error:', e); }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -25542,7 +26311,11 @@ function _rptGetFilteredRecords(){
     if(to && r.service_date > to) return false;
     if(fvtype && r.vehicle_type !== fvtype) return false;
     // 🆕 v134 — plate filter (value is "vehicle_type:vehicle_id")
-    if(fplate && (r.vehicle_type+':'+r.vehicle_id) !== fplate) return false;
+    if(fplate){
+      // 🆕 v154 — รองรับ filter "ไม่ระบุคัน"
+      if(fplate === '__no_vehicle__'){ if(r.vehicle_id) return false; }
+      else if((r.vehicle_type+':'+r.vehicle_id) !== fplate) return false;
+    }
     if(ftype){
       var sh = shopMap[r.shop_id];
       if(!sh || sh.type !== ftype) return false;
@@ -25580,13 +26353,17 @@ function _mtPopulatePlateFilter(selectId){
   var counts = {};
   (maintenanceRecords||[]).forEach(function(r){ var k = (r.vehicle_type||'')+':'+(r.vehicle_id||''); counts[k] = (counts[k]||0)+1; });
   var allCount = (maintenanceRecords||[]).length;
+  // 🆕 v154 — นับรายการที่ "ไม่ระบุคัน"
+  var noVehicleCount = (maintenanceRecords||[]).filter(function(r){ return !r.vehicle_id; }).length;
   var TYPE_ICONS = {tractor:'🚜', trailer:'🚚', truck10:'🚛'};
-  var html = '<option value="">'+defaultLabel+' ('+allCount+')</option>' + vehicles.map(function(v){
-    var k = (v.vehicle_type||'')+':'+v.id;
-    var icon = TYPE_ICONS[v.vehicle_type] || '🚐';
-    var cnt = counts[k]||0;
-    return '<option value="'+k+'">'+icon+' '+(v.plate||'(ไม่มีทะเบียน)')+(cnt?' ('+cnt+')':'')+'</option>';
-  }).join('');
+  var html = '<option value="">'+defaultLabel+' ('+allCount+')</option>' +
+    (noVehicleCount ? '<option value="__no_vehicle__">🔧 ไม่ระบุคัน ('+noVehicleCount+')</option>' : '') +
+    vehicles.map(function(v){
+      var k = (v.vehicle_type||'')+':'+v.id;
+      var icon = TYPE_ICONS[v.vehicle_type] || '🚐';
+      var cnt = counts[k]||0;
+      return '<option value="'+k+'">'+icon+' '+(v.plate||'(ไม่มีทะเบียน)')+(cnt?' ('+cnt+')':'')+'</option>';
+    }).join('');
   sel.innerHTML = html;
   // Restore selection if still valid
   if(cur) sel.value = cur;
@@ -29006,6 +29783,135 @@ async function rcptLoadDoneList(){
 .al-badge-line{background:#DCFCE7;color:#14532D}
 .al-badge-paid{background:#FEF3C7;color:#92400E}
 </style>
+
+<!-- 🆕 v153 — MODAL: Driver Payout — Single Entry -->
+<div class="modal-overlay" id="modal-dp-single">
+<div class="modal" style="max-width:min(680px, 96vw); width:min(680px, 96vw)">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title" id="dp-single-title">➕ เพิ่มค่าใช้จ่ายคนรถ</div>
+      <div class="modal-sub">บันทึก 1 รายการ (ใช้กับเคสโอน หรือเพิ่มทีละแถว)</div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-dp-single')">&times;</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">วันที่ <span style="color:red">*</span></label>
+        <input class="fi" type="date" id="dp-s-date">
+      </div>
+      <div class="fg" style="flex:1"><label class="fl">คนขับ <span style="color:red">*</span></label>
+        <select class="fi" id="dp-s-driver"><option value="">— เลือกคนขับ —</option></select>
+      </div>
+    </div>
+    <div class="fg-row" style="grid-template-columns:1fr">
+      <div class="fg"><label class="fl">ทะเบียน / งาน <span style="color:red">*</span></label>
+        <div style="display:flex;gap:6px">
+          <input class="fi" id="dp-s-plate-search" placeholder="🔍 พิมพ์ทะเบียน เช่น 65-4769" oninput="dpJobSearch(this.value)" style="flex:1">
+          <button type="button" class="btn btn-ghost" onclick="dpJobClear()" style="font-size:12px">ล้าง</button>
+        </div>
+        <div id="dp-s-job-list" style="margin-top:6px;max-height:160px;overflow-y:auto;background:#FAFAF7;border-radius:6px;display:none"></div>
+        <div id="dp-s-job-selected" style="margin-top:6px;padding:8px 10px;background:#D1FAE5;border-left:3px solid var(--green);border-radius:4px;font-size:12px;display:none"></div>
+        <input type="hidden" id="dp-s-job-id">
+      </div>
+    </div>
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">ประเภท <span style="color:red">*</span></label>
+        <select class="fi" id="dp-s-type">
+          <option value="trip">🚚 ค่าเที่ยว</option>
+          <option value="pickup">📦 ค่ารับตู้</option>
+          <option value="return">📤 ค่าคืนตู้</option>
+          <option value="other">💸 อื่นๆ</option>
+        </select>
+      </div>
+      <div class="fg" style="flex:1"><label class="fl">วิธีจ่าย <span style="color:red">*</span></label>
+        <select class="fi" id="dp-s-method">
+          <option value="cash">💵 เงินสด</option>
+          <option value="transfer">🏦 โอน</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">ยอด (บาท) <span style="color:red">*</span></label>
+        <input class="fi" type="number" id="dp-s-amount" step="0.01" placeholder="0.00">
+      </div>
+      <div class="fg" style="flex:1"><label class="fl">เลขอ้างอิง / สลิป</label>
+        <input class="fi" id="dp-s-ref" placeholder="—">
+      </div>
+    </div>
+    <div class="fg-row" style="grid-template-columns:1fr">
+      <div class="fg"><label class="fl">หมายเหตุ</label>
+        <input class="fi" id="dp-s-note" placeholder="—">
+      </div>
+    </div>
+    <div id="dp-s-dup-warn" style="display:none;background:#FEF3C7;border-left:4px solid #F59E0B;padding:10px 14px;border-radius:6px;font-size:13px;color:#92400E;margin-top:8px"></div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-danger" id="dp-s-delete-btn" onclick="dpDeleteSingle()" style="margin-right:auto;display:none">🗑️ ลบรายการนี้</button>
+    <button class="btn btn-ghost" onclick="closeModal('modal-dp-single')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="dpSaveSingle()">💾 บันทึก</button>
+  </div>
+</div>
+</div>
+
+<!-- 🆕 v153 — MODAL: Driver Payout — Bulk Entry -->
+<div class="modal-overlay" id="modal-dp-bulk">
+<div class="modal" style="max-width:min(1280px, 98vw); width:min(1280px, 98vw)">
+  <div class="modal-head">
+    <div>
+      <div class="modal-title">📋 เพิ่มหลายรายการรวด — ค่าใช้จ่ายคนรถ</div>
+      <div class="modal-sub">กรอกหลายแถวพร้อมกัน · เหมาะกับเคสเงินสดที่ทีมส่ง list มา</div>
+    </div>
+    <button class="close-x" onclick="closeModal('modal-dp-bulk')">&times;</button>
+  </div>
+  <div class="modal-body">
+    <div style="background:#F0FDF4;border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:12px">
+      ⚙️ <strong>ค่าเริ่มต้นทุกแถว:</strong>
+      วันที่ <input type="date" id="dp-b-default-date" style="margin:0 8px;padding:4px 8px;border:1px solid var(--border);border-radius:4px">
+      วิธีจ่าย
+      <select id="dp-b-default-method" style="margin:0 8px;padding:4px 8px;border:1px solid var(--border);border-radius:4px">
+        <option value="cash">💵 เงินสด</option>
+        <option value="transfer">🏦 โอน</option>
+      </select>
+      <button class="btn btn-ghost" onclick="dpBulkApplyDefaults()" style="font-size:11px">✓ ใช้กับทุกแถวว่าง</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="mt-table" style="font-size:12px">
+        <thead>
+          <tr style="background:#F3F4F6">
+            <th style="width:32px">#</th>
+            <th style="min-width:130px">วันที่</th>
+            <th style="min-width:130px">คนขับ</th>
+            <th style="min-width:200px">ทะเบียน → Job</th>
+            <th style="min-width:110px">ประเภท</th>
+            <th style="min-width:90px">วิธีจ่าย</th>
+            <th style="min-width:90px;text-align:right">ยอด</th>
+            <th style="min-width:110px">อ้างอิง</th>
+            <th style="min-width:120px">หมายเหตุ</th>
+            <th style="width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="dp-b-tbody"></tbody>
+        <tfoot>
+          <tr style="background:#FAFAF7;font-weight:700">
+            <td colspan="6" style="padding:8px;text-align:right">รวม:</td>
+            <td style="padding:8px;text-align:right;font-family:var(--mono);color:var(--green-d)">฿<span id="dp-b-total">0.00</span></td>
+            <td colspan="3"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button class="btn" onclick="dpBulkAddRow()" style="background:var(--green-l);color:var(--green-d);border:1px dashed var(--green)">+ เพิ่มแถว</button>
+      <button class="btn btn-ghost" onclick="dpBulkCheckDup()" style="background:#FEF3C7;color:#92400E">📋 ตรวจซ้ำก่อน</button>
+    </div>
+    <div id="dp-b-result" style="margin-top:10px;font-size:13px;display:none"></div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-dp-bulk')">ยกเลิก</button>
+    <button class="btn btn-green" onclick="dpSaveBulk()">✅ บันทึกทั้งหมด</button>
+  </div>
+</div>
+</div>
 
 <!-- MODAL: BIN (ถังขยะ) — 🆕 v125 re-added (was lost in v109 patch) -->
 <div class="modal-overlay" id="modal-bin">
