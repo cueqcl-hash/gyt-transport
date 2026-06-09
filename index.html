@@ -23263,7 +23263,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.149';
+const APP_VERSION = '2026.04.29.150';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -24379,7 +24379,7 @@ function renderMaintenance(){
         '</div>' +
       '</td>' +
       '<td style="font-size:12px">' + escapeHtml(serviceText||'—') + '</td>' +
-      '<td style="text-align:right;font-family:var(--mono)">' + (r.mileage||0).toLocaleString() + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono)">' + ((Number(r.mileage)||0)>0 ? (Number(r.mileage).toLocaleString()) : '—') + '</td>' +
       '<td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--green-d)">' + (parseFloat(r.total_amount)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>' +
       '<td style="white-space:nowrap">'+
         '<button class="btn-sm" onclick="mtViewMaintenance(' + r.id + ')" style="background:var(--green-l);color:var(--green-d);border:1px solid var(--green-m);margin-right:4px">👁 ดู</button>' +
@@ -24482,7 +24482,7 @@ function mtViewMaintenance(id){
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;background:#FAFAF7;padding:12px;border-radius:6px;margin-bottom:14px;font-size:12px">'+
         '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">📅 วันที่ซ่อม</div><strong>'+_fmtBE(r.service_date)+'</strong></div>'+
         '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">📅 บันทึกเมื่อ</div><strong>'+_fmtBE(r.created_at)+'</strong></div>'+
-        '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">📏 เลขไมล์</div><strong>'+(Number(r.mileage)||0).toLocaleString()+' km</strong></div>'+
+        '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">📏 เลขไมล์</div><strong>'+((Number(r.mileage)||0)>0 ? (Number(r.mileage).toLocaleString()+' km') : '—')+'</strong></div>'+
         '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">'+(isVat?'🧾 Invoice No':'💵 Bill No')+'</div><strong>'+_esc((isVat?r.invoice_no:r.bill_no)||'—')+'</strong></div>'+
         (r.next_service_km ? '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">🔔 ครั้งหน้า (km)</div><strong>'+Number(r.next_service_km).toLocaleString()+'</strong></div>' : '')+
         (r.next_service_date ? '<div><div style="color:var(--text-3);font-size:10px;text-transform:uppercase">🔔 ครั้งหน้า (วัน)</div><strong>'+_fmtBE(r.next_service_date)+'</strong></div>' : '')+
@@ -25051,7 +25051,8 @@ async function saveMaintenance(){
     vehicle_type: vt,
     shop_id: shopId,
     service_date: date,
-    mileage: mileage || null,
+    // 🆕 v150 — DB constraint NOT NULL บน mileage → ส่ง 0 ถ้าผู้ใช้เว้นว่าง (render เป็น "—")
+    mileage: mileage || 0,
     bill_no: (sh && sh.type==='cash') ? document.getElementById('mm-bill-no').value || null : null,
     invoice_no: (sh && sh.type==='vat') ? document.getElementById('mm-invoice-no').value || null : null,
     service_types: serviceTypes,
