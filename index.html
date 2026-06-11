@@ -2526,7 +2526,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <select class="fi" id="fj-status"><option value="รอดำเนินการ">รอดำเนินการ</option><option value="กำลังดำเนินการ">กำลังดำเนินการ</option><option value="เสร็จสิ้น">เสร็จสิ้น</option></select>
       </div>
       <!-- 🆕 v158 — ราคาขายต่อตู้ เห็นเฉพาะ perm view_price (ซ่อน default, openAddJob/openEditJob คุม) -->
-      <div class="fg" id="fj-price-wrap" style="display:none"><label class="fl" style="color:#065F46;font-weight:700">💰 ค่าขนส่งต่อตู้/เที่ยว (บาท)</label><input class="fi" id="fj-price" type="number" min="0" step="any" placeholder="เช่น 5500" style="border-color:#10B981;font-weight:700;color:#065F46"></div>
+      <div class="fg" id="fj-price-wrap" style="display:none"><label class="fl" style="color:#065F46;font-weight:700">💰 ค่าขนส่งต่อตู้/เที่ยว (บาท)</label><input class="fi" id="fj-price" type="number" min="0" step="any" placeholder="เช่น 5500" style="border-color:#10B981;font-weight:700;color:#065F46" onfocus="rateHintRefresh('fj')" oninput="ratePriceCheck('fj')">
+        <div id="fj-price-hint" style="margin-top:4px;line-height:1.7"></div>
+        <div id="fj-price-warn" style="display:none;margin-top:2px;font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:6px;font-weight:600"></div>
+      </div>
     </div>
 
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">เส้นทาง + ลิงก์ Map</div>
@@ -5242,6 +5245,10 @@ function openMultiJob(){
   // 🆕 v158 — ช่องราคาขายต่อตู้ (เฉพาะ perm view_price)
   var mcPw=document.getElementById('mc-price-wrap'); if(mcPw) mcPw.style.display=hasPerm('view_price')?'':'none';
   var mcPr=document.getElementById('mc-price'); if(mcPr) mcPr.value='';
+  // 🆕 v160 — prefetch ราคาฐาน + เคลียร์ hint
+  var mcH=document.getElementById('mc-price-hint'); if(mcH) mcH.innerHTML='';
+  var mcW=document.getElementById('mc-price-warn'); if(mcW) mcW.style.display='none';
+  if(hasPerm('view_price')) _rateLoad();
   document.getElementById('mc-preview').style.display='none';
   // Reset billing party section (กลับ default mode = shipper)
   if(typeof restoreReceiptSection==='function') restoreReceiptSection('mc', null);
@@ -19017,6 +19024,132 @@ function openMapUrl(inputId){
 // ============================
 // JOB CRUD
 // ============================
+// ════════════════════════════════════════════════════════════
+// 🆕 v160 — ราคาฐานแนะนำ (gyt_customer_rates จากข้อมูลบัญชีน้าปุ้ม)
+// แสดงชิปราคาใต้ช่อง 💰 — คลิกเติม, ปรับตามขั้นน้ำมัน KGM อัตโนมัติ
+// ════════════════════════════════════════════════════════════
+var _rateDB = null, _rateLoading = false, _rateLastTop = {};
+async function _rateLoad(){
+  if(_rateDB || _rateLoading) return;
+  _rateLoading = true;
+  try {
+    var rows = await sbFetchAll('gyt_customer_rates', '?is_active=eq.true&select=shipper,agent,origin,dest,route_text,size,price,trips,source_type,as_of,fuel_tiers');
+    _rateDB = rows || [];
+    console.log('[rates] loaded', _rateDB.length);
+  } catch(e){ console.warn('[rates] load failed:', e.message); _rateDB = []; }
+  finally { _rateLoading = false; }
+}
+function _rateSizeFromType(t){
+  t = String(t||'');
+  if(!t) return null;
+  if(t.indexOf('ขนส่งสิบล้อ')>=0) return 'ขนส่งสิบล้อ';
+  if(t.indexOf('ขนส่งเทลเลอร์')>=0 || t.indexOf('ขนส่งเทรลเลอร์')>=0) return 'ขนส่งเทรลเลอร์';
+  var is40 = t.indexOf('40')>=0 || t.indexOf('45')>=0;
+  var base = is40 ? "40'" : "20'";
+  if(/FL|OT/.test(t)) return base + " OT/FL";
+  if(/DG/.test(t)) return base + " DG";
+  if(!is40 && t.indexOf('หนัก')>=0) return "20' หนัก";
+  return base;
+}
+// เลือกขั้นราคาตามดีเซลปัจจุบัน (ราคา Bangchak B7 ที่หน้า ratecalc cache ไว้)
+function _rateFuelAdj(row){
+  try {
+    if(!row.fuel_tiers || !row.fuel_tiers.labels) return null;
+    var raw = localStorage.getItem('gyt_oil_price_v1');
+    if(!raw) return null;
+    var oil = parseFloat(JSON.parse(raw).price);
+    if(!oil || isNaN(oil)) return null;
+    var L = row.fuel_tiers.labels, P = row.fuel_tiers.prices;
+    for(var i=0;i<L.length;i++){
+      var m = String(L[i]).match(/([\d.]+)\s*-\s*([\d.]+)/);
+      if(m && oil >= parseFloat(m[1]) && oil <= parseFloat(m[2])) return {price:P[i], tier:L[i], oil:oil};
+    }
+    var f = String(L[0]).match(/([\d.]+)/);
+    if(f && oil < parseFloat(f[1])) return {price:P[0], tier:L[0], oil:oil};
+    return {price:P[P.length-1], tier:L[L.length-1]+' (เกินช่วง)', oil:oil};
+  } catch(e){ return null; }
+}
+function _rateNorm(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
+function _rateSuggest(shipper, customer, origin, dest, returnyard, ctype){
+  if(!_rateDB || !_rateDB.length) return [];
+  var size = _rateSizeFromType(ctype);
+  var sh = _rateNorm(shipper), cu = _rateNorm(customer);
+  var oz = _rateNorm(origin), dz = _rateNorm(dest), rz = _rateNorm(returnyard);
+  var cuKey = cu.split(' ')[0];
+  var out = [];
+  for(var i=0;i<_rateDB.length;i++){
+    var r = _rateDB[i];
+    if(size && r.size !== size) continue;
+    var score = 0;
+    var rsh = _rateNorm(r.shipper), rag = _rateNorm(r.agent);
+    var routeBlob = _rateNorm(r.origin) + ' ' + _rateNorm(r.dest) + ' ' + _rateNorm(r.route_text);
+    if(sh && rsh && (rsh.indexOf(sh)>=0 || sh.indexOf(rsh)>=0)) score += 4;
+    if(cu && rag && cuKey.length>=2 && rag.indexOf(cuKey)>=0) score += 2;
+    if(dz && dz.length>=3 && routeBlob.indexOf(dz)>=0) score += 3;
+    else if(dz){ var dTok = dz.split(' ')[0]; if(dTok.length>=3 && routeBlob.indexOf(dTok)>=0) score += 2; }
+    if(rz && rz.length>=3 && routeBlob.indexOf(rz)>=0) score += 1;
+    if(oz && oz.length>=2 && routeBlob.indexOf(oz)>=0) score += 1;
+    if(r.source_type==='quote') score += 1;
+    if((r.trips||0) >= 3) score += 1;
+    if(score >= 4) out.push({row:r, score:score});
+  }
+  out.sort(function(a,b){ return b.score - a.score || (b.row.trips||0) - (a.row.trips||0); });
+  return out.slice(0,3);
+}
+function rateHintRefresh(prefix){
+  var box = document.getElementById(prefix+'-price-hint');
+  if(!box) return;
+  if(!hasPerm('view_price')){ box.innerHTML=''; return; }
+  if(!_rateDB){
+    box.innerHTML = '<span style="color:var(--text-3);font-size:11px">⏳ กำลังโหลดราคาฐาน...</span>';
+    _rateLoad().then(function(){ rateHintRefresh(prefix); });
+    return;
+  }
+  var g = function(id){ var el = document.getElementById(id); return el ? el.value : ''; };
+  var shipper = (typeof sdGetValue==='function') ? sdGetValue(prefix+'-shipper') : g(prefix+'-shipper');
+  var customer = (typeof sdGetValue==='function') ? sdGetValue(prefix+'-customer') : g(prefix+'-customer');
+  var ctype = g(prefix+'-type');
+  var suggs = _rateSuggest(shipper, customer, g(prefix+'-origin'), g(prefix+'-dest'), g(prefix+'-return'), ctype);
+  if(!suggs.length){
+    box.innerHTML = '<span style="color:var(--text-3);font-size:11px">ไม่พบราคาฐานที่ใกล้เคียง (ลองกรอก Shipper/ปลายทาง/ประเภทตู้ก่อน)</span>';
+    _rateLastTop[prefix] = null;
+    return;
+  }
+  _rateLastTop[prefix] = (function(){ var a=_rateFuelAdj(suggs[0].row); return a?a.price:suggs[0].row.price; })();
+  box.innerHTML = suggs.map(function(s){
+    var r = s.row;
+    var adj = _rateFuelAdj(r);
+    var price = adj ? adj.price : r.price;
+    var srcLabel = r.source_type==='quote' ? '📋 ใบเสนอ' : '🧾 บิลจริง';
+    var route = (r.origin && r.dest) ? (r.origin+'→'+r.dest) : (r.route_text||'');
+    if(route.length > 36) route = route.slice(0,36)+'…';
+    var extra = adj ? (' ⛽'+adj.oil) : '';
+    var tip = (r.shipper?('Shipper: '+r.shipper+' | '):'')+(r.agent?('ตัวแทน: '+r.agent+' | '):'')+srcLabel+(r.as_of?(' '+r.as_of):'')+(r.trips?(' | วิ่ง '+r.trips+' เที่ยว'):'')+(adj?(' | ขั้นน้ำมัน '+adj.tier+' ฿/L'):'');
+    return '<button type="button" class="rate-chip" data-price="'+price+'" data-prefix="'+prefix+'" title="'+escapeHtml(tip)+'" '+
+      'style="margin:2px 4px 2px 0;padding:3px 9px;border-radius:12px;border:1px solid #10B981;background:#ECFDF5;color:#065F46;font-size:11.5px;font-weight:700;cursor:pointer">'+
+      '💡 '+Number(price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#047857">'+escapeHtml(route)+extra+'</span></button>';
+  }).join('');
+  box.querySelectorAll('.rate-chip').forEach(function(btn){
+    btn.onclick = function(){
+      var inp = document.getElementById(btn.dataset.prefix+'-price');
+      if(inp){ inp.value = btn.dataset.price; ratePriceCheck(btn.dataset.prefix); }
+    };
+  });
+}
+// เตือนเมื่อราคาที่กรอกต่างจากราคาฐานเกิน 15%
+function ratePriceCheck(prefix){
+  var warn = document.getElementById(prefix+'-price-warn');
+  var inp = document.getElementById(prefix+'-price');
+  if(!warn || !inp) return;
+  var v = parseFloat(inp.value), base = _rateLastTop[prefix];
+  if(!v || !base){ warn.style.display='none'; return; }
+  var diff = Math.abs(v-base)/base;
+  if(diff > 0.15){
+    warn.style.display='';
+    warn.textContent = '⚠️ ต่างจากราคาฐาน ('+Number(base).toLocaleString('th-TH')+') ' + Math.round(diff*100) + '%';
+  } else { warn.style.display='none'; }
+}
+
 function openAddJob(){
   if(!hasPerm('add_jobs')){showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน');return;}
   editJID=null;
@@ -19033,6 +19166,10 @@ function openAddJob(){
   // 🆕 v158 — ช่องราคาขายต่อตู้ (เฉพาะ perm view_price)
   var fjPw=document.getElementById('fj-price-wrap'); if(fjPw) fjPw.style.display=hasPerm('view_price')?'':'none';
   var fjPr=document.getElementById('fj-price'); if(fjPr) fjPr.value='';
+  // 🆕 v160 — prefetch ราคาฐาน + เคลียร์ hint
+  var fjH=document.getElementById('fj-price-hint'); if(fjH) fjH.innerHTML='';
+  var fjW=document.getElementById('fj-price-warn'); if(fjW) fjW.style.display='none';
+  if(hasPerm('view_price')) _rateLoad();
   const now=new Date();now.setMinutes(0,0,0);
   document.getElementById('fj-startdate').value=now.toISOString().slice(0,16);
   document.getElementById('fj-deliverdate').value='';
@@ -19094,6 +19231,10 @@ function openEditJob(id){
   // 🆕 v158 — ช่องราคาขายต่อตู้ (เฉพาะ perm view_price)
   var fjPw2=document.getElementById('fj-price-wrap'); if(fjPw2) fjPw2.style.display=hasPerm('view_price')?'':'none';
   var fjPr2=document.getElementById('fj-price'); if(fjPr2) fjPr2.value=(j.costs && j.costs.priceAmt!==undefined && j.costs.priceAmt!==null && j.costs.priceAmt!=='')?j.costs.priceAmt:'';
+  // 🆕 v160 — prefetch ราคาฐาน + เคลียร์ hint
+  var fjH2=document.getElementById('fj-price-hint'); if(fjH2) fjH2.innerHTML='';
+  var fjW2=document.getElementById('fj-price-warn'); if(fjW2) fjW2.style.display='none';
+  if(hasPerm('view_price')) _rateLoad();
   document.getElementById('modal-job').classList.add('open');
   // init datetime picker (DD/MM/YYYY HH:MM 24h)
   setTimeout(function(){
@@ -23497,7 +23638,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.159';
+const APP_VERSION = '2026.04.29.160';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -29476,7 +29617,9 @@ async function rcptLoadDoneList(){
     <!-- 🆕 v158 — ราคาขายต่อตู้ (เฉพาะ perm view_price, ใช้ราคาเดียวทุกตู้ใน BL) -->
     <div class="fg" id="mc-price-wrap" style="margin-top:8px;display:none">
       <label class="fl" style="color:#065F46;font-weight:700">💰 ค่าขนส่งต่อตู้/เที่ยว (บาท) <span style="color:var(--text-3);font-weight:400;font-size:11px">(ราคากลางทุกตู้ — ตู้ไหนราคาต่าง กรอกช่อง 💰 ของตู้นั้นในตารางด้านล่าง)</span></label>
-      <input class="fi" id="mc-price" type="number" min="0" step="any" placeholder="เช่น 5500" style="border-color:#10B981;font-weight:700;color:#065F46;max-width:240px">
+      <input class="fi" id="mc-price" type="number" min="0" step="any" placeholder="เช่น 5500" style="border-color:#10B981;font-weight:700;color:#065F46;max-width:240px" onfocus="rateHintRefresh('mc')" oninput="ratePriceCheck('mc')">
+      <div id="mc-price-hint" style="margin-top:4px;line-height:1.7"></div>
+      <div id="mc-price-warn" style="display:none;margin-top:2px;font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:6px;font-weight:600;max-width:fit-content"></div>
     </div>
 
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">รายการตู้ทั้งหมด</div>
