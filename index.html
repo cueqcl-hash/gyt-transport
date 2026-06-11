@@ -2525,6 +2525,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="fg"><label class="fl">สถานะใบงาน</label>
         <select class="fi" id="fj-status"><option value="รอดำเนินการ">รอดำเนินการ</option><option value="กำลังดำเนินการ">กำลังดำเนินการ</option><option value="เสร็จสิ้น">เสร็จสิ้น</option></select>
       </div>
+      <!-- 🆕 v158 — ราคาขายต่อตู้ เห็นเฉพาะ perm view_price (ซ่อน default, openAddJob/openEditJob คุม) -->
+      <div class="fg" id="fj-price-wrap" style="display:none"><label class="fl" style="color:#065F46;font-weight:700">💰 ค่าขนส่งต่อตู้/เที่ยว (บาท)</label><input class="fi" id="fj-price" type="number" min="0" step="any" placeholder="เช่น 5500" style="border-color:#10B981;font-weight:700;color:#065F46"></div>
     </div>
 
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">เส้นทาง + ลิงก์ Map</div>
@@ -2747,6 +2749,7 @@ const ALL_PERMS = [
   {id:'view_weight',  label:'ดูน้ำหนักสินค้า',      group:'ข้อมูลในใบงาน'},
   {id:'view_plate',   label:'ดูทะเบียน/คนขับ',      group:'ข้อมูลในใบงาน'},
   {id:'view_location',label:'ดูลิงก์ Map',           group:'ข้อมูลในใบงาน'},
+  {id:'view_price',   label:'ดู/กรอกค่าขนส่งต่อตู้/เที่ยว', group:'ข้อมูลในใบงาน'},  // 🆕 v158 — ราคาขายต่อตู้ (เห็นเฉพาะผู้บริหาร+บัญชี)
   // ── หน้าอื่น ──
   {id:'dashboard',    label:'ดู Dashboard',          group:'หน้าอื่น'},
   {id:'view_vehicles',label:'ดูรายการรถ',            group:'หน้าอื่น'},
@@ -2766,6 +2769,7 @@ const DEFAULT_PERMS = {
   // 🆕 v059 — บัญชี: focus งานการเงิน (เปิด manage_finance ให้, ดู jobs+vehicles+drivers ได้)
   accounting: ['view_jobs','update_status',
                'view_customer','view_shipper','view_carrier','view_weight','view_plate','view_location',
+               'view_price',  // 🆕 v158 — บัญชีเห็นราคาขายต่อตู้ (ใช้ออกใบวางบิล)
                'dashboard','view_vehicles','view_drivers','view_settings',
                'manage_finance','manage_receipts','manage_billing','export'],  // 🆕 v114
   staff:   ['view_jobs','add_jobs','edit_jobs','delete_jobs','update_status',
@@ -4867,6 +4871,7 @@ const ALL_COLS = [
   {id:'customer',    label:'ลูกค้า (ตัวแทน)',         field:'customer',     width:'145px'},
   {id:'carrier',     label:'Carrier Line',            field:'carrier',      width:'110px'},
   {id:'booking',     label:'Booking/BL/JOB',          field:'booking',      width:'130px'},
+  {id:'price',       label:'💰 ค่าขนส่งต่อตู้/เที่ยว', field:'price',       width:'130px'},  // 🆕 v158 — เห็นเฉพาะ perm view_price
   {id:'status',      label:'สถานะใบงาน',              field:'status',       width:'110px'},
   {id:'note',        label:'หมายเหตุ',                field:'note',         width:'180px'},
   {id:'id',          label:'เลขใบงาน',               field:'id',           width:'88px', pinned:true},
@@ -4876,7 +4881,7 @@ const ALL_COLS = [
 // IMPORTANT: ตรงนี้แก้เฉพาะ legacy global key (gyt_colOrder) เท่านั้น
 // ไม่แตะ per-user keys (gyt_colOrder_u<id>) → user prefs ปลอดภัย
 (function(){
-  var def=['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','cargo_type','customer','carrier','booking','status','note','id'];
+  var def=['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','cargo_type','customer','carrier','booking','price','status','note','id'];  // 🆕 v158 — +price
   var stored=JSON.parse(localStorage.getItem('gyt_colOrder')||'[]');
   var needInit = stored.length === 0;
   if(needInit){
@@ -4886,7 +4891,7 @@ const ALL_COLS = [
   // ไม่ overwrite ของ user — user customize แล้วเก็บไว้เลย
 })();
 
-const _DEFAULT_COL_ORDER = ['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','cargo_type','customer','carrier','booking','status','note','id'];
+const _DEFAULT_COL_ORDER = ['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','cargo_type','customer','carrier','booking','price','status','note','id'];  // 🆕 v158 — +price
 // Column ที่ซ่อนเป็น default (user เปิดได้เองใน Column Manager)
 const _DEFAULT_HIDDEN_COLS = ['cargo_type'];
 let colOrder = JSON.parse(localStorage.getItem('gyt_colOrder')||JSON.stringify(_DEFAULT_COL_ORDER));
@@ -5234,6 +5239,9 @@ function openMultiJob(){
   document.getElementById('mc-type').value="";
   document.getElementById('mc-delivery-type').value='จัดส่งสินค้าภายในวัน';
   document.getElementById('mc-count').value='5';
+  // 🆕 v158 — ช่องราคาขายต่อตู้ (เฉพาะ perm view_price)
+  var mcPw=document.getElementById('mc-price-wrap'); if(mcPw) mcPw.style.display=hasPerm('view_price')?'':'none';
+  var mcPr=document.getElementById('mc-price'); if(mcPr) mcPr.value='';
   document.getElementById('mc-preview').style.display='none';
   // Reset billing party section (กลับ default mode = shipper)
   if(typeof restoreReceiptSection==='function') restoreReceiptSection('mc', null);
@@ -5425,6 +5433,13 @@ function saveMulti(){
   const created=[];
   const __mc_byName=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'ไม่ระบุ';
   const __mc_nowISO=new Date().toISOString();
+  // 🆕 v158 — ราคาขายต่อตู้ (ใช้ราคาเดียวทุกตู้) — เขียนเฉพาะผู้มีสิทธิ์ view_price
+  var __mc_price=null;
+  if(hasPerm('view_price')){
+    var __mcPEl=document.getElementById('mc-price');
+    var __mcPv=__mcPEl?String(__mcPEl.value).trim():'';
+    if(__mcPv!=='' && !isNaN(parseFloat(__mcPv))) __mc_price=parseFloat(__mcPv);
+  }
   for(let i=1;i<=n;i++){
     // Q2 (Option A): ใช้ override per-row ถ้ามี, ไม่งั้น fallback to shared
     var rOrigin = (document.getElementById('mc-r'+i+'-origin')?.value || '').trim() || origin;
@@ -5449,6 +5464,7 @@ function saveMulti(){
       createdBy:__mc_byName,
       createdAt:__mc_nowISO,
     };
+    if(__mc_price!==null) job.costs={priceAmt:__mc_price};  // 🆕 v158
     jobs.unshift(job);
     created.push(job.id);
     if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncJobSave(job); }catch(e){ console.warn('saveMulti sync error:', e); } }
@@ -16953,7 +16969,7 @@ const _FIN_COLS = [
   {id:'route',        label:'จุดรับ-ส่ง ✎',  group:'info',  width:'240px', visible:true},
   {id:'type',         label:'ตู้',            group:'info',  width:'60px',  visible:true},
   {id:'container',    label:'No.ตู้',        group:'info',  width:'90px',  visible:true},
-  {id:'trip',         label:'ค่าเที่ยว',     group:'cost',  width:'80px',  visible:true},
+  {id:'trip',         label:'เบิก',          group:'cost',  width:'80px',  visible:true},  // 🆕 v158 — เดิม "ค่าเที่ยว" = ค่าแรงคนขับ/เที่ยว
   {id:'toll',         label:'ทางด่วน',       group:'cost',  width:'80px',  visible:true},
   {id:'recv',         label:'รับตู้',         group:'cost',  width:'75px',  visible:true},
   {id:'box',          label:'ยกตู้',          group:'cost',  width:'75px',  visible:true},
@@ -17561,7 +17577,7 @@ function finRender(plate, dateFrom, dateTo){
   sumEl.innerHTML = '<strong style="color:var(--green-d)">'+plate+' · '+_finCE2BE(dateFrom)+' – '+_finCE2BE(dateTo)+'</strong>'+
     ' &nbsp;|&nbsp; ใบงาน <strong>'+rows.filter(function(r){return r.type==="job";}).length+'</strong>'+
     ' (📜 ประวัติที่ยัง match ไม่ได้ <strong>'+rows.filter(function(r){return r.type==="legacy";}).length+'</strong>)'+
-    '<br>💵 ค่าเที่ยว <strong>'+_finFmtNum(totals.trip)+'</strong>'+
+    '<br>💵 เบิก <strong>'+_finFmtNum(totals.trip)+'</strong>'+
     ' · ทางด่วน <strong>'+_finFmtNum(totals.toll)+'</strong>'+
     ' · รับตู้ <strong>'+_finFmtNum(totals.recv)+'</strong>'+
     ' · ยกตู้ <strong>'+_finFmtNum(totals.box)+'</strong>'+
@@ -17898,7 +17914,7 @@ async function finAuditLog(table, recordId, action, beforeData, afterData, by){
 function finExport(){
   if(!_finCurrentPlate || !_finCurrentMonth){ showToast('กรุณาเลือกทะเบียน + เดือนก่อน'); return; }
   if(typeof XLSX === 'undefined'){ showToast('XLSX library not loaded'); return; }
-  var rows = [['#','วันที่','ลูกค้า','จุดรับ-ส่ง','ค่าเที่ยว','วันเติม','ปั้ม','ราคา/L','ลิตร','ยอดน้ำมัน','ทางด่วน','ผู้บันทึก']];
+  var rows = [['#','วันที่','ลูกค้า','จุดรับ-ส่ง','เบิก','วันเติม','ปั้ม','ราคา/L','ลิตร','ยอดน้ำมัน','ทางด่วน','ผู้บันทึก']];
   document.querySelectorAll('#fin-tbody tr').forEach(function(tr){
     var cells = tr.querySelectorAll('td');
     if(cells.length < 12) return;
@@ -18559,6 +18575,7 @@ const COL_PERM_MAP = {
   'weight':     'view_weight',
   'plate':      'view_plate',
   'driver':     'view_plate',
+  'price':      'view_price',  // 🆕 v158 — ราคาขายต่อตู้ เห็นเฉพาะผู้บริหาร+บัญชี
   // origin/dest/returnyard text → ไม่ผูก perm (เห็นได้)
   // map link ใน cells ผูก view_location (จัดการในส่วน render)
 };
@@ -18725,6 +18742,8 @@ function renderJobs(){
         if(c.id==='status')return`<td>${badge(v)}</td>`;
         if(c.id==='type'){const vn=(v||'').replace(/\'\s+/g,"'").trim();const tc=CTYPE_RED.has(vn)?'ctype-red':'ctype-green';return`<td><span class="${tc}">${v||'—'}</span></td>`;}
         if(c.id==='shipper')return`<td style="color:var(--green-d);font-weight:600">${v||'—'}</td>`;
+        // 🆕 v158 — ราคาขายต่อตู้ (costs.priceAmt) — getCols กรอง perm ให้แล้ว
+        if(c.id==='price'){const pv=j.costs&&j.costs.priceAmt!==undefined&&j.costs.priceAmt!==null&&j.costs.priceAmt!==''?Number(j.costs.priceAmt):null;return`<td style="text-align:right;font-family:var(--mono);font-weight:700;color:#065F46">${pv!==null&&!isNaN(pv)?pv.toLocaleString('th-TH'):'—'}</td>`;}
         // location text แสดงตลอด (ไม่ผูก perm), แต่ map link ผูก view_location
         if(c.id==='origin'){const showMap=hasPerm('view_location')&&j.originUrl;return`<td>${showMap?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.originUrl}">📍 ${v}</span>`:(v||'—')}</td>`;}
         if(c.id==='dest'){const showMap=hasPerm('view_location')&&j.destUrl;return`<td>${showMap?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.destUrl}">📍 ${v}</span>`:(v||'—')}</td>`;}
@@ -18999,6 +19018,9 @@ function openAddJob(){
   document.getElementById('fj-delivery-type').value='จัดส่งสินค้าภายในวัน';
   document.getElementById('fj-type').value="";
   document.getElementById('fj-status').value='รอดำเนินการ';
+  // 🆕 v158 — ช่องราคาขายต่อตู้ (เฉพาะ perm view_price)
+  var fjPw=document.getElementById('fj-price-wrap'); if(fjPw) fjPw.style.display=hasPerm('view_price')?'':'none';
+  var fjPr=document.getElementById('fj-price'); if(fjPr) fjPr.value='';
   const now=new Date();now.setMinutes(0,0,0);
   document.getElementById('fj-startdate').value=now.toISOString().slice(0,16);
   document.getElementById('fj-deliverdate').value='';
@@ -19057,6 +19079,9 @@ function openEditJob(id){
   document.getElementById('fj-status').value=j.status;
   document.getElementById('fj-startdate').value=j.startdate||'';
   document.getElementById('fj-deliverdate').value=j.deliverdate||'';
+  // 🆕 v158 — ช่องราคาขายต่อตู้ (เฉพาะ perm view_price)
+  var fjPw2=document.getElementById('fj-price-wrap'); if(fjPw2) fjPw2.style.display=hasPerm('view_price')?'':'none';
+  var fjPr2=document.getElementById('fj-price'); if(fjPr2) fjPr2.value=(j.costs && j.costs.priceAmt!==undefined && j.costs.priceAmt!==null && j.costs.priceAmt!=='')?j.costs.priceAmt:'';
   document.getElementById('modal-job').classList.add('open');
   // init datetime picker (DD/MM/YYYY HH:MM 24h)
   setTimeout(function(){
@@ -19105,6 +19130,8 @@ function saveJob(){
   var __nowISO=new Date().toISOString();
   if(editJID){
     const i=jobs.findIndex(x=>x.id===editJID);
+    // 🔧 v158 — แก้บั๊ก: เก็บ costs เดิมไว้เสมอ (เดิม jobs[i]=obj ทับทิ้ง → ราคา/ค่าใช้จ่ายที่บัญชีกรอกหาย)
+    obj.costs=(jobs[i]&&jobs[i].costs)?JSON.parse(JSON.stringify(jobs[i].costs)):undefined;
     // เก็บข้อมูลผู้ลงงานเดิมไว้ + บันทึกผู้แก้ไขล่าสุด
     obj.createdBy=(jobs[i]&&jobs[i].createdBy)||__byName;
     obj.createdAt=(jobs[i]&&jobs[i].createdAt)||__nowISO;
@@ -19115,6 +19142,17 @@ function saveJob(){
     obj.createdBy=__byName;
     obj.createdAt=__nowISO;
     jobs.unshift(obj);
+  }
+  // 🆕 v158 — ราคาขายต่อตู้/เที่ยว (costs.priceAmt) — เขียนเฉพาะผู้มีสิทธิ์ view_price
+  if(hasPerm('view_price')){
+    var _pEl=document.getElementById('fj-price');
+    var _pv=_pEl?String(_pEl.value).trim():'';
+    if(_pv!=='' && !isNaN(parseFloat(_pv))){
+      obj.costs=obj.costs||{};
+      obj.costs.priceAmt=parseFloat(_pv);
+    } else if(obj.costs && obj.costs.priceAmt!==undefined){
+      delete obj.costs.priceAmt;  // เคลียร์ช่อง = ลบราคาออก
+    }
   }
   // Sync ขึ้น cloud (fire-and-forget; ถ้า offline จะข้ามอัตโนมัติใน syncJobSave)
   if(typeof _onlineMode!=='undefined' && _onlineMode){
@@ -23447,7 +23485,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.157';
+const APP_VERSION = '2026.04.29.158';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -28271,7 +28309,9 @@ async function billingRenderCreate(){
       if(!showAll && billedMap[j.id]) return false;
       if(!j.costs) return false;
       var c = j.costs;
-      var total = (+c.tripAmt||0)+(+c.boxAmt||0)+(+c.recvAmt||0)+(+c.retAmt||0)+(+c.portAmt||0)+(+c.tollAmt||0)+(+c.miscAmt||0)+(+c.misc2Amt||0);
+      // 🆕 v158 — ค่าขนส่ง = priceAmt (ราคาขายต่อตู้) ถ้ามี, ไม่งั้น fallback tripAmt (ใบงานเก่า)
+      var _frt = (+c.priceAmt||0)>0 ? (+c.priceAmt||0) : (+c.tripAmt||0);
+      var total = _frt+(+c.boxAmt||0)+(+c.recvAmt||0)+(+c.retAmt||0)+(+c.portAmt||0)+(+c.tollAmt||0)+(+c.miscAmt||0)+(+c.misc2Amt||0);
       if(total<=0) return false;
       var nm = ((j.shipper||'')+' '+(j.receipt_name||'')).toLowerCase();
       return custKey && nm.includes(custKey);
@@ -28290,7 +28330,9 @@ async function billingRenderCreate(){
     empty.style.display='none';
     tbody.innerHTML = matched.map(function(j){
       var c = j.costs||{};
-      var total = (+c.tripAmt||0)+(+c.boxAmt||0)+(+c.recvAmt||0)+(+c.retAmt||0)+(+c.portAmt||0)+(+c.tollAmt||0)+(+c.miscAmt||0)+(+c.misc2Amt||0);
+      // 🆕 v158 — ค่าขนส่ง = priceAmt ถ้ามี, fallback tripAmt
+      var _frt2 = (+c.priceAmt||0)>0 ? (+c.priceAmt||0) : (+c.tripAmt||0);
+      var total = _frt2+(+c.boxAmt||0)+(+c.recvAmt||0)+(+c.retAmt||0)+(+c.portAmt||0)+(+c.tollAmt||0)+(+c.miscAmt||0)+(+c.misc2Amt||0);
       var route = (j.origin||'?')+' → '+(j.dest||'?')+(j.returnyard?' → '+j.returnyard:'');
       var book = j.booking ? ' • '+j.booking : '';
       var billedBy = (window._BC_BILLED_MAP||{})[j.id];
@@ -28350,7 +28392,9 @@ async function billingCreateBill(){
     var c = j.costs||{};
     var route = (j.origin||'?')+' → '+(j.dest||'?')+(j.returnyard?' → '+j.returnyard:'');
     var date = (j.startdate||'').substring(0,10);
-    if((+c.tripAmt||0)>0) lineItems.push({date:date, desc:'ค่าขนส่ง: '+route+(j.booking?' • Booking '+j.booking:'')+(j.container?' • ตู้ '+j.container:''), amt_freight:+c.tripAmt, amt_other:0, amt_total:+c.tripAmt, job_id:j.id});
+    // 🆕 v158 — ค่าขนส่งในบิล = priceAmt (ราคาขายต่อตู้) ถ้ามี, fallback tripAmt (ใบงานเก่า)
+    var _frtBill = (+c.priceAmt||0)>0 ? (+c.priceAmt||0) : (+c.tripAmt||0);
+    if(_frtBill>0) lineItems.push({date:date, desc:'ค่าขนส่ง: '+route+(j.booking?' • Booking '+j.booking:'')+(j.container?' • ตู้ '+j.container:''), amt_freight:_frtBill, amt_other:0, amt_total:_frtBill, job_id:j.id});
     function add(desc, amt, note){ var n=+amt; if(n>0) lineItems.push({date:date, desc:desc, amt_freight:0, amt_other:n, amt_total:n, job_id:j.id, note:note||''}); }
     add('ค่ายกตู้', c.boxAmt);
     add('ค่ารับตู้', c.recvAmt, c.recvNote);
@@ -29417,6 +29461,12 @@ async function rcptLoadDoneList(){
       <textarea class="fi" id="mc-note" placeholder="กรอกหมายเหตุ เช่น สเปคพิเศษ คำสั่งเฉพาะ ของระวังพิเศษ ..." rows="1" style="resize:none;overflow:hidden;min-height:38px;line-height:1.4;font-family:inherit" oninput="autoResizeNote(this)"></textarea>
     </div>
 
+    <!-- 🆕 v158 — ราคาขายต่อตู้ (เฉพาะ perm view_price, ใช้ราคาเดียวทุกตู้ใน BL) -->
+    <div class="fg" id="mc-price-wrap" style="margin-top:8px;display:none">
+      <label class="fl" style="color:#065F46;font-weight:700">💰 ค่าขนส่งต่อตู้/เที่ยว (บาท) <span style="color:var(--text-3);font-weight:400;font-size:11px">(ใช้ราคาเดียวกันทุกตู้ใน BL นี้)</span></label>
+      <input class="fi" id="mc-price" type="number" min="0" step="any" placeholder="เช่น 5500" style="border-color:#10B981;font-weight:700;color:#065F46;max-width:240px">
+    </div>
+
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">รายการตู้ทั้งหมด</div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
       <span style="font-size:12px;color:var(--text-2)">จำนวนตู้:</span>
@@ -30118,7 +30168,7 @@ async function rcptLoadDoneList(){
       💡 กรอกเฉพาะรายการที่มี — ช่องที่เว้นว่างจะแสดงเป็นเส้นประในใบปฏิบัติงาน
     </div>
     <div class="fg-row">
-      <div class="fg"><label class="fl">ค่าเบี้ยเลี้ยง (บาท)</label><input class="fi" id="cost-trip-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
+      <div class="fg"><label class="fl">เบิก — ค่าแรงคนขับ/เที่ยว (บาท)</label><input class="fi" id="cost-trip-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
       <div class="fg"><label class="fl">ค่ายกตู้ (บาท)</label><input class="fi" id="cost-box-amt" type="number" placeholder="0" oninput="updateCostTotal()"></div>
       <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="cost-trip-note" placeholder="หัวลาก / สิบล้อ"></div>
     </div>
