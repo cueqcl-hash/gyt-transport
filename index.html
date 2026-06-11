@@ -19070,12 +19070,49 @@ function _rateFuelAdj(row){
   } catch(e){ return null; }
 }
 function _rateNorm(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
-function _rateSuggest(shipper, customer, origin, dest, returnyard, ctype){
-  if(!_rateDB || !_rateDB.length) return [];
-  var size = _rateSizeFromType(ctype);
-  var sh = _rateNorm(shipper), cu = _rateNorm(customer);
-  var oz = _rateNorm(origin), dz = _rateNorm(dest), rz = _rateNorm(returnyard);
-  var cuKey = cu.split(' ')[0];
+// 🆕 v161 — พจนานุกรมชื่อท่า/สถานที่ (ไทย ↔ รหัสในใบเสนอ/บิล)
+var _RATE_ALIAS = [
+  ['pat','ท่าเรือกรุงเทพ','คลองเตย','การท่าเรือ','ท่าเรือ กทท'],
+  ['lkb','ลาดกระบัง'],
+  ['lcb','แหลมฉบัง'],
+  ['unithai','ยูนิไทย'],
+  ['hi tech','ไฮเทค','hitech','บางปะอิน'],
+  ['bangchan','บางชัน'],
+  ['ladkrabang','ลาดกระบัง'],
+  ['laemchabang','แหลมฉบัง'],
+  ['bangna','บางนา'],
+  ['bangpoo','บางปู'],
+  ['bangbo','บางบ่อ'],
+  ['rojana','โรจนะ'],
+  ['bisco','บิสโก้'],
+  ['taiban','ท้ายบ้าน'],
+];
+// แตกข้อความเป็น token + เติม alias (ภาษาไหนก็เจอกัน)
+function _rateTokens(s){
+  var n = _rateNorm(s);
+  if(!n) return [];
+  var toks = n.split(/[\s\-–—\/\(\),\.]+/).filter(function(t){ return t.length >= 3; });
+  var extra = [];
+  for(var a=0;a<_RATE_ALIAS.length;a++){
+    var grp = _RATE_ALIAS[a];
+    for(var g=0;g<grp.length;g++){
+      if(n.indexOf(grp[g])>=0){ extra = extra.concat(grp); break; }
+    }
+  }
+  return toks.concat(extra);
+}
+// 🆕 v161 — fallback หมวดราคา เมื่อหมวดตรงไม่มีข้อมูล (เช่น ใบเสนอไม่มีคอลัมน์ตู้หนัก)
+function _rateSizeFallback(size){
+  if(size === "20' หนัก") return ["40'", "20'"];        // ตู้หนักใช้เทรลเลอร์ → เทียบเรท 40'/Trailer + เรท 20' ปกติ
+  if(size === "20' DG") return ["20'", "20' หนัก"];
+  if(size === "40' DG") return ["40'"];
+  if(size === "20' OT/FL") return ["20'"];
+  if(size === "40' OT/FL") return ["40'"];
+  if(size === "ขนส่งเทรลเลอร์") return ["40'"];
+  if(size === "ขนส่งสิบล้อ") return ["20'"];
+  return [];
+}
+function _rateScoreRows(size, sh, cuKey, oTok, dTok, rTok){
   var out = [];
   for(var i=0;i<_rateDB.length;i++){
     var r = _rateDB[i];
@@ -19084,16 +19121,39 @@ function _rateSuggest(shipper, customer, origin, dest, returnyard, ctype){
     var rsh = _rateNorm(r.shipper), rag = _rateNorm(r.agent);
     var routeBlob = _rateNorm(r.origin) + ' ' + _rateNorm(r.dest) + ' ' + _rateNorm(r.route_text);
     if(sh && rsh && (rsh.indexOf(sh)>=0 || sh.indexOf(rsh)>=0)) score += 4;
-    if(cu && rag && cuKey.length>=2 && rag.indexOf(cuKey)>=0) score += 2;
-    if(dz && dz.length>=3 && routeBlob.indexOf(dz)>=0) score += 3;
-    else if(dz){ var dTok = dz.split(' ')[0]; if(dTok.length>=3 && routeBlob.indexOf(dTok)>=0) score += 2; }
-    if(rz && rz.length>=3 && routeBlob.indexOf(rz)>=0) score += 1;
-    if(oz && oz.length>=2 && routeBlob.indexOf(oz)>=0) score += 1;
+    if(cuKey && rag && cuKey.length>=2 && rag.indexOf(cuKey)>=0) score += 2;
+    // match แบบแยกคำ + alias: ปลายทาง (+3 สูงสุด), ลานคืน (+1), ต้นทาง (+1)
+    var dHit=0, oHit=0, rHit=0;
+    for(var t=0;t<dTok.length;t++){ if(routeBlob.indexOf(dTok[t])>=0){ dHit++; } }
+    for(var t2=0;t2<oTok.length;t2++){ if(routeBlob.indexOf(oTok[t2])>=0){ oHit++; break; } }
+    for(var t3=0;t3<rTok.length;t3++){ if(routeBlob.indexOf(rTok[t3])>=0){ rHit++; break; } }
+    if(dHit >= 2) score += 3; else if(dHit === 1) score += 2;
+    if(oHit) score += 1;
+    if(rHit) score += 1;
     if(r.source_type==='quote') score += 1;
     if((r.trips||0) >= 3) score += 1;
     if(score >= 4) out.push({row:r, score:score});
   }
   out.sort(function(a,b){ return b.score - a.score || (b.row.trips||0) - (a.row.trips||0); });
+  return out;
+}
+function _rateSuggest(shipper, customer, origin, dest, returnyard, ctype){
+  if(!_rateDB || !_rateDB.length) return [];
+  var size = _rateSizeFromType(ctype);
+  var sh = _rateNorm(shipper), cu = _rateNorm(customer);
+  var cuKey = cu.split(' ')[0];
+  // ตัดคำบริษัทห้อยท้ายของ shipper (co.,ltd ฯลฯ) ให้ match ง่ายขึ้น
+  sh = sh.replace(/\(.*?\)/g,'').replace(/co\.?,?\s*ltd\.?|company|limited|จำกัด|บริษัท|\(มหาชน\)/g,'').trim();
+  var oTok = _rateTokens(origin), dTok = _rateTokens(dest), rTok = _rateTokens(returnyard);
+  var out = _rateScoreRows(size, sh, cuKey, oTok, dTok, rTok);
+  // 🆕 v161 — หมวดตรงไม่เจอ → ลองหมวดใกล้เคียง (ชิปจะติดป้ายหมวดให้เห็น)
+  if(!out.length && size){
+    var fbs = _rateSizeFallback(size);
+    for(var f=0; f<fbs.length && out.length<3; f++){
+      out = out.concat(_rateScoreRows(fbs[f], sh, cuKey, oTok, dTok, rTok));
+    }
+    out.forEach(function(s){ s.fallback = true; });
+  }
   return out.slice(0,3);
 }
 function rateHintRefresh(prefix){
@@ -19123,11 +19183,13 @@ function rateHintRefresh(prefix){
     var srcLabel = r.source_type==='quote' ? '📋 ใบเสนอ' : '🧾 บิลจริง';
     var route = (r.origin && r.dest) ? (r.origin+'→'+r.dest) : (r.route_text||'');
     if(route.length > 36) route = route.slice(0,36)+'…';
+    // 🆕 v161 — ราคาจากหมวดใกล้เคียง (หมวดตรงไม่มีข้อมูล) → ติดป้ายหมวดให้รู้
+    var sizeTag = s.fallback ? '<span style="background:#FEF3C7;color:#92400E;padding:0 5px;border-radius:7px;font-size:10px;margin-right:3px">'+escapeHtml(r.size)+'</span>' : '';
     var extra = adj ? (' ⛽'+adj.oil) : '';
     var tip = (r.shipper?('Shipper: '+r.shipper+' | '):'')+(r.agent?('ตัวแทน: '+r.agent+' | '):'')+srcLabel+(r.as_of?(' '+r.as_of):'')+(r.trips?(' | วิ่ง '+r.trips+' เที่ยว'):'')+(adj?(' | ขั้นน้ำมัน '+adj.tier+' ฿/L'):'');
     return '<button type="button" class="rate-chip" data-price="'+price+'" data-prefix="'+prefix+'" title="'+escapeHtml(tip)+'" '+
       'style="margin:2px 4px 2px 0;padding:3px 9px;border-radius:12px;border:1px solid #10B981;background:#ECFDF5;color:#065F46;font-size:11.5px;font-weight:700;cursor:pointer">'+
-      '💡 '+Number(price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#047857">'+escapeHtml(route)+extra+'</span></button>';
+      sizeTag+'💡 '+Number(price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#047857">'+escapeHtml(route)+extra+'</span></button>';
   }).join('');
   box.querySelectorAll('.rate-chip').forEach(function(btn){
     btn.onclick = function(){
@@ -23638,7 +23700,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.160';
+const APP_VERSION = '2026.04.29.161';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
