@@ -19087,11 +19087,13 @@ var _RATE_ALIAS = [
   ['bisco','บิสโก้'],
   ['taiban','ท้ายบ้าน'],
 ];
+// 🆕 v162 — คำทั่วไปที่ห้ามใช้จับคู่ (เจอที่ไหนก็ได้ ไม่บอกอะไร — เคส JOB-4217 "โกดัง" จับคู่มั่ว)
+var _RATE_STOPWORDS = new Set(['โกดัง','ท่าเรือ','นิคม','ลาน','ตู้','บรรจุ','คืนตู้','รับตู้','ซอย','ถนน','แยก','โรงงาน','คลัง','บริษัท','จำกัด','warehouse','factory','estate','industrial','container','the','และ','ตำบล','อำเภอ','จังหวัด']);
 // แตกข้อความเป็น token + เติม alias (ภาษาไหนก็เจอกัน)
 function _rateTokens(s){
   var n = _rateNorm(s);
   if(!n) return [];
-  var toks = n.split(/[\s\-–—\/\(\),\.]+/).filter(function(t){ return t.length >= 3; });
+  var toks = n.split(/[\s\-–—\/\(\),\.]+/).filter(function(t){ return t.length >= 3 && !_RATE_STOPWORDS.has(t); });
   var extra = [];
   for(var a=0;a<_RATE_ALIAS.length;a++){
     var grp = _RATE_ALIAS[a];
@@ -19128,6 +19130,8 @@ function _rateScoreRows(size, sh, cuKey, oTok, dTok, rTok){
     for(var t2=0;t2<oTok.length;t2++){ if(routeBlob.indexOf(oTok[t2])>=0){ oHit++; break; } }
     for(var t3=0;t3<rTok.length;t3++){ if(routeBlob.indexOf(rTok[t3])>=0){ rHit++; break; } }
     if(dHit >= 2) score += 3; else if(dHit === 1) score += 2;
+    // 🆕 v162 — ต้องมี "สัญญาณหลัก" (shipper/ตัวแทน/ปลายทาง) ก่อน โบนัสอื่นถึงนับ
+    if(score === 0) continue;
     if(oHit) score += 1;
     if(rHit) score += 1;
     if(r.source_type==='quote') score += 1;
@@ -19189,7 +19193,7 @@ function rateHintRefresh(prefix){
     var tip = (r.shipper?('Shipper: '+r.shipper+' | '):'')+(r.agent?('ตัวแทน: '+r.agent+' | '):'')+srcLabel+(r.as_of?(' '+r.as_of):'')+(r.trips?(' | วิ่ง '+r.trips+' เที่ยว'):'')+(adj?(' | ขั้นน้ำมัน '+adj.tier+' ฿/L'):'');
     return '<button type="button" class="rate-chip" data-price="'+price+'" data-prefix="'+prefix+'" title="'+escapeHtml(tip)+'" '+
       'style="margin:2px 4px 2px 0;padding:3px 9px;border-radius:12px;border:1px solid #10B981;background:#ECFDF5;color:#065F46;font-size:11.5px;font-weight:700;cursor:pointer">'+
-      sizeTag+'💡 '+Number(price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#047857">'+escapeHtml(route)+extra+'</span></button>';
+      sizeTag+(r.source_type==='quote'?'📋':'🧾')+' '+Number(price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#047857">'+escapeHtml(route)+extra+'</span></button>';
   }).join('');
   box.querySelectorAll('.rate-chip').forEach(function(btn){
     btn.onclick = function(){
@@ -23700,7 +23704,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.161';
+const APP_VERSION = '2026.04.29.162';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
