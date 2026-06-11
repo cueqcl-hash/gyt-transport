@@ -5270,6 +5270,8 @@ function buildContainerRows(){
   const defDT=now.toISOString().slice(0,16);
   const tbody=document.getElementById('mc-rows');
   tbody.innerHTML='';
+  // 🆕 v159 — โชว์หัวคอลัมน์ราคา override เฉพาะผู้มีสิทธิ์
+  var _mcThP=document.getElementById('mc-th-price'); if(_mcThP) _mcThP.style.display=hasPerm('view_price')?'':'none';
   for(let i=1;i<=n;i++){
     const row=document.createElement('tr');
     row.style.borderBottom='1px solid var(--border)';
@@ -5317,6 +5319,9 @@ function buildContainerRows(){
       <td style="padding:4px 6px;background:#FFEBEE">
         <textarea class="fi" id="mc-r${i}-note" placeholder="(ใช้หมายเหตุร่วม)" rows="1" style="height:34px;min-height:34px;font-size:12px;resize:none;overflow:hidden;line-height:1.3;font-family:inherit;color:#C0392B;font-weight:600" oninput="autoResizeNote(this)"></textarea>
       </td>
+      ${hasPerm('view_price')?`<td style="padding:4px 6px;background:#ECFDF5">
+        <input class="fi" type="number" id="mc-r${i}-price" min="0" step="any" placeholder="(ราคากลาง)" style="height:32px;font-size:12px;width:100px;border-color:#10B981;color:#065F46;font-weight:700">
+      </td>`:''}
       <td style="padding:4px 6px">
         ${i>1?`<button style="height:28px;padding:0 8px;border-radius:5px;border:1px solid var(--border);background:#fff;font-size:11px;cursor:pointer;color:var(--text-2)" onclick="copyFromAbove(${i})" title="คัดลอกจากแถวบน">↑ คัดลอก</button>`:''}
       </td>`;
@@ -5334,7 +5339,7 @@ function buildContainerRows(){
 
 function copyFromAbove(rowIdx){
   const prev=rowIdx-1;
-  ['startdate','deliverdate','weight','plate','driver','origin','dest','return','note'].forEach(f=>{
+  ['startdate','deliverdate','weight','plate','driver','origin','dest','return','note','price'].forEach(f=>{  // 🆕 v159 — +price
     const from=document.getElementById(`mc-r${prev}-${f}`);
     const to=document.getElementById(`mc-r${rowIdx}-${f}`);
     if(!from||!to)return;
@@ -5464,7 +5469,14 @@ function saveMulti(){
       createdBy:__mc_byName,
       createdAt:__mc_nowISO,
     };
-    if(__mc_price!==null) job.costs={priceAmt:__mc_price};  // 🆕 v158
+    // 🆕 v159 — ราคา override รายตู้: กรอก = ใช้ราคาตู้นี้, เว้นว่าง = ใช้ราคากลาง
+    var _rPrice=__mc_price;
+    if(hasPerm('view_price')){
+      var _rpEl=document.getElementById('mc-r'+i+'-price');
+      var _rpv=_rpEl?String(_rpEl.value).trim():'';
+      if(_rpv!=='' && !isNaN(parseFloat(_rpv))) _rPrice=parseFloat(_rpv);
+    }
+    if(_rPrice!==null) job.costs={priceAmt:_rPrice};
     jobs.unshift(job);
     created.push(job.id);
     if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncJobSave(job); }catch(e){ console.warn('saveMulti sync error:', e); } }
@@ -23485,7 +23497,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.158';
+const APP_VERSION = '2026.04.29.159';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -29463,7 +29475,7 @@ async function rcptLoadDoneList(){
 
     <!-- 🆕 v158 — ราคาขายต่อตู้ (เฉพาะ perm view_price, ใช้ราคาเดียวทุกตู้ใน BL) -->
     <div class="fg" id="mc-price-wrap" style="margin-top:8px;display:none">
-      <label class="fl" style="color:#065F46;font-weight:700">💰 ค่าขนส่งต่อตู้/เที่ยว (บาท) <span style="color:var(--text-3);font-weight:400;font-size:11px">(ใช้ราคาเดียวกันทุกตู้ใน BL นี้)</span></label>
+      <label class="fl" style="color:#065F46;font-weight:700">💰 ค่าขนส่งต่อตู้/เที่ยว (บาท) <span style="color:var(--text-3);font-weight:400;font-size:11px">(ราคากลางทุกตู้ — ตู้ไหนราคาต่าง กรอกช่อง 💰 ของตู้นั้นในตารางด้านล่าง)</span></label>
       <input class="fi" id="mc-price" type="number" min="0" step="any" placeholder="เช่น 5500" style="border-color:#10B981;font-weight:700;color:#065F46;max-width:240px">
     </div>
 
@@ -29490,6 +29502,7 @@ async function rcptLoadDoneList(){
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:160px;background:#FFF8E1" title="ถ้าตู้นี้ส่งคนละที่ กรอกที่นี่ — เว้นว่าง = ใช้ค่าจากข้อมูลร่วม">🏷 เปิด/บรรจุ <span style="font-size:9px;color:var(--text-3);font-weight:400">(override)</span></th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:160px;background:#FFF8E1" title="ถ้าตู้นี้ปลายทางต่าง กรอกที่นี่ — เว้นว่าง = ใช้ค่าจากข้อมูลร่วม">🏷 ปลายทาง <span style="font-size:9px;color:var(--text-3);font-weight:400">(override)</span></th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:180px;background:#FFEBEE" title="หมายเหตุเฉพาะตู้นี้ — เว้นว่าง = ใช้หมายเหตุร่วมด้านบน">📝 หมายเหตุ <span style="font-size:9px;color:var(--text-3);font-weight:400">(override)</span></th>
+          <th id="mc-th-price" style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:110px;background:#ECFDF5;display:none" title="ราคาเฉพาะตู้นี้ (เช่น ส่งคนละที่) — เว้นว่าง = ใช้ราคากลางด้านบน">💰 ราคา/ตู้ <span style="font-size:9px;color:var(--text-3);font-weight:400">(override)</span></th>
           <th style="padding:7px 8px;text-align:left;border-bottom:2px solid var(--border);min-width:80px">คัดลอก</th>
         </tr>
       </thead>
