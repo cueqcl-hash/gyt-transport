@@ -19394,6 +19394,14 @@ function jobToMulti(){
   if(!hasPerm('add_jobs')){ showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน'); return; }
   if(editJID){ showToast('ปุ่มนี้ใช้ตอนเพิ่มใบงานใหม่เท่านั้น'); return; }
   var g = function(id){ var el=document.getElementById(id); return el?el.value:''; };
+  // 🆕 v164 — กันกดพลาด: ถ้ากรอกข้อมูลสำคัญไปแล้ว ให้ยืนยันก่อน (ฟอร์มว่าง = ย้ายเลย ไม่ถาม)
+  var _hasData = [ (typeof sdGetValue==='function'?sdGetValue('fj-customer'):g('fj-customer')),
+                   (typeof sdGetValue==='function'?sdGetValue('fj-shipper'):g('fj-shipper')),
+                   g('fj-origin'), g('fj-dest'), g('fj-container'), g('fj-booking') ]
+                 .some(function(v){ return v && String(v).trim(); });
+  if(_hasData && typeof confirm==='function'){
+    if(!confirm('ย้ายไปหน้า "หลายตู้ (BL เดียว)" ?\n\nข้อมูลที่กรอกไว้จะถูกโอนไปเป็น "ตู้ที่ 1" อัตโนมัติ — ไม่หายแน่นอน\n\nกด ตกลง = ย้าย   |   ยกเลิก = กรอกใบเดี่ยวต่อ')) return;
+  }
   // 1) เก็บค่าจากฟอร์มเดี่ยว (fj-*)
   var snap = {
     customer: (typeof sdGetValue==='function')?sdGetValue('fj-customer'):g('fj-customer'),
@@ -23761,7 +23769,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.163';
+const APP_VERSION = '2026.04.29.164';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
