@@ -2604,6 +2604,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </div>
   <div class="modal-foot">
     <button class="btn btn-ghost" onclick="closeModal('modal-job')">ยกเลิก</button>
+    <button class="btn btn-yellow" id="btn-split-multi" onclick="jobToMulti()" title="เพิ่งรู้ว่ามีหลายตู้? กดเพื่อย้ายไปหน้าหลายตู้ โดยไม่ต้องพิมพ์ใหม่">🔀 แตกเป็นหลายตู้ (BL เดียว)</button>
     <button class="btn btn-green" onclick="saveJob()">บันทึกใบงาน</button>
   </div>
 </div>
@@ -19221,6 +19222,8 @@ function openAddJob(){
   editJID=null;
   document.getElementById('mj-title').textContent='เพิ่มใบงานใหม่';
   document.getElementById('mj-sub').textContent='';
+  // 🆕 v163 — ปุ่มแตกเป็นหลายตู้ แสดงเฉพาะตอนเพิ่มใบงานใหม่
+  var _bsm=document.getElementById('btn-split-multi'); if(_bsm) _bsm.style.display='';
   locCache={origin:null,dest:null,return:null};
   ['customer','phone','shipper','carrier','booking','container','origin','dest','return','plate','driver','note','weight','cargo','origin-url','dest-url','return-url'].forEach(f=>{const el=document.getElementById('fj-'+f);if(el)el.value='';});
   ctypeSetValue('fj',"");
@@ -19254,6 +19257,8 @@ function openEditJob(id){
   editJID=id;
   document.getElementById('mj-title').textContent='แก้ไขใบงาน';
   document.getElementById('mj-sub').textContent=id;
+  // 🆕 v163 — ซ่อนปุ่มแตกเป็นหลายตู้ ตอนแก้ไขใบงานเดิม (กันสร้างซ้ำ)
+  var _bsm2=document.getElementById('btn-split-multi'); if(_bsm2) _bsm2.style.display='none';
   locCache={origin:null,dest:null,return:null};
   document.getElementById('fj-origin-url').value=j.originUrl||'';
   document.getElementById('fj-dest-url').value=j.destUrl||'';
@@ -19384,6 +19389,58 @@ function saveJob(){
   closeModal('modal-job');renderJobs();
   showToast(editJID?'อัปเดตใบงานเรียบร้อย':'เพิ่มใบงานใหม่เรียบร้อย');
 }
+// 🆕 v163 — แตกใบงานเดี่ยว → หน้าหลายตู้ (BL เดียว) โดยโอนทุกค่าที่กรอกไว้ ไม่ต้องพิมพ์ซ้ำ
+function jobToMulti(){
+  if(!hasPerm('add_jobs')){ showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน'); return; }
+  if(editJID){ showToast('ปุ่มนี้ใช้ตอนเพิ่มใบงานใหม่เท่านั้น'); return; }
+  var g = function(id){ var el=document.getElementById(id); return el?el.value:''; };
+  // 1) เก็บค่าจากฟอร์มเดี่ยว (fj-*)
+  var snap = {
+    customer: (typeof sdGetValue==='function')?sdGetValue('fj-customer'):g('fj-customer'),
+    shipper:  (typeof sdGetValue==='function')?sdGetValue('fj-shipper'):g('fj-shipper'),
+    phone:g('fj-phone'), carrier:g('fj-carrier'), booking:g('fj-booking'),
+    cargo:g('fj-cargo'), jobType:g('fj-job-type'), deliveryType:g('fj-delivery-type'),
+    origin:g('fj-origin'), originUrl:g('fj-origin-url'),
+    dest:g('fj-dest'), destUrl:g('fj-dest-url'),
+    ret:g('fj-return'), retUrl:g('fj-return-url'), note:g('fj-note'),
+    container:g('fj-container'), type:g('fj-type'),
+    startdate:g('fj-startdate'), deliverdate:g('fj-deliverdate'),
+    weight:g('fj-weight'), plate:g('fj-plate'), driver:g('fj-driver'), price:g('fj-price'),
+    receiptName:g('fj-receipt-name'), receiptAddr:g('fj-receipt-addr'), receiptTaxid:g('fj-receipt-taxid')
+  };
+  closeModal('modal-job');
+  openMultiJob();  // เคลียร์ + เปิดหน้าหลายตู้ (ตั้ง count=5)
+  // 2) เติม shared fields
+  if(typeof sdSetValue==='function'){ sdSetValue('mc-customer', snap.customer); sdSetValue('mc-shipper', snap.shipper); }
+  var s = function(id,v){ var el=document.getElementById(id); if(el) el.value=v||''; };
+  s('mc-phone',snap.phone); s('mc-carrier',snap.carrier); s('mc-booking',snap.booking);
+  s('mc-cargo',snap.cargo); s('mc-origin',snap.origin); s('mc-origin-url',snap.originUrl);
+  s('mc-dest',snap.dest); s('mc-dest-url',snap.destUrl); s('mc-return',snap.ret); s('mc-return-url',snap.retUrl);
+  s('mc-note',snap.note);
+  var jt=document.getElementById('mc-job-type'); if(jt) jt.value=snap.jobType||'';
+  var dty=document.getElementById('mc-delivery-type'); if(dty) dty.value=snap.deliveryType||'';
+  if(snap.price){ var mcp=document.getElementById('mc-price'); if(mcp) mcp.value=snap.price; }
+  // ที่อยู่ออกใบเสร็จ (ถ้ากรอกไว้)
+  if(typeof restoreReceiptSection==='function'){
+    restoreReceiptSection('mc', snap.receiptName ? {receiptName:snap.receiptName, receiptAddr:snap.receiptAddr, receiptTaxid:snap.receiptTaxid, shipper:snap.shipper, customer:snap.customer} : null);
+  }
+  // 3) ตั้งจำนวนตู้ = 2 + สร้างแถว แล้วเติม "ตู้ที่ 1" = ข้อมูลเดิม
+  var cnt=document.getElementById('mc-count'); if(cnt) cnt.value='2';
+  if(typeof buildContainerRows==='function') buildContainerRows();
+  setTimeout(function(){  // รอ buildContainerRows init datetime picker (setTimeout 50ms ข้างใน)
+    s('mc-r1-container', snap.container); s('mc-r1-weight', snap.weight);
+    s('mc-r1-plate', snap.plate); s('mc-r1-driver', snap.driver);
+    var tHid=document.getElementById('mc-r1-type'); if(tHid) tHid.value=snap.type||'';
+    var tVis=document.getElementById('mc-r1-type-input'); if(tVis) tVis.value=snap.type||'';
+    var sd=document.getElementById('mc-r1-startdate');
+    if(sd){ if(sd._flatpickr && snap.startdate){ try{ sd._flatpickr.setDate(snap.startdate,true); }catch(e){ sd.value=snap.startdate; } } else if(snap.startdate){ sd.value=snap.startdate; } }
+    var dd=document.getElementById('mc-r1-deliverdate');
+    if(dd){ if(dd._flatpickr && snap.deliverdate){ try{ dd._flatpickr.setDate(snap.deliverdate,true); }catch(e){ dd.value=snap.deliverdate; } } else if(snap.deliverdate){ dd.value=snap.deliverdate; } }
+    var rp=document.getElementById('mc-r1-price'); if(rp && snap.price) rp.value=snap.price;
+  }, 130);
+  showToast('โอนข้อมูลมาหน้าหลายตู้แล้ว — ตู้ที่ 1 คือข้อมูลเดิม กรอกตู้ถัดไปต่อได้เลย ✓', 5000);
+}
+
 function openDetail(id){
   const j=jobs.find(x=>x.id===id);if(!j)return;
   // Phase 3: Field-level visibility ตาม view_* perms
@@ -23704,7 +23761,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.162';
+const APP_VERSION = '2026.04.29.163';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
