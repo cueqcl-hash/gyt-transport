@@ -4840,6 +4840,16 @@ let jobs = [
 }
 ];
 let nextJID = 100;
+// 🆕 v165 — JOB ID scheme: JOB-{base}-NN (base ร่วมต่อ BL, NN = ลำดับตู้ pad 2 หลัก)
+// nextJID = "เลขฐานถัดไป" (1 BL กิน 1 ฐาน). อ่านเลขฐานจาก ID ได้ทั้งของเก่า (JOB-N001 / JOB-4216) และใหม่ (JOB-4318-01)
+var _addToBase = null;  // ตั้งค่าเมื่อ "เพิ่มตู้ใน BL เดิม" → saveMulti จะใช้ฐานนี้ + ต่อ suffix
+function _jobBase(id){ var m=String(id||'').match(/JOB-N?(\d+)/); return m?parseInt(m[1],10):0; }
+function _padSfx(n){ return String(n).padStart(2,'0'); }
+function _maxSuffixForBase(base){
+  var mx=0; (typeof jobs!=='undefined'?jobs:[]).forEach(function(j){
+    if(j && _jobBase(j.id)===base){ var m=String(j.id).match(/-(\d+)$/); if(m){ var s=parseInt(m[1],10); if(s>mx) mx=s; } }
+  }); return mx;
+}
 let deletedJobs = []; // {job, reason, deletedAt, deletedBy, cloudId}
 // 🔧 v056 — โหลด backup จาก localStorage ตอน init (รอ cloud ก็ทันใช้งาน)
 try {
@@ -5232,6 +5242,10 @@ function openModal(id){document.getElementById(id).classList.add('open');}
 // ============================
 function openMultiJob(){
   if(!hasPerm('add_jobs')){showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน');return;}
+  _addToBase = null;  // 🆕 v165 — เปิดปกติ = สร้าง BL ใหม่ (ไม่ใช่โหมดเพิ่มตู้)
+  var _mcHint=document.getElementById('mc-add-hint'); if(_mcHint) _mcHint.style.display='none';
+  var _mcT=document.querySelector('#modal-multi .modal-title'); if(_mcT) _mcT.textContent='เพิ่มใบงานหลายตู้ (Multi-Container)';
+  var _mcS=document.querySelector('#modal-multi .modal-sub'); if(_mcS) _mcS.textContent='1 BL — หลายตู้ — แยกวันส่งได้';
   ['customer','phone','shipper','carrier','booking','origin','dest','return',
    'cargo','origin-url','dest-url','return-url','note'].forEach(f=>{
     const el=document.getElementById('mc-'+f);if(el)el.value='';
@@ -5453,6 +5467,10 @@ function saveMulti(){
     var __mcPv=__mcPEl?String(__mcPEl.value).trim():'';
     if(__mcPv!=='' && !isNaN(parseFloat(__mcPv))) __mc_price=parseFloat(__mcPv);
   }
+  // 🆕 v165 — เลขฐานเดียวต่อ BL; ถ้า "เพิ่มตู้ใน BL เดิม" ใช้ฐานนั้น + ต่อ suffix จากตู้สุดท้าย
+  var _mcBase, _mcSfxStart;
+  if(_addToBase){ _mcBase=_addToBase; _mcSfxStart=_maxSuffixForBase(_addToBase); }
+  else { _mcBase=nextJID++; _mcSfxStart=0; }
   for(let i=1;i<=n;i++){
     // Q2 (Option A): ใช้ override per-row ถ้ามี, ไม่งั้น fallback to shared
     var rOrigin = (document.getElementById('mc-r'+i+'-origin')?.value || '').trim() || origin;
@@ -5462,7 +5480,7 @@ function saveMulti(){
     var rNote = (document.getElementById('mc-r'+i+'-note')?.value || '').trim() || (shared.note||'');
     const job={
       ...shared,
-      id:`JOB-${nextJID++}`,
+      id:'JOB-'+_mcBase+'-'+_padSfx(_mcSfxStart+i),
       type:normalizeType(document.getElementById('mc-r'+i+'-type').value),
       container:document.getElementById(`mc-r${i}-container`).value.trim(),
       startdate:document.getElementById(`mc-r${i}-startdate`).value,
@@ -5490,10 +5508,13 @@ function saveMulti(){
     if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncJobSave(job); }catch(e){ console.warn('saveMulti sync error:', e); } }
   }
   addCarrier(document.getElementById('mc-carrier')?.value?.trim());
+  var _wasAdd = !!_addToBase; _addToBase = null;  // 🆕 v165 — เคลียร์โหมดเพิ่มตู้
   closeModal('modal-multi');
   jPage=1;
   renderJobs();
-  showToast(`สร้างใบงานสำเร็จ ${n} ใบ (${created[0]} – ${created[created.length-1]})`);
+  showToast(_wasAdd
+    ? `เพิ่มตู้ใน BL นี้สำเร็จ ${n} ตู้ (${created[0]} – ${created[created.length-1]})`
+    : `สร้างใบงานสำเร็จ ${n} ใบ (${created[0]} – ${created[created.length-1]})`);
 }
 
 
@@ -19330,7 +19351,7 @@ function saveJob(){
   const startdate=document.getElementById('fj-startdate').value;
   if(!customer||!shipper||!origin||!dest||!startdate){showToast('กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบ');return;}
   const obj={
-    id:editJID||(()=>`JOB-${nextJID++}`)(),
+    id:editJID||('JOB-'+(nextJID++)+'-01'),
     startdate,deliverdate:document.getElementById('fj-deliverdate').value,
     customer,phone:document.getElementById('fj-phone').value.trim(),
     shipper,carrier:document.getElementById('fj-carrier').value.trim(),
@@ -19449,6 +19470,37 @@ function jobToMulti(){
   showToast('โอนข้อมูลมาหน้าหลายตู้แล้ว — ตู้ที่ 1 คือข้อมูลเดิม กรอกตู้ถัดไปต่อได้เลย ✓', 5000);
 }
 
+// 🆕 v165 — เพิ่มตู้ใน BL เดิม (เรียกจากหน้าดูรายละเอียด) — ใช้เลขฐานเดียวกัน ต่อ suffix ถัดไป
+function addContainerToJob(id){
+  if(!hasPerm('add_jobs')){ showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน'); return; }
+  var j = jobs.find(function(x){return x.id===id;});
+  if(!j){ showToast('ไม่พบใบงาน'); return; }
+  var base = _jobBase(id);
+  var curMax = _maxSuffixForBase(base);
+  closeModal('modal-detail');
+  openMultiJob();  // เคลียร์ + เปิดหน้าหลายตู้ (รีเซ็ต _addToBase=null)
+  // เติมข้อมูลร่วมจากใบงานเดิม
+  if(typeof sdSetValue==='function'){ sdSetValue('mc-customer', j.customer||''); sdSetValue('mc-shipper', j.shipper||''); }
+  var s = function(eid,v){ var el=document.getElementById(eid); if(el) el.value=v||''; };
+  s('mc-phone', j.phone); s('mc-carrier', j.carrier); s('mc-booking', j.booking);
+  s('mc-cargo', j.cargo_type); s('mc-origin', j.origin); s('mc-origin-url', j.originUrl);
+  s('mc-dest', j.dest); s('mc-dest-url', j.destUrl); s('mc-return', j.returnyard); s('mc-return-url', j.returnyardUrl);
+  s('mc-note', j.note);
+  var jt=document.getElementById('mc-job-type'); if(jt) jt.value=j.job_type||'';
+  var dty=document.getElementById('mc-delivery-type'); if(dty) dty.value=j.delivery_type||'';
+  if(typeof restoreReceiptSection==='function'){ restoreReceiptSection('mc', j); }
+  // เพิ่ม 1 ตู้ (ปรับเพิ่มได้)
+  var cnt=document.getElementById('mc-count'); if(cnt) cnt.value='1';
+  if(typeof buildContainerRows==='function') buildContainerRows();
+  // เปิดโหมดเพิ่มตู้ (ต้องตั้งหลัง openMultiJob เพราะมันเคลียร์ค่าไป)
+  _addToBase = base;
+  var hint=document.getElementById('mc-add-hint');
+  if(hint){ hint.style.display=''; hint.innerHTML='➕ กำลังเพิ่มตู้ใน BL <b>JOB-'+base+'</b> — มีอยู่แล้ว '+curMax+' ตู้ → ตู้ใหม่จะเป็น JOB-'+base+'-'+_padSfx(curMax+1)+' เป็นต้นไป'; }
+  var mt=document.querySelector('#modal-multi .modal-title'); if(mt) mt.textContent='เพิ่มตู้ใน BL เดิม';
+  var msub=document.querySelector('#modal-multi .modal-sub'); if(msub) msub.textContent='JOB-'+base+' • ข้อมูลร่วมเติมให้แล้ว กรอกเฉพาะตู้ใหม่';
+  showToast('เพิ่มตู้ใน JOB-'+base+' — กรอกเฉพาะตู้ใหม่ได้เลย', 5000);
+}
+
 function openDetail(id){
   const j=jobs.find(x=>x.id===id);if(!j)return;
   // Phase 3: Field-level visibility ตาม view_* perms
@@ -19509,6 +19561,19 @@ function openDetail(id){
     ${j.note?`<div style="margin-top:10px;padding:10px 14px;background:var(--yellow-l);border-radius:var(--radius);font-size:13px;color:var(--yellow-d);border:1px solid var(--yellow-m)"><span style="font-size:10px;display:block;margin-bottom:3px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">หมายเหตุ</span>${j.note}</div>`:''}
     +buildReceiptBlock(j)
   `;
+  // 🆕 v165 — ปุ่ม "เพิ่มตู้ใน BL นี้" (append แบบ DOM เลี่ยงปม template literal)
+  if(hasPerm('add_jobs')){
+    var _mdBody=document.getElementById('md-body');
+    if(_mdBody){
+      var _w=document.createElement('div');
+      _w.style.cssText='margin-top:16px;border-top:1px dashed var(--border);padding-top:12px';
+      var _btn=document.createElement('button');
+      _btn.className='btn btn-yellow'; _btn.style.width='100%';
+      _btn.textContent='➕ เพิ่มตู้ใน BL นี้ (JOB-'+_jobBase(j.id)+')';
+      _btn.onclick=function(){ addContainerToJob(j.id); };
+      _w.appendChild(_btn); _mdBody.appendChild(_w);
+    }
+  }
   document.getElementById('modal-detail').classList.add('open');
 }
 
@@ -23769,7 +23834,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.164';
+const APP_VERSION = '2026.04.29.165';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -23949,7 +24014,7 @@ async function refreshJobsFromCloud(){
     if(sbJobs !== null){
       var oldCount = jobs.length;
       jobs = (sbJobs||[]).map(mapJobFromDB);
-      nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return parseInt((j.id||'0').replace(/\D/g,''))||0;}))+1 : 100;
+      nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return _jobBase(j.id);}))+1 : 100;
       _jobsAllLoaded = true;  // 🆕 v155 — รีเฟรชดึงงานครบทุกแถวอยู่แล้ว
       if(typeof _setJobsLoadBtn==='function') _setJobsLoadBtn();
       try { localStorage.setItem('gyt_jobs', JSON.stringify(jobs)); } catch(e){}
@@ -24113,7 +24178,7 @@ async function _bgLoadOlderJobs(){
       for(var k=0;k<older.length;k++){ var mj=mapJobFromDB(older[k]); if(!seen[mj.id]) add.push(mj); }
       if(add.length){
         jobs = jobs.concat(add);
-        nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return parseInt((j.id||'0').replace(/\D/g,''))||0;}))+1 : 100;
+        nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return _jobBase(j.id);}))+1 : 100;
         try { rebuildCarrierDB(); } catch(e){}
       }
     }
@@ -24152,7 +24217,7 @@ async function loadFromSupabase(forceRefresh) {
         var d = _cached.data;
         if(d.jobs) {
           jobs = d.jobs;
-          nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return parseInt((j.id||'0').replace(/\D/g,''))||0;}))+1 : 100;
+          nextJID = jobs.length ? Math.max.apply(null, jobs.map(function(j){return _jobBase(j.id);}))+1 : 100;
           try { rebuildCarrierDB(); } catch(e){}
         }
         if(d.customers) customers = d.customers;
@@ -24219,7 +24284,7 @@ async function loadFromSupabase(forceRefresh) {
     if(sbJobs !== null) {
       // map snake_case → camelCase สำหรับ jobs
       jobs = (sbJobs||[]).map(mapJobFromDB);
-      nextJID = jobs.length ? Math.max(...jobs.map(j=>parseInt((j.id||'0').replace(/\D/g,''))||0))+1 : 100;
+      nextJID = jobs.length ? Math.max(...jobs.map(j=>_jobBase(j.id)))+1 : 100;
       // 🔧 v052 — sync carrierDB ทุกครั้งที่โหลด jobs ใหม่
       try { rebuildCarrierDB(); } catch(e){ console.warn('rebuildCarrierDB failed:', e.message); }
     }
@@ -29625,6 +29690,8 @@ async function rcptLoadDoneList(){
     <div style="background:var(--green-l);border:1px solid var(--green-m);border-radius:var(--radius);padding:9px 13px;font-size:12px;color:var(--green-d);margin-bottom:16px;font-weight:500">
       กรอกข้อมูลร่วม 1 ครั้ง → ระบบสร้างใบงานแยกรายตู้ให้อัตโนมัติ
     </div>
+    <!-- 🆕 v165 — โหมดเพิ่มตู้ใน BL เดิม -->
+    <div id="mc-add-hint" style="display:none;background:#FEF3C7;border:1px solid #F59E0B;border-radius:var(--radius);padding:9px 13px;font-size:12.5px;color:#92400E;margin-bottom:16px;font-weight:700"></div>
 
     <div class="sec-title" style="margin-bottom:12px">ข้อมูลร่วม (ใช้กับทุกตู้)</div>
     <div class="fg-row">
