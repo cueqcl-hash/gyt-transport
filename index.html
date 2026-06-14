@@ -19183,6 +19183,27 @@ function _rateSuggest(shipper, customer, origin, dest, returnyard, ctype){
   }
   return out.slice(0,3);
 }
+// 🆕 v167 — ราคาอ้างอิงตามปลายทาง (จากลูกค้าอื่น) ใช้เมื่อหาราคาของลูกค้านี้ไม่เจอ (งานเส้นทางใหม่)
+function _rateRefByDest(dest, ctype){
+  if(!_rateDB || !_rateDB.length) return [];
+  var dTok = _rateTokens(dest);
+  if(!dTok.length) return [];
+  var size = _rateSizeFromType(ctype);
+  var sizes = size ? [size].concat(_rateSizeFallback(size)) : [];
+  var hits = [];
+  for(var i=0;i<_rateDB.length;i++){
+    var r = _rateDB[i];
+    if(sizes.length && sizes.indexOf(r.size) < 0) continue;
+    var blob = _rateNorm(r.origin)+' '+_rateNorm(r.dest)+' '+_rateNorm(r.route_text);
+    var dh = 0; for(var t=0;t<dTok.length;t++){ if(blob.indexOf(dTok[t]) >= 0) dh++; }
+    if(dh >= 1) hits.push(r);
+  }
+  hits.sort(function(a,b){ return (b.trips||0)-(a.trips||0); });
+  var seen = {}, out = [];
+  for(var k=0;k<hits.length;k++){ var p=hits[k].price; if(p && !seen[p]){ seen[p]=1; out.push(hits[k]); } if(out.length>=4) break; }
+  return out;
+}
+
 // 🆕 v166 — เตือนค่าต่อระยะ: ถ้าลานคืน/รับตู้ อยู่ "เกินบางนา กม.18" → เตือนอย่าลืมเก็บ
 // (อิงคู่มือค่าต่อระยะที่รวบรวมจากบิลน้าปุ้ม: 20'=300, 40'=500 /ตู้, ยกเว้นท่า PAT)
 var _SURCHARGE_YARDS = ['ลาดกระบัง','บางพลี','ปู่เจ้า','สุขสวัสดิ','พระประแดง','สหไทย','ยูนิไทย','unithai',' bmt','ท้ายบ้าน','เทพารักษ','บางเสาธง','ศรีวารีน้อย','สำโรง','t.d.t','t.i.d',' sct','กิ่งแก้ว','บางนา ก','บางนา กม','บางนากม'];
@@ -19223,8 +19244,23 @@ function rateHintRefresh(prefix){
   var ctype = g(prefix+'-type');
   var suggs = _rateSuggest(shipper, customer, g(prefix+'-origin'), g(prefix+'-dest'), g(prefix+'-return'), ctype);
   if(!suggs.length){
-    box.innerHTML = '<span style="color:var(--text-3);font-size:11px">ไม่พบราคาฐานที่ใกล้เคียง (ลองกรอก Shipper/ปลายทาง/ประเภทตู้ก่อน)</span>';
     _rateLastTop[prefix] = null;
+    // 🆕 v167 — ไม่เจอราคาลูกค้านี้ → ลองราคาอ้างอิงจากลูกค้าอื่น (ปลายทางเดียวกัน) สำหรับงานใหม่
+    var ref = _rateRefByDest(g(prefix+'-dest'), ctype);
+    if(ref.length){
+      box.innerHTML = '<div style="font-size:11px;color:#92400E;margin-bottom:3px">ℹ️ ไม่พบราคาของลูกค้านี้ในเส้นนี้ (อาจเป็นเส้นทางใหม่) — แสดง <b>ราคาอ้างอิงจากลูกค้าอื่น</b></div>' +
+        ref.map(function(r){
+          var route=(r.origin&&r.dest)?(r.origin+'→'+r.dest):(r.route_text||''); if(route.length>32) route=route.slice(0,32)+'…';
+          var ag=String(r.agent||r.shipper||''); var agShort=ag.length>14?ag.slice(0,14)+'…':ag;
+          return '<button type="button" class="rate-chip" data-price="'+r.price+'" data-prefix="'+prefix+'" title="ราคาอ้างอิงจาก '+escapeHtml(ag)+' ('+escapeHtml(r.size)+(r.as_of?(', '+r.as_of):'')+(r.trips?(', วิ่ง '+r.trips+' เที่ยว'):'')+')" '+
+            'style="margin:2px 4px 2px 0;padding:3px 9px;border-radius:12px;border:1px dashed #9CA3AF;background:#F3F4F6;color:#374151;font-size:11.5px;font-weight:700;cursor:pointer">📍 '+Number(r.price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#6B7280">'+escapeHtml(route)+' · '+escapeHtml(agShort)+'</span></button>';
+        }).join('');
+      box.querySelectorAll('.rate-chip').forEach(function(btn){
+        btn.onclick=function(){ var inp=document.getElementById(btn.dataset.prefix+'-price'); if(inp){ inp.value=btn.dataset.price; ratePriceCheck(btn.dataset.prefix); } };
+      });
+      return;
+    }
+    box.innerHTML = '<span style="color:var(--text-3);font-size:11px">ไม่พบราคาฐานที่ใกล้เคียง (ลองกรอก Shipper/ปลายทาง/ประเภทตู้ก่อน)</span>';
     return;
   }
   _rateLastTop[prefix] = (function(){ var a=_rateFuelAdj(suggs[0].row); return a?a.price:suggs[0].row.price; })();
@@ -23860,7 +23896,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.166';
+const APP_VERSION = '2026.04.29.167';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
