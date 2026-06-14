@@ -2606,6 +2606,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   <div class="modal-foot">
     <button class="btn btn-ghost" onclick="closeModal('modal-job')">ยกเลิก</button>
     <button class="btn btn-yellow" id="btn-split-multi" onclick="jobToMulti()" title="เพิ่งรู้ว่ามีหลายตู้? กดเพื่อย้ายไปหน้าหลายตู้ โดยไม่ต้องพิมพ์ใหม่">🔀 แตกเป็นหลายตู้ (BL เดียว)</button>
+    <button class="btn btn-yellow" id="btn-add-tube-edit" onclick="addContainerToJob(editJID)" style="display:none" title="เพิ่มตู้ใน BL นี้ (ใช้เลขฐานเดียวกัน ต่อ suffix)">➕ เพิ่มตู้ใน BL นี้</button>
     <button class="btn btn-green" onclick="saveJob()">บันทึกใบงาน</button>
   </div>
 </div>
@@ -18752,6 +18753,7 @@ function renderJobs(){
   const canEdit = hasPerm('edit_jobs');
   const canDelete = hasPerm('delete_jobs');
   const canStatus = hasPerm('update_status');
+  const canAddTube = hasPerm('add_jobs');  // 🆕 v168 — ปุ่มเพิ่มตู้ในแถว (แทนปุ่มสถานะ)
   const canShare = hasPerm('share_jobs');  // 🆕 v120 — ส่ง LINE
 
   // Header
@@ -18813,7 +18815,7 @@ function renderJobs(){
         <button class="tbl-action tbl-icon-btn" onclick="openPrint('${j.id}')" data-tip="พิมพ์ใบปฏิบัติงาน" style="color:#1A5276">🖨</button>
         ${canShare?`<button class="tbl-action tbl-icon-btn" onclick="shareJobToLine('${j.id}')" data-tip="ส่งงานทาง LINE" style="padding:2px 4px;vertical-align:middle"><svg viewBox="0 0 64 64" width="22" height="22" style="display:inline-block;vertical-align:middle"><rect width="64" height="64" rx="13" fill="#06C755"/><text x="32" y="40" font-family="Arial,sans-serif" font-size="18" font-weight="900" fill="#fff" text-anchor="middle" letter-spacing="0.5">LINE</text></svg></button>`:''}
         ${canEdit?`<button class="tbl-action tbl-icon-btn" onclick="openEditJob('${j.id}')" data-tip="แก้ไข" style="color:#E67E22">✏️</button>`:''}
-        ${canStatus?`<button class="tbl-action tbl-icon-btn" onclick="quickStatus('${j.id}')" data-tip="อัปเดตสถานะ" style="color:var(--green-d)">🔄</button>`:''}
+        ${canAddTube?`<button class="tbl-action tbl-icon-btn" onclick="addContainerToJob('${j.id}')" data-tip="เพิ่มตู้ใน BL นี้" style="color:#92400E">➕</button>`:''}
         ${canDelete?`<button class="tbl-action tbl-icon-btn" onclick="confirmDeleteJob('${j.id}')" data-tip="ลบ" style="color:var(--red)">🗑</button>`:''}
         ${lineSentBadge}
       </td>`;
@@ -19307,6 +19309,7 @@ function openAddJob(){
   document.getElementById('mj-sub').textContent='';
   // 🆕 v163 — ปุ่มแตกเป็นหลายตู้ แสดงเฉพาะตอนเพิ่มใบงานใหม่
   var _bsm=document.getElementById('btn-split-multi'); if(_bsm) _bsm.style.display='';
+  var _bate=document.getElementById('btn-add-tube-edit'); if(_bate) _bate.style.display='none';  // 🆕 v168 — เพิ่มใบใหม่ ไม่โชว์ปุ่มเพิ่มตู้
   locCache={origin:null,dest:null,return:null};
   ['customer','phone','shipper','carrier','booking','container','origin','dest','return','plate','driver','note','weight','cargo','origin-url','dest-url','return-url'].forEach(f=>{const el=document.getElementById('fj-'+f);if(el)el.value='';});
   ctypeSetValue('fj',"");
@@ -19342,6 +19345,7 @@ function openEditJob(id){
   document.getElementById('mj-sub').textContent=id;
   // 🆕 v163 — ซ่อนปุ่มแตกเป็นหลายตู้ ตอนแก้ไขใบงานเดิม (กันสร้างซ้ำ)
   var _bsm2=document.getElementById('btn-split-multi'); if(_bsm2) _bsm2.style.display='none';
+  var _bate2=document.getElementById('btn-add-tube-edit'); if(_bate2) _bate2.style.display='';  // 🆕 v168 — แก้ไขใบงานเดิม โชว์ปุ่มเพิ่มตู้
   locCache={origin:null,dest:null,return:null};
   document.getElementById('fj-origin-url').value=j.originUrl||'';
   document.getElementById('fj-dest-url').value=j.destUrl||'';
@@ -19539,7 +19543,7 @@ function addContainerToJob(id){
   if(!j){ showToast('ไม่พบใบงาน'); return; }
   var base = _jobBase(id);
   var curMax = _maxSuffixForBase(base);
-  closeModal('modal-detail');
+  closeModal('modal-detail'); closeModal('modal-job');  // 🆕 v168 — ปิดทั้งหน้าดู + หน้าแก้ไข
   openMultiJob();  // เคลียร์ + เปิดหน้าหลายตู้ (รีเซ็ต _addToBase=null)
   // เติมข้อมูลร่วมจากใบงานเดิม
   if(typeof sdSetValue==='function'){ sdSetValue('mc-customer', j.customer||''); sdSetValue('mc-shipper', j.shipper||''); }
@@ -23896,7 +23900,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.167';
+const APP_VERSION = '2026.04.29.168';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
