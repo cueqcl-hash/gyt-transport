@@ -2528,6 +2528,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <!-- 🆕 v158 — ราคาขายต่อตู้ เห็นเฉพาะ perm view_price (ซ่อน default, openAddJob/openEditJob คุม) -->
       <div class="fg" id="fj-price-wrap" style="display:none"><label class="fl" style="color:#065F46;font-weight:700">💰 ค่าขนส่งต่อตู้/เที่ยว (บาท)</label><input class="fi" id="fj-price" type="number" min="0" step="any" placeholder="เช่น 5500" style="border-color:#10B981;font-weight:700;color:#065F46" onfocus="rateHintRefresh('fj')" oninput="ratePriceCheck('fj')">
         <div id="fj-price-hint" style="margin-top:4px;line-height:1.7"></div>
+        <div id="fj-surcharge-hint" style="display:none;margin-top:4px;font-size:11.5px;color:#92400E;background:#FEF3C7;padding:4px 9px;border-radius:6px;font-weight:600"></div>
         <div id="fj-price-warn" style="display:none;margin-top:2px;font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:6px;font-weight:600"></div>
       </div>
     </div>
@@ -2569,7 +2570,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <label class="fl">ปลายทาง</label>
       <div class="sd-wrap">
         <input class="sd-input" id="fj-return" placeholder="ท่าเรือ / ลาน CY / Empty Depot (ปลายทาง)" autocomplete="off"
-          oninput="sdLocFilter('fj-return')" onfocus="sdLocOpen('fj-return')" onblur="sdLocBlur('fj-return')" onchange="syncLocUrl('fj-return','fj-return-url')">
+          oninput="sdLocFilter('fj-return');surchargeHintRefresh('fj')" onfocus="sdLocOpen('fj-return')" onblur="sdLocBlur('fj-return')" onchange="syncLocUrl('fj-return','fj-return-url');surchargeHintRefresh('fj')">
         <span class="sd-arrow">▾</span>
         <div class="sd-list" id="fj-return-list"></div>
       </div>
@@ -19182,7 +19183,32 @@ function _rateSuggest(shipper, customer, origin, dest, returnyard, ctype){
   }
   return out.slice(0,3);
 }
+// 🆕 v166 — เตือนค่าต่อระยะ: ถ้าลานคืน/รับตู้ อยู่ "เกินบางนา กม.18" → เตือนอย่าลืมเก็บ
+// (อิงคู่มือค่าต่อระยะที่รวบรวมจากบิลน้าปุ้ม: 20'=300, 40'=500 /ตู้, ยกเว้นท่า PAT)
+var _SURCHARGE_YARDS = ['ลาดกระบัง','บางพลี','ปู่เจ้า','สุขสวัสดิ','พระประแดง','สหไทย','ยูนิไทย','unithai',' bmt','ท้ายบ้าน','เทพารักษ','บางเสาธง','ศรีวารีน้อย','สำโรง','t.d.t','t.i.d',' sct','กิ่งแก้ว','บางนา ก','บางนา กม','บางนากม'];
+function _surchargeNote(ret, ori, ctype){
+  var locs = String(ret||'').toLowerCase() + ' | ' + String(ori||'').toLowerCase();
+  for(var i=0;i<_SURCHARGE_YARDS.length;i++){
+    if(locs.indexOf(_SURCHARGE_YARDS[i].toLowerCase()) >= 0){
+      var is40 = /40|45/.test(String(ctype||''));
+      return { yard: _SURCHARGE_YARDS[i].trim(), amt: (is40?500:300), size: (is40?"40'":"20'") };
+    }
+  }
+  return null;
+}
+function surchargeHintRefresh(prefix){
+  var box = document.getElementById(prefix+'-surcharge-hint');
+  if(!box) return;
+  if(!hasPerm('view_price')){ box.style.display='none'; return; }
+  var g = function(id){ var el=document.getElementById(id); return el?el.value:''; };
+  var n = _surchargeNote(g(prefix+'-return'), g(prefix+'-origin'), g(prefix+'-type'));
+  if(!n){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display='';
+  box.innerHTML = '⚠️ ลานนี้ (<b>'+escapeHtml(n.yard)+'</b>) มักมี <b>ค่าต่อระยะ ~'+n.amt+' ฿/ตู้</b> ('+n.size+', เกินบางนา กม.18) — อย่าลืมบวกถ้าลูกค้ารายนี้เก็บแยก · ยกเว้นท่า PAT';
+}
+
 function rateHintRefresh(prefix){
+  surchargeHintRefresh(prefix);
   var box = document.getElementById(prefix+'-price-hint');
   if(!box) return;
   if(!hasPerm('view_price')){ box.innerHTML=''; return; }
@@ -23834,7 +23860,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.165';
+const APP_VERSION = '2026.04.29.166';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -29798,7 +29824,7 @@ async function rcptLoadDoneList(){
       <div class="fg"><label class="fl">ปลายทาง</label>
         <div class="sd-wrap">
           <input class="sd-input" id="mc-return" placeholder="ท่าเรือ / ลาน CY / Empty Depot (ปลายทาง)" autocomplete="off"
-            oninput="sdLocFilter('mc-return')" onfocus="sdLocOpen('mc-return')" onblur="sdLocBlur('mc-return')" onchange="syncLocUrl('mc-return','mc-return-url')">
+            oninput="sdLocFilter('mc-return');surchargeHintRefresh('mc')" onfocus="sdLocOpen('mc-return')" onblur="sdLocBlur('mc-return')" onchange="syncLocUrl('mc-return','mc-return-url');surchargeHintRefresh('mc')">
           <span class="sd-arrow">&#9662;</span>
           <div class="sd-list" id="mc-return-list"></div>
         </div>
@@ -29817,6 +29843,7 @@ async function rcptLoadDoneList(){
       <label class="fl" style="color:#065F46;font-weight:700">💰 ค่าขนส่งต่อตู้/เที่ยว (บาท) <span style="color:var(--text-3);font-weight:400;font-size:11px">(ราคากลางทุกตู้ — ตู้ไหนราคาต่าง กรอกช่อง 💰 ของตู้นั้นในตารางด้านล่าง)</span></label>
       <input class="fi" id="mc-price" type="number" min="0" step="any" placeholder="เช่น 5500" style="border-color:#10B981;font-weight:700;color:#065F46;max-width:240px" onfocus="rateHintRefresh('mc')" oninput="ratePriceCheck('mc')">
       <div id="mc-price-hint" style="margin-top:4px;line-height:1.7"></div>
+      <div id="mc-surcharge-hint" style="display:none;margin-top:4px;font-size:11.5px;color:#92400E;background:#FEF3C7;padding:4px 9px;border-radius:6px;font-weight:600;max-width:fit-content"></div>
       <div id="mc-price-warn" style="display:none;margin-top:2px;font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:6px;font-weight:600;max-width:fit-content"></div>
     </div>
 
