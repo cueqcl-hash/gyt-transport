@@ -18684,6 +18684,8 @@ function _dashFmtM(n){ n=Number(n||0); if(Math.abs(n)>=1e6) return (n/1e6).toFix
 function _dashPickAmt(c,f){ var x=c[f+'AmtConfirmed']; if(x!==undefined&&x!==''&&x!==null) return parseFloat(x)||0; return parseFloat(c[f+'Amt'])||0; }
 function _dashJobRevenue(j){ var c=j.costs||{}; var p=c.priceAmt; return (p!==undefined&&p!==null&&p!=='')?(parseFloat(p)||0):0; }
 function _dashJobOpCost(j){ var c=j.costs||{}; return _dashPickAmt(c,'trip')+_dashPickAmt(c,'toll')+_dashPickAmt(c,'box')+_dashPickAmt(c,'recv')+_dashPickAmt(c,'ret')+_dashPickAmt(c,'port')+_dashPickAmt(c,'move')+_dashPickAmt(c,'misc'); }
+// normalize ทะเบียน — ตัดส่วนจังหวัด/ช่องว่างท้าย ("77-7108 กท." → "77-7108") ให้ jobs/fuel/tractors จับคู่กันได้
+function _dashPlateKey(p){ return String(p||'').trim().split(/\s+/)[0].trim(); }
 function _dashInRange(iso, from, to){ if(!iso) return false; var t=new Date(iso).getTime(); if(isNaN(t)) return false; return t>=from.getTime() && t<=to.getTime(); }
 
 // ช่วงวันที่ของ period ที่เลือก + ช่วงก่อนหน้า (ไว้เทียบ %)
@@ -18852,9 +18854,9 @@ function _dashRenderFleet(pr, FL, MT){
   var tractorList=(typeof tractors!=='undefined'?tractors:[]);
   var agg={};
   function ensure(p){ if(!agg[p]) agg[p]={plate:p,trips:0,fuel:0,maint:0,op:0}; return agg[p]; }
-  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInRange(j.startdate,pr.from,pr.to))return; var p=(j.plate||'').trim(); if(!p)return; var a=ensure(p); a.trips++; a.op+=_dashJobOpCost(j); });
-  FL.forEach(function(f){ if(!_dashInRange(f.fuel_date,pr.from,pr.to))return; var p=(f.plate||'').trim(); if(!p)return; ensure(p).fuel+=(parseFloat(f.amount)||((parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0))); });
-  MT.forEach(function(r){ if(!_dashInRange(r.service_date,pr.from,pr.to))return; var v=vmap[(r.vehicle_type||'')+':'+(r.vehicle_id||'')]; var p=v?(v.plate||'').trim():''; if(!p)return; ensure(p).maint+=(parseFloat(r.total_amount)||0); });
+  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInRange(j.startdate,pr.from,pr.to))return; var p=_dashPlateKey(j.plate); if(!p)return; var a=ensure(p); a.trips++; a.op+=_dashJobOpCost(j); });
+  FL.forEach(function(f){ if(!_dashInRange(f.fuel_date,pr.from,pr.to))return; var p=_dashPlateKey(f.plate); if(!p)return; ensure(p).fuel+=(parseFloat(f.amount)||((parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0))); });
+  MT.forEach(function(r){ if(!_dashInRange(r.service_date,pr.from,pr.to))return; var v=vmap[(r.vehicle_type||'')+':'+(r.vehicle_id||'')]; var p=v?_dashPlateKey(v.plate):''; if(!p)return; ensure(p).maint+=(parseFloat(r.total_amount)||0); });
 
   var arr=Object.keys(agg).map(function(k){ var a=agg[k]; a.cost=a.fuel+a.maint; a.total=a.fuel+a.maint+a.op; return a; });
   var totalTrips=arr.reduce(function(s,a){return s+a.trips;},0);
@@ -18879,13 +18881,13 @@ function _dashRenderFleet(pr, FL, MT){
     {label:'ค่าซ่อม',data:byCost.map(function(a){return Math.round(a.maint);}),backgroundColor:'#D97706'}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{family:'Sarabun'}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:'Sarabun',size:11}}},y:{stacked:true,ticks:{callback:function(v){return '฿'+_dashFmtM(v);},font:{family:'Sarabun'}},grid:{color:'#f0f0f0'}}}}});
 
-  var tractorTrips=tractorList.map(function(t){ var p=(t.plate||'').trim(); var a=agg[p]; return {plate:p||'(?)',trips:a?a.trips:0}; }).sort(function(a,b){return a.trips-b.trips;}).slice(0,6);
+  var tractorTrips=tractorList.map(function(t){ var p=_dashPlateKey(t.plate); var a=agg[p]; return {plate:p||'(?)',trips:a?a.trips:0}; }).sort(function(a,b){return a.trips-b.trips;}).slice(0,6);
   document.getElementById('dfleet-idle').innerHTML = tractorTrips.length? tractorTrips.map(function(t){
     var col=t.trips===0?'#DC2626':(t.trips<=2?'#D97706':'#16A34A');
     return '<div class="dfin-li"><span class="nm">'+_finEsc(t.plate)+'</span><span class="age" style="color:'+col+'">'+t.trips+' เที่ยว</span></div>';
   }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ไม่มีข้อมูลรถ</div>';
 
-  var companySet={}; tractorList.forEach(function(t){ var p=(t.plate||'').trim(); if(p) companySet[p]=1; });
+  var companySet={}; tractorList.forEach(function(t){ var p=_dashPlateKey(t.plate); if(p) companySet[p]=1; });
   var compRows=arr.filter(function(a){return companySet[a.plate];}).sort(function(a,b){return b.total-a.total;});
   var subRows=arr.filter(function(a){return !companySet[a.plate];}).sort(function(a,b){return b.total-a.total;});
   var byTotal=compRows.concat(subRows).slice(0,20);
@@ -24321,7 +24323,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.174';
+const APP_VERSION = '2026.04.29.175';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -31045,4 +31047,4 @@ async function rcptLoadDoneList(){
   </div>
 </div>
 </div>
-<!-- deploy v174 — การ์ดค่าทางด่วนรถส่วนตัวกรรมการ (ตารางแยก) -->
+<!-- deploy v175 — fix: normalize ทะเบียน (กท.) ในตารางต้นทุนรายคัน -->
