@@ -810,6 +810,25 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="dfin-card"><div class="dfin-ct">🅿️ รถใช้งานน้อย (ช่วงนี้)</div><div id="dfleet-idle"></div></div>
           </div>
           <div class="dfin-card" style="margin-bottom:18px"><div class="dfin-ct">💸 ต้นทุนรายคัน (ช่วงที่เลือก)</div><div id="dfleet-table" style="overflow-x:auto"></div></div>
+
+          <!-- 🆕 เฟส 3 — ลูกค้า & แนวโน้ม -->
+          <div class="dfin-bar" style="margin-top:6px">
+            <div><div class="dfin-title">🏢 ลูกค้า &amp; แนวโน้ม</div><div class="dfin-sub">ตามช่วงเวลาที่เลือกด้านบน (เทียบกับช่วงก่อนหน้า)</div></div>
+          </div>
+          <div class="dfin-kpis">
+            <div class="dfin-kpi k-rev"><div class="dfin-lab">🏢 ลูกค้าที่มีงาน</div><div class="dfin-val" id="dcust-active">—</div><div class="dfin-foot" id="dcust-active-t"></div></div>
+            <div class="dfin-kpi k-profit"><div class="dfin-lab">🆕 ลูกค้าใหม่</div><div class="dfin-val" id="dcust-new">—</div><div class="dfin-foot" id="dcust-new-t"></div></div>
+            <div class="dfin-kpi k-ar"><div class="dfin-lab">⚠️ ลูกค้าหาย</div><div class="dfin-val" id="dcust-lost">—</div><div class="dfin-foot" id="dcust-lost-t"></div></div>
+            <div class="dfin-kpi k-fuel"><div class="dfin-lab">📊 รายได้กระจุก Top 5</div><div class="dfin-val" id="dcust-conc">—</div><div class="dfin-foot" id="dcust-conc-t"></div></div>
+          </div>
+          <div class="dfin-row">
+            <div class="dfin-card"><div class="dfin-ct">แนวโน้มจำนวนเที่ยว (12 เดือน)</div><div class="dfin-chart"><canvas id="dashCustChart"></canvas></div></div>
+            <div class="dfin-card"><div class="dfin-ct">🆕 ลูกค้าใหม่ / ⚠️ ลูกค้าหาย</div><div id="dcust-newlost"></div></div>
+          </div>
+          <div class="dfin-row2">
+            <div class="dfin-card"><div class="dfin-ct">📈 ลูกค้าโตขึ้น (รายได้)</div><div id="dcust-up"></div></div>
+            <div class="dfin-card"><div class="dfin-ct">📉 ลูกค้าลดลง (รายได้)</div><div id="dcust-down"></div></div>
+          </div>
         </div>
 
         <div class="stats-grid">
@@ -18794,6 +18813,8 @@ async function renderFinanceDashboard(){
 
   // ===== เฟส 2: ฟลีต & ต้นทุนรถ =====
   try{ _dashRenderFleet(pr, FL, MT); }catch(e){ console.warn('fleet dash', e); }
+  // ===== เฟส 3: ลูกค้า & แนวโน้ม =====
+  try{ _dashRenderCustomers(pr); }catch(e){ console.warn('cust dash', e); }
 }
 
 // เฟส 2 — ฟลีต & ต้นทุนรถ: รถใช้งาน, เที่ยว/คัน, ค่าซ่อม+น้ำมันรายคัน
@@ -18841,6 +18862,57 @@ function _dashRenderFleet(pr, FL, MT){
     '<table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">น้ำมัน</th><th style="text-align:right">ซ่อม</th><th style="text-align:right">รวมต้นทุน</th></tr></thead><tbody>'+
     byTotal.map(function(a){ return '<tr><td style="font-weight:700">'+_finEsc(a.plate)+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right">฿'+_dashFmt(a.fuel)+'</td><td style="text-align:right">฿'+_dashFmt(a.maint)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">฿'+_dashFmt(a.total)+'</td></tr>'; }).join('')+
     '</tbody></table>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลในช่วงนี้</div>';
+}
+
+// เฟส 3 — ลูกค้า & แนวโน้ม: ลูกค้าใหม่/หาย, กระจุกตัวรายได้, ลูกค้าโต/ลด, แนวโน้มเที่ยว
+function _dashRenderCustomers(pr){
+  function custStats(from,to){
+    var rev={}, trips={};
+    jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInRange(j.startdate,from,to))return; var nm=((j.customer||j.shipper||'').trim())||'(ไม่ระบุ)'; trips[nm]=(trips[nm]||0)+1; var r=_dashJobRevenue(j); if(r>0) rev[nm]=(rev[nm]||0)+r; });
+    return {rev:rev, trips:trips};
+  }
+  var cur=custStats(pr.from,pr.to), prev=custStats(pr.pFrom,pr.pTo);
+  var curNames=Object.keys(cur.trips), prevNames=Object.keys(prev.trips);
+  var curSet={}; curNames.forEach(function(n){curSet[n]=1;});
+  var prevSet={}; prevNames.forEach(function(n){prevSet[n]=1;});
+  var newC=curNames.filter(function(n){return !prevSet[n];});
+  var lostC=prevNames.filter(function(n){return !curSet[n];});
+  var totalRev=0; curNames.forEach(function(n){ totalRev+=(cur.rev[n]||0); });
+  var top5=curNames.map(function(n){return cur.rev[n]||0;}).sort(function(a,b){return b-a;}).slice(0,5).reduce(function(s,v){return s+v;},0);
+  var conc=totalRev>0?(top5/totalRev*100):0;
+
+  document.getElementById('dcust-active').innerHTML=_dashFmt(curNames.length)+' <small>ราย</small>';
+  document.getElementById('dcust-active-t').innerHTML='<span>มีงานในช่วงนี้</span>';
+  document.getElementById('dcust-new').innerHTML=_dashFmt(newC.length)+' <small>ราย</small>';
+  document.getElementById('dcust-new-t').innerHTML='<span>ไม่เคยมีงานช่วงก่อน</span>';
+  document.getElementById('dcust-lost').innerHTML=_dashFmt(lostC.length)+' <small>ราย</small>';
+  document.getElementById('dcust-lost-t').innerHTML='<span>ช่วงก่อนมี ช่วงนี้หาย</span>';
+  document.getElementById('dcust-conc').innerHTML=conc.toFixed(0)+'%';
+  document.getElementById('dcust-conc-t').innerHTML='<span>รายได้จาก 5 ลูกค้าใหญ่สุด</span>';
+
+  var labels=[], tripArr=[], base=new Date(pr.to.getFullYear(), pr.to.getMonth(), 1);
+  for(var i=11;i>=0;i--){ var ms=new Date(base.getFullYear(), base.getMonth()-i, 1), me=new Date(ms.getFullYear(), ms.getMonth()+1, 0,23,59,59); var cnt=0; jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(_dashInRange(j.startdate,ms,me)) cnt++; }); labels.push(_dashThaiMonth(ms.getMonth()+1)); tripArr.push(cnt); }
+  _dashMkChart('dashCustChart',{type:'bar',data:{labels:labels,datasets:[{label:'จำนวนเที่ยว',data:tripArr,backgroundColor:'#2D7A4F'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{family:'Sarabun'}}},y:{ticks:{font:{family:'Sarabun'}},grid:{color:'#f0f0f0'}}}}});
+
+  function nmList(arr, mapObj, icon, emptyTxt){
+    if(!arr.length) return '<div style="color:var(--text-3);font-size:12px;padding:6px 0">'+emptyTxt+'</div>';
+    return arr.map(function(n){return {nm:n, t:mapObj[n]||0};}).sort(function(a,b){return b.t-a.t;}).slice(0,6).map(function(x){
+      return '<div class="dfin-li"><span class="nm">'+icon+' '+_finEsc(x.nm)+'</span><span class="age" style="color:var(--text-3)">'+x.t+' เที่ยว</span></div>';
+    }).join('');
+  }
+  document.getElementById('dcust-newlost').innerHTML = nmList(newC, cur.trips, '🆕', 'ไม่มีลูกค้าใหม่ช่วงนี้') + nmList(lostC, prev.trips, '⚠️', 'ไม่มีลูกค้าหาย 🎉');
+
+  var allNames={}; curNames.concat(prevNames).forEach(function(n){allNames[n]=1;});
+  var rows=Object.keys(allNames).map(function(n){ var c=cur.rev[n]||0, p=prev.rev[n]||0; return {nm:n, cur:c, prev:p, chg:c-p}; });
+  function gRow(r){
+    var pct = r.prev>0?(Math.round(r.chg/r.prev*100)+'%') : (r.cur>0?'ใหม่':'—');
+    var up=r.chg>=0;
+    return '<div class="dfin-li"><span class="nm">'+_finEsc(r.nm)+'</span><span class="amt">฿'+_dashFmtM(r.cur)+'</span><span class="age" style="color:'+(up?'#16A34A':'#DC2626')+'">'+(up?'▲':'▼')+' '+pct+'</span></div>';
+  }
+  var ups=rows.filter(function(r){return r.chg>0;}).sort(function(a,b){return b.chg-a.chg;}).slice(0,6);
+  var downs=rows.filter(function(r){return r.chg<0;}).sort(function(a,b){return a.chg-b.chg;}).slice(0,6);
+  document.getElementById('dcust-up').innerHTML = ups.length? ups.map(gRow).join('') : '<div style="color:var(--text-3);font-size:12px;padding:6px 0">ยังไม่มีข้อมูลโตขึ้น</div>';
+  document.getElementById('dcust-down').innerHTML = downs.length? downs.map(gRow).join('') : '<div style="color:var(--text-3);font-size:12px;padding:6px 0">ไม่มีลูกค้าลดลง 🎉</div>';
 }
 
 function renderDashboard(){
@@ -24201,7 +24273,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.171';
+const APP_VERSION = '2026.04.29.172';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -30925,4 +30997,4 @@ async function rcptLoadDoneList(){
   </div>
 </div>
 </div>
-<!-- deploy v171 — dashboard fleet (เฟส 2) -->
+<!-- deploy v172 — dashboard customers (เฟส 3) -->
