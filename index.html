@@ -296,7 +296,11 @@ tr:hover td{background:#FAFCFB}
 .dfin-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
 .dfin-title{font-size:17px;font-weight:800;color:var(--green-d)}
 .dfin-sub{font-size:11px;color:var(--text-3);margin-top:2px}
-.dfin-period{padding:7px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:var(--font);font-size:12.5px;font-weight:600;background:#fff;cursor:pointer;color:var(--green-d)}
+.dfin-period{padding:10px 18px;border:2px solid #1E5C3A;border-radius:12px;font-family:var(--font);font-size:14px;font-weight:800;background:linear-gradient(135deg,#2D7A4F,#1E5C3A);color:#fff;cursor:pointer;box-shadow:0 3px 12px rgba(45,122,79,.4);animation:dfinPulse 2.2s ease-in-out infinite;transition:transform .15s}
+.dfin-period:hover{transform:translateY(-1px)}
+.dfin-period:focus{outline:none;border-color:#FFD400;box-shadow:0 0 0 3px rgba(255,212,0,.4)}
+.dfin-period option{color:#111;background:#fff;font-weight:600}
+@keyframes dfinPulse{0%,100%{box-shadow:0 3px 12px rgba(45,122,79,.4)}50%{box-shadow:0 4px 22px rgba(45,122,79,.75)}}
 .dfin-cov{background:var(--yellow-l);border:1px solid var(--yellow-m);border-radius:10px;padding:9px 14px;font-size:12px;color:var(--yellow-d);margin-bottom:14px}
 .dfin-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
 .dfin-kpi{background:#fff;border-radius:14px;padding:15px 17px;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative;overflow:hidden}
@@ -18682,9 +18686,27 @@ function _dashInRange(iso, from, to){ if(!iso) return false; var t=new Date(iso)
 // ช่วงวันที่ของ period ที่เลือก + ช่วงก่อนหน้า (ไว้เทียบ %)
 function _dashPeriod(key){
   var now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  if(key && key.indexOf('m:')===0){ var pp=key.slice(2).split('-'), yy=parseInt(pp[0],10), mm=parseInt(pp[1],10)-1; return {from:new Date(yy,mm,1), to:new Date(yy,mm+1,0,23,59,59), pFrom:new Date(yy,mm-1,1), pTo:new Date(yy,mm,0,23,59,59)}; }
   if(key==='quarter'){ var q=Math.floor(m/3); return {from:new Date(y,q*3,1), to:new Date(y,q*3+3,0,23,59,59), pFrom:new Date(y,q*3-3,1), pTo:new Date(y,q*3,0,23,59,59)}; }
   if(key==='year'){ return {from:new Date(y,0,1), to:new Date(y,11,31,23,59,59), pFrom:new Date(y-1,0,1), pTo:new Date(y-1,11,31,23,59,59)}; }
   return {from:new Date(y,m,1), to:new Date(y,m+1,0,23,59,59), pFrom:new Date(y,m-1,1), pTo:new Date(y,m,0,23,59,59)};
+}
+
+// เติม dropdown ช่วงเวลา: presets + รายเดือนย้อนหลัง 12 เดือน (ทำครั้งเดียว ไม่ล้างค่าที่เลือกไว้)
+function _dashFillPeriodOptions(){
+  var sel=document.getElementById('dash-fin-period');
+  if(!sel || sel.dataset.filled) return;
+  var now=new Date(), o='';
+  o+='<option value="month">📅 เดือนนี้</option>';
+  o+='<option value="quarter">📅 ไตรมาสนี้</option>';
+  o+='<option value="year">📅 ปีนี้</option>';
+  o+='<option disabled>──── เลือกเดือน ────</option>';
+  for(var i=0;i<12;i++){
+    var d=new Date(now.getFullYear(), now.getMonth()-i, 1);
+    var val='m:'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    o+='<option value="'+val+'">📅 '+_dashThaiMonth(d.getMonth()+1)+' '+(d.getFullYear()+543)+'</option>';
+  }
+  sel.innerHTML=o; sel.dataset.filled='1';
 }
 
 // โหลดข้อมูลเงิน (billings/fuel/maintenance) ถ้ายังไม่มี — memoize กันโหลดซ้ำ
@@ -18723,6 +18745,7 @@ async function renderFinanceDashboard(){
   if(!box) return;
   if(!_dashCanSeeFinance()){ box.style.display='none'; return; }
   box.style.display='';
+  _dashFillPeriodOptions();
   var key=(document.getElementById('dash-fin-period')||{}).value||'month';
   var pr=_dashPeriod(key);
   await _dashEnsureFinData();
@@ -18787,7 +18810,7 @@ async function renderFinanceDashboard(){
 
   // ===== trend chart 12 เดือน =====
   var labels=[], revArr=[], costArr=[], base=new Date(pr.to.getFullYear(), pr.to.getMonth(), 1);
-  for(var i=11;i>=0;i--){ var ms=new Date(base.getFullYear(), base.getMonth()-i, 1), me=new Date(ms.getFullYear(), ms.getMonth()+1, 0,23,59,59); var cc=calc(ms,me); labels.push(_dashThaiMonth(ms.getMonth()+1)); revArr.push(Math.round(cc.rev)); costArr.push(Math.round(cc.cost)); }
+  for(var i=11;i>=0;i--){ var ms=new Date(base.getFullYear(), base.getMonth()-i, 1), me=new Date(ms.getFullYear(), ms.getMonth()+1, 0,23,59,59); var cc=calc(ms,me); labels.push(_dashThaiMonth(ms.getMonth()+1)+' '+String((ms.getFullYear()+543)%100)); revArr.push(Math.round(cc.rev)); costArr.push(Math.round(cc.cost)); }
   _dashMkChart('dashTrendChart',{type:'line',data:{labels:labels,datasets:[
     {label:'รายได้',data:revArr,borderColor:'#2D7A4F',backgroundColor:'rgba(45,122,79,.08)',fill:true,tension:.35,borderWidth:2.5,pointRadius:2},
     {label:'ต้นทุน',data:costArr,borderColor:'#DC2626',fill:false,tension:.35,borderWidth:2,borderDash:[5,4],pointRadius:2}
@@ -18857,10 +18880,13 @@ function _dashRenderFleet(pr, FL, MT){
     return '<div class="dfin-li"><span class="nm">'+_finEsc(t.plate)+'</span><span class="age" style="color:'+col+'">'+t.trips+' เที่ยว</span></div>';
   }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ไม่มีข้อมูลรถ</div>';
 
-  var byTotal=arr.slice().sort(function(a,b){return b.total-a.total;}).slice(0,15);
+  var companySet={}; tractorList.forEach(function(t){ var p=(t.plate||'').trim(); if(p) companySet[p]=1; });
+  var compRows=arr.filter(function(a){return companySet[a.plate];}).sort(function(a,b){return b.total-a.total;});
+  var subRows=arr.filter(function(a){return !companySet[a.plate];}).sort(function(a,b){return b.total-a.total;});
+  var byTotal=compRows.concat(subRows).slice(0,20);
   document.getElementById('dfleet-table').innerHTML = byTotal.length?
-    '<table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">น้ำมัน</th><th style="text-align:right">ซ่อม</th><th style="text-align:right">รวมต้นทุน</th></tr></thead><tbody>'+
-    byTotal.map(function(a){ return '<tr><td style="font-weight:700">'+_finEsc(a.plate)+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right">฿'+_dashFmt(a.fuel)+'</td><td style="text-align:right">฿'+_dashFmt(a.maint)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">฿'+_dashFmt(a.total)+'</td></tr>'; }).join('')+
+    '<table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th>ประเภท</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">น้ำมัน</th><th style="text-align:right">ซ่อม</th><th style="text-align:right">รวมต้นทุน</th></tr></thead><tbody>'+
+    byTotal.map(function(a){ var tag=companySet[a.plate]?'<span style="font-size:10px;background:#D1FAE5;color:#065F46;padding:1px 7px;border-radius:8px;font-weight:700;white-space:nowrap">🏢 บริษัท</span>':'<span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:1px 7px;border-radius:8px;font-weight:700;white-space:nowrap">🤝 ร่วม</span>'; return '<tr><td style="font-weight:700">'+_finEsc(a.plate)+'</td><td>'+tag+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right">฿'+_dashFmt(a.fuel)+'</td><td style="text-align:right">฿'+_dashFmt(a.maint)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">฿'+_dashFmt(a.total)+'</td></tr>'; }).join('')+
     '</tbody></table>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลในช่วงนี้</div>';
 }
 
@@ -18891,7 +18917,7 @@ function _dashRenderCustomers(pr){
   document.getElementById('dcust-conc-t').innerHTML='<span>รายได้จาก 5 ลูกค้าใหญ่สุด</span>';
 
   var labels=[], tripArr=[], base=new Date(pr.to.getFullYear(), pr.to.getMonth(), 1);
-  for(var i=11;i>=0;i--){ var ms=new Date(base.getFullYear(), base.getMonth()-i, 1), me=new Date(ms.getFullYear(), ms.getMonth()+1, 0,23,59,59); var cnt=0; jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(_dashInRange(j.startdate,ms,me)) cnt++; }); labels.push(_dashThaiMonth(ms.getMonth()+1)); tripArr.push(cnt); }
+  for(var i=11;i>=0;i--){ var ms=new Date(base.getFullYear(), base.getMonth()-i, 1), me=new Date(ms.getFullYear(), ms.getMonth()+1, 0,23,59,59); var cnt=0; jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(_dashInRange(j.startdate,ms,me)) cnt++; }); labels.push(_dashThaiMonth(ms.getMonth()+1)+' '+String((ms.getFullYear()+543)%100)); tripArr.push(cnt); }
   _dashMkChart('dashCustChart',{type:'bar',data:{labels:labels,datasets:[{label:'จำนวนเที่ยว',data:tripArr,backgroundColor:'#2D7A4F'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{family:'Sarabun'}}},y:{ticks:{font:{family:'Sarabun'}},grid:{color:'#f0f0f0'}}}}});
 
   function nmList(arr, mapObj, icon, emptyTxt){
@@ -24273,7 +24299,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.172';
+const APP_VERSION = '2026.04.29.173';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -30997,4 +31023,4 @@ async function rcptLoadDoneList(){
   </div>
 </div>
 </div>
-<!-- deploy v172 — dashboard customers (เฟส 3) -->
+<!-- deploy v173 — dashboard tweaks: month picker, BE year, fleet sort -->
