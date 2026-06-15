@@ -320,6 +320,10 @@ tr:hover td{background:#FAFCFB}
 .dfin-li .age{font-size:11px;font-weight:700;min-width:54px;text-align:right}
 .dfin-track{height:6px;border-radius:4px;background:var(--border);overflow:hidden;flex:0 0 80px}
 .dfin-track>i{display:block;height:100%;background:var(--green)}
+.dfleet-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.dfleet-tbl th{background:#F2F7F4;color:var(--green-d);padding:6px 9px;text-align:left;font-size:11px;border-bottom:1.5px solid var(--border);white-space:nowrap}
+.dfleet-tbl td{padding:6px 9px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+.dfleet-tbl tbody tr:hover{background:#FAFAF7}
 @media(max-width:900px){.dfin-kpis{grid-template-columns:repeat(2,1fr)}.dfin-row,.dfin-row2{grid-template-columns:1fr}}
 
 @media(max-width:700px){
@@ -790,6 +794,22 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="dfin-card"><div class="dfin-ct">🧾 ลูกค้าค้างรับสูงสุด</div><div id="dfin-ar-list"></div></div>
             <div class="dfin-card"><div class="dfin-ct">🏢 Top ลูกค้าตามรายได้ (ช่วงที่เลือก)</div><div id="dfin-topcust"></div></div>
           </div>
+
+          <!-- 🆕 เฟส 2 — ฟลีต & ต้นทุนรถ -->
+          <div class="dfin-bar" style="margin-top:6px">
+            <div><div class="dfin-title">🚛 ฟลีต & ต้นทุนรถ</div><div class="dfin-sub">ตามช่วงเวลาที่เลือกด้านบน</div></div>
+          </div>
+          <div class="dfin-kpis">
+            <div class="dfin-kpi k-rev"><div class="dfin-lab">🚚 รถใช้งาน</div><div class="dfin-val" id="dfleet-active">—</div><div class="dfin-foot" id="dfleet-active-t"></div></div>
+            <div class="dfin-kpi k-profit"><div class="dfin-lab">📦 เที่ยวรวม</div><div class="dfin-val" id="dfleet-trips">—</div><div class="dfin-foot" id="dfleet-trips-t"></div></div>
+            <div class="dfin-kpi k-fuel"><div class="dfin-lab">🔧 ค่าซ่อมรวม</div><div class="dfin-val" id="dfleet-maint">—</div><div class="dfin-foot" id="dfleet-maint-t"></div></div>
+            <div class="dfin-kpi k-ar"><div class="dfin-lab">💵 ต้นทุน/เที่ยว</div><div class="dfin-val" id="dfleet-cpt">—</div><div class="dfin-foot" id="dfleet-cpt-t"></div></div>
+          </div>
+          <div class="dfin-row">
+            <div class="dfin-card"><div class="dfin-ct">รถที่กินต้นทุนสูงสุด (น้ำมัน+ซ่อม)</div><div class="dfin-chart"><canvas id="dashFleetChart"></canvas></div></div>
+            <div class="dfin-card"><div class="dfin-ct">🅿️ รถใช้งานน้อย (ช่วงนี้)</div><div id="dfleet-idle"></div></div>
+          </div>
+          <div class="dfin-card" style="margin-bottom:18px"><div class="dfin-ct">💸 ต้นทุนรายคัน (ช่วงที่เลือก)</div><div id="dfleet-table" style="overflow-x:auto"></div></div>
         </div>
 
         <div class="stats-grid">
@@ -18637,6 +18657,7 @@ function _dashFmt(n){ return Number(n||0).toLocaleString('th-TH',{maximumFractio
 function _dashFmtM(n){ n=Number(n||0); if(Math.abs(n)>=1e6) return (n/1e6).toFixed(2)+'M'; if(Math.abs(n)>=1e3) return (n/1e3).toFixed(0)+'K'; return _dashFmt(n); }
 function _dashPickAmt(c,f){ var x=c[f+'AmtConfirmed']; if(x!==undefined&&x!==''&&x!==null) return parseFloat(x)||0; return parseFloat(c[f+'Amt'])||0; }
 function _dashJobRevenue(j){ var c=j.costs||{}; var p=c.priceAmt; return (p!==undefined&&p!==null&&p!=='')?(parseFloat(p)||0):0; }
+function _dashJobOpCost(j){ var c=j.costs||{}; return _dashPickAmt(c,'trip')+_dashPickAmt(c,'toll')+_dashPickAmt(c,'box')+_dashPickAmt(c,'recv')+_dashPickAmt(c,'ret')+_dashPickAmt(c,'port')+_dashPickAmt(c,'move')+_dashPickAmt(c,'misc'); }
 function _dashInRange(iso, from, to){ if(!iso) return false; var t=new Date(iso).getTime(); if(isNaN(t)) return false; return t>=from.getTime() && t<=to.getTime(); }
 
 // ช่วงวันที่ของ period ที่เลือก + ช่วงก่อนหน้า (ไว้เทียบ %)
@@ -18770,6 +18791,56 @@ async function renderFinanceDashboard(){
   document.getElementById('dfin-topcust').innerHTML = tcArr.length? tcArr.map(function(r){
     return '<div class="dfin-li"><span class="nm">'+_finEsc(r.nm)+'</span><span class="amt">฿'+_dashFmtM(r.amt)+'</span><span class="dfin-track"><i style="width:'+Math.round(r.amt/tcMax*100)+'%"></i></span></div>';
   }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลรายได้ในช่วงนี้</div>';
+
+  // ===== เฟส 2: ฟลีต & ต้นทุนรถ =====
+  try{ _dashRenderFleet(pr, FL, MT); }catch(e){ console.warn('fleet dash', e); }
+}
+
+// เฟส 2 — ฟลีต & ต้นทุนรถ: รถใช้งาน, เที่ยว/คัน, ค่าซ่อม+น้ำมันรายคัน
+function _dashRenderFleet(pr, FL, MT){
+  var allV=(typeof getAllVehicles==='function')?getAllVehicles():[].concat((typeof tractors!=='undefined'?tractors:[]),(typeof trailers!=='undefined'?trailers:[]));
+  var vmap={}; allV.forEach(function(v){ vmap[(v.vehicle_type||'')+':'+v.id]=v; });
+  var tractorList=(typeof tractors!=='undefined'?tractors:[]);
+  var agg={};
+  function ensure(p){ if(!agg[p]) agg[p]={plate:p,trips:0,fuel:0,maint:0,op:0}; return agg[p]; }
+  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInRange(j.startdate,pr.from,pr.to))return; var p=(j.plate||'').trim(); if(!p)return; var a=ensure(p); a.trips++; a.op+=_dashJobOpCost(j); });
+  FL.forEach(function(f){ if(!_dashInRange(f.fuel_date,pr.from,pr.to))return; var p=(f.plate||'').trim(); if(!p)return; ensure(p).fuel+=(parseFloat(f.amount)||((parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0))); });
+  MT.forEach(function(r){ if(!_dashInRange(r.service_date,pr.from,pr.to))return; var v=vmap[(r.vehicle_type||'')+':'+(r.vehicle_id||'')]; var p=v?(v.plate||'').trim():''; if(!p)return; ensure(p).maint+=(parseFloat(r.total_amount)||0); });
+
+  var arr=Object.keys(agg).map(function(k){ var a=agg[k]; a.cost=a.fuel+a.maint; a.total=a.fuel+a.maint+a.op; return a; });
+  var totalTrips=arr.reduce(function(s,a){return s+a.trips;},0);
+  var totalMaint=arr.reduce(function(s,a){return s+a.maint;},0);
+  var totalCost=arr.reduce(function(s,a){return s+a.total;},0);
+  var activePlates=arr.filter(function(a){return a.trips>0;}).length;
+  var fleetTotal=tractorList.length||activePlates;
+  var cpt=totalTrips>0?(totalCost/totalTrips):0;
+
+  document.getElementById('dfleet-active').innerHTML=activePlates+' <small>/ '+fleetTotal+' คัน</small>';
+  document.getElementById('dfleet-active-t').innerHTML='<span>รถมีงานวิ่งในช่วงนี้</span>';
+  document.getElementById('dfleet-trips').innerHTML=_dashFmt(totalTrips);
+  document.getElementById('dfleet-trips-t').innerHTML='<span>เฉลี่ย '+(activePlates>0?(totalTrips/activePlates).toFixed(1):'0')+' เที่ยว/คัน</span>';
+  document.getElementById('dfleet-maint').innerHTML='฿'+_dashFmt(totalMaint);
+  document.getElementById('dfleet-maint-t').innerHTML='<span>ค่าซ่อม+เปลี่ยนยาง</span>';
+  document.getElementById('dfleet-cpt').innerHTML='฿'+_dashFmt(cpt);
+  document.getElementById('dfleet-cpt-t').innerHTML='<span>(น้ำมัน+ซ่อม+เบิก)/เที่ยว</span>';
+
+  var byCost=arr.slice().sort(function(a,b){return b.cost-a.cost;}).slice(0,8);
+  _dashMkChart('dashFleetChart',{type:'bar',data:{labels:byCost.map(function(a){return a.plate;}),datasets:[
+    {label:'น้ำมัน',data:byCost.map(function(a){return Math.round(a.fuel);}),backgroundColor:'#DC2626'},
+    {label:'ค่าซ่อม',data:byCost.map(function(a){return Math.round(a.maint);}),backgroundColor:'#D97706'}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{family:'Sarabun'}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:'Sarabun',size:11}}},y:{stacked:true,ticks:{callback:function(v){return '฿'+_dashFmtM(v);},font:{family:'Sarabun'}},grid:{color:'#f0f0f0'}}}}});
+
+  var tractorTrips=tractorList.map(function(t){ var p=(t.plate||'').trim(); var a=agg[p]; return {plate:p||'(?)',trips:a?a.trips:0}; }).sort(function(a,b){return a.trips-b.trips;}).slice(0,6);
+  document.getElementById('dfleet-idle').innerHTML = tractorTrips.length? tractorTrips.map(function(t){
+    var col=t.trips===0?'#DC2626':(t.trips<=2?'#D97706':'#16A34A');
+    return '<div class="dfin-li"><span class="nm">'+_finEsc(t.plate)+'</span><span class="age" style="color:'+col+'">'+t.trips+' เที่ยว</span></div>';
+  }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ไม่มีข้อมูลรถ</div>';
+
+  var byTotal=arr.slice().sort(function(a,b){return b.total-a.total;}).slice(0,15);
+  document.getElementById('dfleet-table').innerHTML = byTotal.length?
+    '<table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">น้ำมัน</th><th style="text-align:right">ซ่อม</th><th style="text-align:right">รวมต้นทุน</th></tr></thead><tbody>'+
+    byTotal.map(function(a){ return '<tr><td style="font-weight:700">'+_finEsc(a.plate)+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right">฿'+_dashFmt(a.fuel)+'</td><td style="text-align:right">฿'+_dashFmt(a.maint)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">฿'+_dashFmt(a.total)+'</td></tr>'; }).join('')+
+    '</tbody></table>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลในช่วงนี้</div>';
 }
 
 function renderDashboard(){
@@ -24130,7 +24201,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.170';
+const APP_VERSION = '2026.04.29.171';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -30854,4 +30925,4 @@ async function rcptLoadDoneList(){
   </div>
 </div>
 </div>
-<!-- deploy v170 — dashboard finance (เฟส 1) -->
+<!-- deploy v171 — dashboard fleet (เฟส 2) -->
