@@ -292,6 +292,36 @@ tr:hover td{background:#FAFCFB}
 .bar-track{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
 .bar-fill{height:100%;border-radius:3px;background:var(--green)}
 
+/* ===== DASH FINANCE (เฟส 1) — KPI ผู้บริหาร ===== */
+.dfin-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.dfin-title{font-size:17px;font-weight:800;color:var(--green-d)}
+.dfin-sub{font-size:11px;color:var(--text-3);margin-top:2px}
+.dfin-period{padding:7px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:var(--font);font-size:12.5px;font-weight:600;background:#fff;cursor:pointer;color:var(--green-d)}
+.dfin-cov{background:var(--yellow-l);border:1px solid var(--yellow-m);border-radius:10px;padding:9px 14px;font-size:12px;color:var(--yellow-d);margin-bottom:14px}
+.dfin-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.dfin-kpi{background:#fff;border-radius:14px;padding:15px 17px;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative;overflow:hidden}
+.dfin-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px}
+.dfin-kpi.k-rev::before{background:#2D7A4F}.dfin-kpi.k-profit::before{background:#2563EB}.dfin-kpi.k-ar::before{background:#D97706}.dfin-kpi.k-fuel::before{background:#DC2626}
+.dfin-lab{font-size:12px;color:var(--text-3);font-weight:600}
+.dfin-val{font-size:23px;font-weight:800;margin-top:5px;line-height:1.1;color:var(--text)}
+.dfin-val small{font-size:13px;font-weight:600;color:var(--text-3)}
+.dfin-foot{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:11.5px;color:var(--text-3);flex-wrap:wrap}
+.dfin-trend{font-weight:700;padding:2px 7px;border-radius:7px;font-size:11px}
+.dfin-trend.up{background:#D1FAE5;color:#065F46}.dfin-trend.down{background:#FEE2E2;color:#991B1B}.dfin-trend.flat{background:#F1F0EA;color:#666}
+.dfin-row{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;margin-bottom:14px}
+.dfin-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.dfin-card{background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.dfin-ct{font-size:14px;font-weight:700;color:var(--green-d);margin-bottom:10px}
+.dfin-chart{position:relative;height:220px}
+.dfin-li{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+.dfin-li:last-child{border-bottom:none}
+.dfin-li .nm{flex:1;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dfin-li .amt{font-weight:700;font-variant-numeric:tabular-nums;color:var(--green-d)}
+.dfin-li .age{font-size:11px;font-weight:700;min-width:54px;text-align:right}
+.dfin-track{height:6px;border-radius:4px;background:var(--border);overflow:hidden;flex:0 0 80px}
+.dfin-track>i{display:block;height:100%;background:var(--green)}
+@media(max-width:900px){.dfin-kpis{grid-template-columns:repeat(2,1fr)}.dfin-row,.dfin-row2{grid-template-columns:1fr}}
+
 @media(max-width:700px){
   .sidebar{display:none}
   .dash-2col{grid-template-columns:1fr}
@@ -643,6 +673,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/themes/light.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/th.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 /* Flatpickr custom styling — match GYT theme */
 .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange {
@@ -730,6 +761,37 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
       <!-- DASHBOARD -->
       <div id="pg-dashboard" class="screen">
+
+        <!-- 🆕 เฟส 1 — ภาพรวมการเงินผู้บริหาร (เห็นเฉพาะ perm view_price) -->
+        <div id="dash-fin" style="display:none;margin-bottom:18px">
+          <div class="dfin-bar">
+            <div>
+              <div class="dfin-title">💰 ภาพรวมการเงิน (ผู้บริหาร)</div>
+              <div class="dfin-sub">เฉพาะกรรมการ / DONUT / PISOLN — ข้อมูลสดจากระบบ</div>
+            </div>
+            <select id="dash-fin-period" class="dfin-period" onchange="renderFinanceDashboard()">
+              <option value="month" selected>📅 เดือนนี้</option>
+              <option value="quarter">📅 ไตรมาสนี้</option>
+              <option value="year">📅 ปีนี้</option>
+            </select>
+          </div>
+          <div id="dfin-cov" class="dfin-cov" style="display:none"></div>
+          <div class="dfin-kpis">
+            <div class="dfin-kpi k-rev"><div class="dfin-lab">💰 รายได้</div><div class="dfin-val" id="dfin-rev">—</div><div class="dfin-foot" id="dfin-rev-t"></div></div>
+            <div class="dfin-kpi k-profit"><div class="dfin-lab">📈 กำไรขั้นต้น</div><div class="dfin-val" id="dfin-profit">—</div><div class="dfin-foot" id="dfin-profit-t"></div></div>
+            <div class="dfin-kpi k-ar"><div class="dfin-lab">🧾 ยอดค้างรับ</div><div class="dfin-val" id="dfin-ar">—</div><div class="dfin-foot" id="dfin-ar-t"></div></div>
+            <div class="dfin-kpi k-fuel"><div class="dfin-lab">⛽ ต้นทุนน้ำมัน</div><div class="dfin-val" id="dfin-fuel">—</div><div class="dfin-foot" id="dfin-fuel-t"></div></div>
+          </div>
+          <div class="dfin-row">
+            <div class="dfin-card"><div class="dfin-ct">แนวโน้มรายได้ vs ต้นทุน (12 เดือน)</div><div class="dfin-chart"><canvas id="dashTrendChart"></canvas></div></div>
+            <div class="dfin-card"><div class="dfin-ct">โครงสร้างต้นทุน (ช่วงที่เลือก)</div><div class="dfin-chart"><canvas id="dashCostChart"></canvas></div></div>
+          </div>
+          <div class="dfin-row2">
+            <div class="dfin-card"><div class="dfin-ct">🧾 ลูกค้าค้างรับสูงสุด</div><div id="dfin-ar-list"></div></div>
+            <div class="dfin-card"><div class="dfin-ct">🏢 Top ลูกค้าตามรายได้ (ช่วงที่เลือก)</div><div id="dfin-topcust"></div></div>
+          </div>
+        </div>
+
         <div class="stats-grid">
           <div class="stat-card"><div class="stat-label">ใบงานทั้งหมด</div><div class="stat-num gray" id="d-total">0</div><div class="stat-sub">ทุกสถานะ</div></div>
           <div class="stat-card"><div class="stat-label">รอดำเนินการ</div><div class="stat-num yellow" id="d-wait">0</div><div class="stat-sub">ยังไม่มอบหมาย</div></div>
@@ -2751,6 +2813,7 @@ const ALL_PERMS = [
   {id:'manage_finance', label:'จัดการการเงิน (น้ำมัน/ทางด่วน)', group:'การเงิน'},
   {id:'manage_receipts', label:'บันทึกใบเสร็จเข้าออฟฟิศ', group:'การเงิน'},  // 🆕 v083
   {id:'manage_billing',  label:'ออกใบวางบิล (น้าปุ้ม)',  group:'การเงิน'},  // 🆕 v114
+  {id:'view_mflow',      label:'ดูค่าทางด่วน M-Flow (ผู้บริหาร)', group:'การเงิน'},  // 🆕 — M-Flow แยกคอลัมน์ ไม่ให้บัญชี(อ้อย)เห็น เห็นเฉพาะ admin/supervisor(PISOLN,DONUT)/board(กรรมการ)
   {id:'share_jobs',      label:'ส่งงานทาง LINE',          group:'ตารางงาน'},  // 🆕 v120 — สิทธิ์ส่งใบงานเข้า LINE
   {id:'view_weight',  label:'ดูน้ำหนักสินค้า',      group:'ข้อมูลในใบงาน'},
   {id:'view_plate',   label:'ดูทะเบียน/คนขับ',      group:'ข้อมูลในใบงาน'},
@@ -5048,6 +5111,8 @@ function doLogout(){
 function hasPerm(p){
   if(!currentUser) return false;
   if(currentUser.role==='admin') return true;
+  // 🆕 view_mflow (ค่าทางด่วน M-Flow): เห็นเฉพาะกรรมการ(board) + PISOLN + DONUT เท่านั้น — บัญชี(อ้อย)/staff ไม่เห็น (ไม่ต้องรอ perms ใน DB อัปเดต)
+  if(p==='view_mflow') return currentUser.role==='board' || currentUser.username==='PISOLN' || currentUser.username==='DONUT';
   return Array.isArray(currentUser.perms) && currentUser.perms.includes(p);
 }
 
@@ -17017,6 +17082,7 @@ const _FIN_COLS = [
   {id:'container',    label:'No.ตู้',        group:'info',  width:'90px',  visible:true},
   {id:'trip',         label:'เบิก',          group:'cost',  width:'80px',  visible:true},  // 🆕 v158 — เดิม "ค่าเที่ยว" = ค่าแรงคนขับ/เที่ยว
   {id:'toll',         label:'ทางด่วน',       group:'cost',  width:'80px',  visible:true},
+  {id:'mflow',        label:'M-Flow',        group:'cost',  width:'80px',  visible:true, perm:'view_mflow'},  // 🆕 — ทางด่วน M-Flow แยก เห็นเฉพาะ view_mflow
   {id:'recv',         label:'รับตู้',         group:'cost',  width:'75px',  visible:true},
   {id:'box',          label:'ยกตู้',          group:'cost',  width:'75px',  visible:true},
   {id:'move',         label:'ย้ายตู้',        group:'cost',  width:'75px',  visible:true},  // 🆕 v065
@@ -17037,7 +17103,7 @@ function _finGetCols(){
   var saved = null;
   try { saved = JSON.parse(localStorage.getItem('gyt_fin_cols')||'null'); } catch(_){}
   if(!saved){
-    return _FIN_COLS.slice();
+    return _FIN_COLS.slice().filter(function(c){ return !c.perm || hasPerm(c.perm); });
   }
   // merge saved order/visibility with current registry (defensive)
   var byId = {}; _FIN_COLS.forEach(function(c){ byId[c.id] = Object.assign({}, c); });
@@ -17051,7 +17117,7 @@ function _finGetCols(){
   });
   // append any new cols from registry not in saved (to end)
   Object.values(byId).forEach(function(c){ result.push(c); });
-  return result;
+  return result.filter(function(c){ return !c.perm || hasPerm(c.perm); });  // 🆕 กรองคอลัมน์ตามสิทธิ์ (เช่น view_mflow)
 }
 function _finSaveCols(cols){
   try { localStorage.setItem('gyt_fin_cols', JSON.stringify(cols.map(function(c){return {id:c.id, visible:c.visible};}))); } catch(_){}
@@ -17288,7 +17354,7 @@ function finRender(plate, dateFrom, dateTo){
   });
 
   // 🔧 v071 — aggregate (รวมยอด) ทุก record ของแต่ละ job_id (แก้ bug ยอดไม่ตรง)
-  var fuelByJob = {}, tollByJob = {};
+  var fuelByJob = {}, tollByJob = {}, mflowByJob = {};
   _finFuelLogs.forEach(function(f){
     if(!f.job_id) return;
     if(!fuelByJob[f.job_id]){
@@ -17304,11 +17370,13 @@ function finRender(plate, dateFrom, dateTo){
   });
   _finTollLogs.forEach(function(t){
     if(!t.job_id) return;
-    if(!tollByJob[t.job_id]){
-      tollByJob[t.job_id] = {id:t.id, count:0, records:[], amount:0,
+    // 🆕 แยก M-Flow (created_by='M-Flow-Sync') ออกจากค่าทางด่วนของอ้อย
+    var map = (t.created_by === 'M-Flow-Sync') ? mflowByJob : tollByJob;
+    if(!map[t.job_id]){
+      map[t.job_id] = {id:t.id, count:0, records:[], amount:0,
         updated_by:t.updated_by, created_by:t.created_by};
     }
-    var a = tollByJob[t.job_id];
+    var a = map[t.job_id];
     a.count++;
     a.records.push(t);
     a.amount += Number(t.amount)||0;
@@ -17330,7 +17398,7 @@ function finRender(plate, dateFrom, dateTo){
     return {
       idx: i+1, type:'job', jobId: j.id,
       date: j.startdate ? j.startdate.slice(0,10) : '',
-      job: j, costs: c, fuel: fuelByJob[j.id]||null, toll: tollByJob[j.id]||null
+      job: j, costs: c, fuel: fuelByJob[j.id]||null, toll: tollByJob[j.id]||null, mflow: mflowByJob[j.id]||null
     };
   });
   _finFuelLogs.filter(function(f){return !f.job_id;}).forEach(function(f, k){
@@ -17548,6 +17616,7 @@ function finRender(plate, dateFrom, dateTo){
       ret:         costCell(r.costs, 'ret'),
       port:        costCell(r.costs, 'port'),
       misc:        costCell(r.costs, 'misc'),
+      mflow:       '<td style="padding:6px;text-align:right;background:#FEF3C7;font-size:11px;color:#92400E;font-weight:600" title="ค่าทางด่วน M-Flow (อัตโนมัติ ผูกตามทะเบียน)'+(r.mflow&&r.mflow.count?(' — '+r.mflow.count+' ครั้ง'):'')+'">'+(r.mflow && r.mflow.amount ? Math.round(r.mflow.amount).toLocaleString() : '—')+'</td>',
       updated_by:  '<td style="padding:6px;font-size:10px;color:var(--text-3);text-align:center">'+(_finEsc((fuelRecords[0]&&(fuelRecords[0].updated_by||fuelRecords[0].created_by))||(tollRecords[0]&&(tollRecords[0].updated_by||tollRecords[0].created_by))||''))+'</td>'
     };
     function withRowspan(td){
@@ -17610,21 +17679,24 @@ function finRender(plate, dateFrom, dateTo){
     acc.misc += pickAmt(c, 'misc');
     var t = r.toll||{};
     acc.toll += n(t.amount);
+    var m = r.mflow||{};
+    acc.mflow += n(m.amount);
     var f = r.fuel||{};
     acc.fuelLiters += n(f.liters);
     acc.fuelAmount += n(f.amount) || (n(f.price_per_l)*n(f.liters));
     if(f.count) acc.fuelCount += f.count; else if(f.id || f.fuel_date) acc.fuelCount++;
     return acc;
-  }, {trip:0,recv:0,box:0,move:0,ret:0,port:0,misc:0,toll:0,fuelLiters:0,fuelAmount:0,fuelCount:0});
+  }, {trip:0,recv:0,box:0,move:0,ret:0,port:0,misc:0,toll:0,mflow:0,fuelLiters:0,fuelAmount:0,fuelCount:0});
 
   var sumEl = document.getElementById('fin-summary');
   sumEl.style.display = 'block';
-  var grandTotal = totals.trip+totals.recv+totals.box+totals.move+totals.ret+totals.port+totals.misc+totals.toll+totals.fuelAmount;
+  var grandTotal = totals.trip+totals.recv+totals.box+totals.move+totals.ret+totals.port+totals.misc+totals.toll+totals.fuelAmount+(hasPerm('view_mflow')?totals.mflow:0);
   sumEl.innerHTML = '<strong style="color:var(--green-d)">'+plate+' · '+_finCE2BE(dateFrom)+' – '+_finCE2BE(dateTo)+'</strong>'+
     ' &nbsp;|&nbsp; ใบงาน <strong>'+rows.filter(function(r){return r.type==="job";}).length+'</strong>'+
     ' (📜 ประวัติที่ยัง match ไม่ได้ <strong>'+rows.filter(function(r){return r.type==="legacy";}).length+'</strong>)'+
     '<br>💵 เบิก <strong>'+_finFmtNum(totals.trip)+'</strong>'+
     ' · ทางด่วน <strong>'+_finFmtNum(totals.toll)+'</strong>'+
+    (hasPerm('view_mflow') ? ' · <span style="color:#92400E">M-Flow <strong>'+_finFmtNum(totals.mflow)+'</strong></span>' : '')+
     ' · รับตู้ <strong>'+_finFmtNum(totals.recv)+'</strong>'+
     ' · ยกตู้ <strong>'+_finFmtNum(totals.box)+'</strong>'+
     ' · ย้ายตู้ <strong>'+_finFmtNum(totals.move)+'</strong>'+
@@ -18547,7 +18619,162 @@ function renderTeamStats(){
   }).join('');
 }
 
+/* ════════════════════════════════════════════════════════════════
+   🆕 DASHBOARD การเงิน (เฟส 1) — KPI + กราฟ สำหรับกรรมการ (gate view_price)
+   ════════════════════════════════════════════════════════════════ */
+var _dashCharts = {};
+var _dashFinDataPromise = null;
+
+// สิทธิ์เห็นภาพรวมการเงิน: กรรมการ (role admin) + DONUT + PISOLN เท่านั้น
+function _dashCanSeeFinance(){
+  if(!currentUser) return false;
+  if(currentUser.role==='admin') return true;            // กรรมการ
+  return currentUser.username==='DONUT' || currentUser.username==='PISOLN';
+}
+
+function _dashThaiMonth(m){ var a=['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']; return a[m]||m; }
+function _dashFmt(n){ return Number(n||0).toLocaleString('th-TH',{maximumFractionDigits:0}); }
+function _dashFmtM(n){ n=Number(n||0); if(Math.abs(n)>=1e6) return (n/1e6).toFixed(2)+'M'; if(Math.abs(n)>=1e3) return (n/1e3).toFixed(0)+'K'; return _dashFmt(n); }
+function _dashPickAmt(c,f){ var x=c[f+'AmtConfirmed']; if(x!==undefined&&x!==''&&x!==null) return parseFloat(x)||0; return parseFloat(c[f+'Amt'])||0; }
+function _dashJobRevenue(j){ var c=j.costs||{}; var p=c.priceAmt; return (p!==undefined&&p!==null&&p!=='')?(parseFloat(p)||0):0; }
+function _dashInRange(iso, from, to){ if(!iso) return false; var t=new Date(iso).getTime(); if(isNaN(t)) return false; return t>=from.getTime() && t<=to.getTime(); }
+
+// ช่วงวันที่ของ period ที่เลือก + ช่วงก่อนหน้า (ไว้เทียบ %)
+function _dashPeriod(key){
+  var now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  if(key==='quarter'){ var q=Math.floor(m/3); return {from:new Date(y,q*3,1), to:new Date(y,q*3+3,0,23,59,59), pFrom:new Date(y,q*3-3,1), pTo:new Date(y,q*3,0,23,59,59)}; }
+  if(key==='year'){ return {from:new Date(y,0,1), to:new Date(y,11,31,23,59,59), pFrom:new Date(y-1,0,1), pTo:new Date(y-1,11,31,23,59,59)}; }
+  return {from:new Date(y,m,1), to:new Date(y,m+1,0,23,59,59), pFrom:new Date(y,m-1,1), pTo:new Date(y,m,0,23,59,59)};
+}
+
+// โหลดข้อมูลเงิน (billings/fuel/maintenance) ถ้ายังไม่มี — memoize กันโหลดซ้ำ
+function _dashEnsureFinData(){
+  if(_dashFinDataPromise) return _dashFinDataPromise;
+  _dashFinDataPromise = (async function(){
+    var tasks=[];
+    if(typeof _BL_BILLS==='undefined' || !_BL_BILLS || !_BL_BILLS.length){
+      tasks.push(sbFetchAll('gyt_billings','?select=*&order=bill_date.desc&limit=2000').then(function(r){ try{ _BL_BILLS=r||[]; }catch(e){ window._BL_BILLS=r||[]; } }).catch(function(e){ console.warn('[dash] billings load', e); }));
+    }
+    if(typeof _finFuelLogs==='undefined' || !_finFuelLogs || !_finFuelLogs.length){
+      tasks.push(sbFetchAll('gyt_fuel_logs','?select=*&order=fuel_date.desc').then(function(r){ try{ _finFuelLogs=r||[]; }catch(e){ window._finFuelLogs=r||[]; } }).catch(function(e){ console.warn('[dash] fuel load', e); }));
+    }
+    if(typeof maintenanceRecords==='undefined' || !maintenanceRecords || !maintenanceRecords.length){
+      tasks.push(sbFetchAll('gyt_maintenance','?select=*&order=service_date.desc').then(function(r){ try{ maintenanceRecords=r||[]; }catch(e){ window.maintenanceRecords=r||[]; } }).catch(function(e){ console.warn('[dash] maintenance load', e); }));
+    }
+    if(tasks.length) await Promise.all(tasks);
+  })();
+  return _dashFinDataPromise;
+}
+
+function _dashMkChart(id, cfg){
+  if(typeof Chart==='undefined') return;
+  if(_dashCharts[id]){ try{ _dashCharts[id].destroy(); }catch(e){} }
+  var el=document.getElementById(id);
+  if(el) _dashCharts[id]=new Chart(el, cfg);
+}
+function _dashTrend(cur, prev, goodUp){
+  if(!prev || prev===0){ return '<span class="dfin-trend flat">—</span>'; }
+  var pct=(cur-prev)/Math.abs(prev)*100, up=cur>=prev;
+  return '<span class="dfin-trend '+((up===goodUp)?'up':'down')+'">'+(up?'▲':'▼')+' '+Math.abs(pct).toFixed(0)+'%</span>';
+}
+
+async function renderFinanceDashboard(){
+  var box=document.getElementById('dash-fin');
+  if(!box) return;
+  if(!_dashCanSeeFinance()){ box.style.display='none'; return; }
+  box.style.display='';
+  var key=(document.getElementById('dash-fin-period')||{}).value||'month';
+  var pr=_dashPeriod(key);
+  await _dashEnsureFinData();
+
+  var FL=(typeof _finFuelLogs!=='undefined'&&_finFuelLogs)?_finFuelLogs:[];
+  var MT=(typeof maintenanceRecords!=='undefined'&&maintenanceRecords)?maintenanceRecords:[];
+  var BL=(typeof _BL_BILLS!=='undefined'&&_BL_BILLS)?_BL_BILLS:[];
+
+  // คำนวณยอดของช่วงวันที่ที่กำหนด
+  function calc(from,to){
+    var rev=0, opCost=0, n=0, nPriced=0, fuel=0, maint=0;
+    var brk={trip:0,toll:0,other:0};
+    jobs.forEach(function(j){
+      if(j.status==='ยกเลิก') return;
+      if(!_dashInRange(j.startdate, from, to)) return;
+      n++;
+      var r=_dashJobRevenue(j); if(r>0){ rev+=r; nPriced++; }
+      var c=j.costs||{};
+      brk.trip+=_dashPickAmt(c,'trip'); brk.toll+=_dashPickAmt(c,'toll');
+      brk.other+=_dashPickAmt(c,'box')+_dashPickAmt(c,'recv')+_dashPickAmt(c,'ret')+_dashPickAmt(c,'port')+_dashPickAmt(c,'move')+_dashPickAmt(c,'misc');
+    });
+    opCost=brk.trip+brk.toll+brk.other;
+    FL.forEach(function(f){ if(_dashInRange(f.fuel_date,from,to)) fuel+=(parseFloat(f.amount)||((parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0))); });
+    MT.forEach(function(r){ if(_dashInRange(r.service_date,from,to)) maint+=(parseFloat(r.total_amount)||0); });
+    var cost=opCost+fuel+maint;
+    return {rev:rev,cost:cost,profit:rev-cost,fuel:fuel,maint:maint,n:n,nPriced:nPriced,brk:brk};
+  }
+  var cur=calc(pr.from,pr.to), prev=calc(pr.pFrom,pr.pTo);
+
+  // ยอดค้างรับ (status='issued') + รวมรายลูกค้า
+  var arTotal=0, arCount=0, arByCust={};
+  BL.forEach(function(b){
+    if(b.status!=='issued') return;
+    var amt=parseFloat(b.net_amt)||0; arTotal+=amt; arCount++;
+    var nm=(b.customer_snapshot&&b.customer_snapshot.name)||b.customer_code||'(ไม่ระบุ)';
+    if(!arByCust[nm]) arByCust[nm]={amt:0,oldest:null};
+    arByCust[nm].amt+=amt;
+    var bd=b.bill_date?new Date(b.bill_date).getTime():null;
+    if(bd&&!isNaN(bd)&&(arByCust[nm].oldest===null||bd<arByCust[nm].oldest)) arByCust[nm].oldest=bd;
+  });
+
+  // Top ลูกค้าตามรายได้ (ช่วงที่เลือก)
+  var revByCust={};
+  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInRange(j.startdate,pr.from,pr.to))return; var r=_dashJobRevenue(j); if(r<=0)return; var nm=j.customer||j.shipper||'(ไม่ระบุ)'; revByCust[nm]=(revByCust[nm]||0)+r; });
+
+  // ===== KPI =====
+  document.getElementById('dfin-rev').innerHTML='฿'+_dashFmt(cur.rev);
+  document.getElementById('dfin-rev-t').innerHTML=_dashTrend(cur.rev,prev.rev,true)+'<span>เทียบช่วงก่อน ฿'+_dashFmtM(prev.rev)+'</span>';
+  var margin=cur.rev>0?(cur.profit/cur.rev*100):0;
+  document.getElementById('dfin-profit').innerHTML='฿'+_dashFmt(cur.profit)+' <small>('+margin.toFixed(1)+'%)</small>';
+  document.getElementById('dfin-profit-t').innerHTML=_dashTrend(cur.profit,prev.profit,true)+'<span>รายได้ − ต้นทุนรวม</span>';
+  document.getElementById('dfin-ar').innerHTML='฿'+_dashFmt(arTotal);
+  document.getElementById('dfin-ar-t').innerHTML='<span>'+arCount+' ใบวางบิลยังไม่จ่าย</span>';
+  var fuelPct=cur.rev>0?(cur.fuel/cur.rev*100):0, pFuelPct=prev.rev>0?(prev.fuel/prev.rev*100):0;
+  document.getElementById('dfin-fuel').innerHTML=fuelPct.toFixed(0)+'% <small>ของรายได้</small>';
+  document.getElementById('dfin-fuel-t').innerHTML=_dashTrend(fuelPct,pFuelPct,false)+'<span>฿'+_dashFmtM(cur.fuel)+'</span>';
+
+  // ===== coverage note =====
+  var cov=document.getElementById('dfin-cov');
+  if(cur.n>0 && cur.nPriced<cur.n){ cov.style.display=''; cov.innerHTML='📌 รายได้คำนวณจากใบงานที่กรอกราคาแล้ว <b>'+Math.round(cur.nPriced/cur.n*100)+'%</b> ('+cur.nPriced+' จาก '+cur.n+' ใบในช่วงนี้) — ตัวเลขจริงจะสูงกว่านี้เมื่อกรอกราคาครบ'; }
+  else cov.style.display='none';
+
+  // ===== trend chart 12 เดือน =====
+  var labels=[], revArr=[], costArr=[], base=new Date(pr.to.getFullYear(), pr.to.getMonth(), 1);
+  for(var i=11;i>=0;i--){ var ms=new Date(base.getFullYear(), base.getMonth()-i, 1), me=new Date(ms.getFullYear(), ms.getMonth()+1, 0,23,59,59); var cc=calc(ms,me); labels.push(_dashThaiMonth(ms.getMonth()+1)); revArr.push(Math.round(cc.rev)); costArr.push(Math.round(cc.cost)); }
+  _dashMkChart('dashTrendChart',{type:'line',data:{labels:labels,datasets:[
+    {label:'รายได้',data:revArr,borderColor:'#2D7A4F',backgroundColor:'rgba(45,122,79,.08)',fill:true,tension:.35,borderWidth:2.5,pointRadius:2},
+    {label:'ต้นทุน',data:costArr,borderColor:'#DC2626',fill:false,tension:.35,borderWidth:2,borderDash:[5,4],pointRadius:2}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:13,font:{family:'Sarabun'}}}},scales:{y:{ticks:{callback:function(v){return '฿'+_dashFmtM(v);},font:{family:'Sarabun'}},grid:{color:'#f0f0f0'}},x:{grid:{display:false},ticks:{font:{family:'Sarabun'}}}}}});
+
+  // ===== cost donut =====
+  _dashMkChart('dashCostChart',{type:'doughnut',data:{labels:['น้ำมัน','เบิกคนขับ','ค่าซ่อม','ทางด่วน','อื่นๆ'],datasets:[{data:[Math.round(cur.fuel),Math.round(cur.brk.trip),Math.round(cur.maint),Math.round(cur.brk.toll),Math.round(cur.brk.other)],backgroundColor:['#DC2626','#2563EB','#D97706','#7C3AED','#9CA3AF'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{boxWidth:12,font:{family:'Sarabun',size:12}}}}}});
+
+  // ===== AR list =====
+  var arArr=Object.keys(arByCust).map(function(k){return {nm:k,amt:arByCust[k].amt,oldest:arByCust[k].oldest};}).sort(function(a,b){return b.amt-a.amt;}).slice(0,6);
+  document.getElementById('dfin-ar-list').innerHTML = arArr.length? arArr.map(function(r){
+    var days=r.oldest?Math.floor((Date.now()-r.oldest)/86400000):0;
+    var col=days>=60?'#DC2626':(days>=30?'#D97706':'#16A34A');
+    return '<div class="dfin-li"><span class="nm">'+_finEsc(r.nm)+'</span><span class="amt">฿'+_dashFmt(r.amt)+'</span><span class="age" style="color:'+col+'">'+days+' วัน</span></div>';
+  }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ไม่มียอดค้างรับ 🎉</div>';
+
+  // ===== Top customers =====
+  var tcArr=Object.keys(revByCust).map(function(k){return {nm:k,amt:revByCust[k]};}).sort(function(a,b){return b.amt-a.amt;}).slice(0,6);
+  var tcMax=tcArr.length?tcArr[0].amt:1;
+  document.getElementById('dfin-topcust').innerHTML = tcArr.length? tcArr.map(function(r){
+    return '<div class="dfin-li"><span class="nm">'+_finEsc(r.nm)+'</span><span class="amt">฿'+_dashFmtM(r.amt)+'</span><span class="dfin-track"><i style="width:'+Math.round(r.amt/tcMax*100)+'%"></i></span></div>';
+  }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลรายได้ในช่วงนี้</div>';
+}
+
 function renderDashboard(){
+  if(_dashCanSeeFinance()){ try{ renderFinanceDashboard(); }catch(e){ console.warn('finance dash', e); } }
+  else { var _fb=document.getElementById('dash-fin'); if(_fb) _fb.style.display='none'; }
   renderTeamStats();
   try { renderDriverStats(); } catch(e){ console.warn('renderDriverStats failed:', e.message); }
   document.getElementById('d-total').textContent=jobs.length;
@@ -23903,7 +24130,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.169';
+const APP_VERSION = '2026.04.29.170';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -30627,4 +30854,4 @@ async function rcptLoadDoneList(){
   </div>
 </div>
 </div>
-<!-- deploy v169 -->
+<!-- deploy v170 — dashboard finance (เฟส 1) -->
