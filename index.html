@@ -866,6 +866,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <div id="dfin-personal-tolls" style="margin-bottom:18px"></div>
         </div>
 
+        <div id="dash-noaccess" style="display:none;text-align:center;padding:64px 20px;color:var(--text-3)">
+          <div style="font-size:40px;margin-bottom:10px">📊</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-2)">Dashboard ภาพรวมสำหรับผู้บริหาร</div>
+          <div style="font-size:13px;margin-top:6px">เฉพาะกรรมการ / PISOLN / DONUT — ข้อมูลของคุณดูได้ที่เมนูอื่น (ตารางงาน · ใบวางบิล · ค่าน้ำมัน)</div>
+        </div>
 </div>
 
       <!-- JOBS -->
@@ -19018,8 +19023,9 @@ async function renderPersonalTolls(){
 }
 
 function renderDashboard(){
-  if(_dashCanSeeFinance()){ try{ renderFinanceDashboard(); }catch(e){ console.warn('finance dash', e); } }
-  else { var _fb=document.getElementById('dash-fin'); if(_fb) _fb.style.display='none'; }
+  var _na=document.getElementById('dash-noaccess');
+  if(_dashCanSeeFinance()){ if(_na) _na.style.display='none'; try{ renderFinanceDashboard(); }catch(e){ console.warn('finance dash', e); } }
+  else { var _fb=document.getElementById('dash-fin'); if(_fb) _fb.style.display='none'; if(_na) _na.style.display=''; }
 }
 
 // ============================
