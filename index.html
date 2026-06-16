@@ -804,11 +804,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           </div>
           <div class="dfin-row">
             <div class="dfin-card"><div class="dfin-ct">แนวโน้มรายได้ vs ต้นทุน (12 เดือน)</div><div class="dfin-chart"><canvas id="dashTrendChart"></canvas></div></div>
-            <div class="dfin-card"><div class="dfin-ct">โครงสร้างต้นทุน (ช่วงที่เลือก)</div><div class="dfin-chart"><canvas id="dashCostChart"></canvas></div></div>
+            <div class="dfin-card"><div class="dfin-ct">โครงสร้างต้นทุน <span class="dfin-perlabel">(ช่วงที่เลือก)</span></div><div class="dfin-chart"><canvas id="dashCostChart"></canvas></div></div>
           </div>
           <div class="dfin-row2">
-            <div class="dfin-card"><div class="dfin-ct">🧾 ลูกค้าค้างรับสูงสุด</div><div id="dfin-ar-list"></div></div>
-            <div class="dfin-card"><div class="dfin-ct">🏢 Top ลูกค้าตามรายได้ (ช่วงที่เลือก)</div><div id="dfin-topcust"></div></div>
+            <div class="dfin-card"><div class="dfin-ct">🧾 ลูกค้าค้างรับสูงสุด <span style="font-size:11px;color:var(--text-3);font-weight:400">(ยอดค้าง ณ ปัจจุบัน · ไม่ขึ้นกับช่วงเวลา)</span></div><div id="dfin-ar-list"></div></div>
+            <div class="dfin-card"><div class="dfin-ct">🏢 Top ลูกค้า — เที่ยวมากสุด <span class="dfin-perlabel">(ช่วงที่เลือก)</span></div><div id="dfin-topcust"></div></div>
           </div>
 
           <!-- 🆕 เฟส 2 — ฟลีต & ต้นทุนรถ -->
@@ -825,7 +825,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="dfin-card"><div class="dfin-ct">รถที่กินต้นทุนสูงสุด (น้ำมัน+ซ่อม)</div><div class="dfin-chart"><canvas id="dashFleetChart"></canvas></div></div>
             <div class="dfin-card"><div class="dfin-ct">🅿️ รถใช้งานน้อย (ช่วงนี้)</div><div id="dfleet-idle"></div></div>
           </div>
-          <div class="dfin-card" style="margin-bottom:18px"><div class="dfin-ct">💸 ต้นทุนรายคัน (ช่วงที่เลือก)</div><div id="dfleet-table" style="overflow-x:auto"></div></div>
+          <div class="dfin-card" style="margin-bottom:18px"><div class="dfin-ct">💸 ต้นทุนรายคัน <span class="dfin-perlabel">(ช่วงที่เลือก)</span></div><div id="dfleet-table" style="overflow-x:auto"></div></div>
 
           <!-- 🆕 เฟส 3 — ลูกค้า & แนวโน้ม -->
           <div class="dfin-bar" style="margin-top:6px">
@@ -860,7 +860,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="dfin-card"><div class="dfin-ct">Top คนขับตามจำนวนเที่ยว</div><div class="dfin-chart"><canvas id="dashDrvChart"></canvas></div></div>
             <div class="dfin-card"><div class="dfin-ct">🛡️ ความปลอดภัย (Cartrack)</div><div id="ddrv-safety"></div></div>
           </div>
-          <div class="dfin-card" style="margin-bottom:18px"><div class="dfin-ct">💼 ผลงานรายคนขับ (ช่วงที่เลือก)</div><div id="ddrv-table" style="overflow-x:auto"></div></div>
+          <div class="dfin-card" style="margin-bottom:18px"><div class="dfin-ct">💼 ผลงานรายคนขับ <span class="dfin-perlabel">(ช่วงที่เลือก)</span></div><div id="ddrv-table" style="overflow-x:auto"></div></div>
 
           <!-- 🆕 ค่าทางด่วน M-Flow รถส่วนตัวกรรมการ (ตารางแยก ไม่นับต้นทุนบริษัท) -->
           <div id="dfin-personal-tolls" style="margin-bottom:18px"></div>
@@ -18817,6 +18817,7 @@ async function renderFinanceDashboard(){
   box.style.display='';
   if(!_dashCtrlInit){ _dashBuildPeriodCtrl(); _dashCtrlInit=true; }
   var pr=_dashPeriod();
+  document.querySelectorAll('#dash-fin .dfin-perlabel').forEach(function(el){ el.textContent='('+(pr.label||'')+')'; });
   await _dashEnsureFinData();
 
   var FL=(typeof _finFuelLogs!=='undefined'&&_finFuelLogs)?_finFuelLogs:[];
@@ -18856,9 +18857,9 @@ async function renderFinanceDashboard(){
     if(bd&&!isNaN(bd)&&(arByCust[nm].oldest===null||bd<arByCust[nm].oldest)) arByCust[nm].oldest=bd;
   });
 
-  // Top ลูกค้าตามรายได้ (ช่วงที่เลือก)
-  var revByCust={};
-  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,pr))return; var r=_dashJobRevenue(j); if(r<=0)return; var nm=j.customer||j.shipper||'(ไม่ระบุ)'; revByCust[nm]=(revByCust[nm]||0)+r; });
+  // Top ลูกค้า — นับจำนวนเที่ยว (ขยับตามช่วงเสมอ) + แสดงรายได้ถ้ามี (รายได้ยังไม่ครบเพราะ import บัญชียังไม่เสร็จ)
+  var custAgg={};
+  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,pr))return; var nm=j.customer||j.shipper||'(ไม่ระบุ)'; if(!custAgg[nm]) custAgg[nm]={trips:0,rev:0}; custAgg[nm].trips++; custAgg[nm].rev+=_dashJobRevenue(j); });
 
   // ===== KPI =====
   document.getElementById('dfin-rev').innerHTML='฿'+_dashFmt(cur.rev);
@@ -18897,11 +18898,11 @@ async function renderFinanceDashboard(){
   }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ไม่มียอดค้างรับ 🎉</div>';
 
   // ===== Top customers =====
-  var tcArr=Object.keys(revByCust).map(function(k){return {nm:k,amt:revByCust[k]};}).sort(function(a,b){return b.amt-a.amt;}).slice(0,6);
-  var tcMax=tcArr.length?tcArr[0].amt:1;
+  var tcArr=Object.keys(custAgg).map(function(k){return {nm:k,trips:custAgg[k].trips,rev:custAgg[k].rev};}).sort(function(a,b){return b.trips-a.trips;}).slice(0,6);
+  var tcMax=tcArr.length?tcArr[0].trips:1;
   document.getElementById('dfin-topcust').innerHTML = tcArr.length? tcArr.map(function(r){
-    return '<div class="dfin-li"><span class="nm">'+_finEsc(r.nm)+'</span><span class="amt">฿'+_dashFmtM(r.amt)+'</span><span class="dfin-track"><i style="width:'+Math.round(r.amt/tcMax*100)+'%"></i></span></div>';
-  }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลรายได้ในช่วงนี้</div>';
+    return '<div class="dfin-li"><span class="nm">'+_finEsc(r.nm)+'</span><span class="amt">'+r.trips+' เที่ยว'+(r.rev>0?' · ฿'+_dashFmtM(r.rev):'')+'</span><span class="dfin-track"><i style="width:'+Math.round(r.trips/tcMax*100)+'%"></i></span></div>';
+  }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลในช่วงนี้</div>';
 
   // ===== เฟส 2: ฟลีต & ต้นทุนรถ =====
   try{ _dashRenderFleet(pr, FL, MT); }catch(e){ console.warn('fleet dash', e); }
@@ -18954,12 +18955,12 @@ function _dashRenderFleet(pr, FL, MT){
   }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ไม่มีข้อมูลรถ</div>';
 
   var companySet={}; tractorList.forEach(function(t){ var p=_dashPlateKey(t.plate); if(p) companySet[p]=1; });
-  var compRows=arr.filter(function(a){return companySet[a.plate];}).sort(function(a,b){return b.total-a.total;});
-  var subRows=arr.filter(function(a){return !companySet[a.plate];}).sort(function(a,b){return b.total-a.total;});
+  var compRows=arr.filter(function(a){return companySet[a.plate];}).sort(function(a,b){return b.cost-a.cost;});
+  var subRows=arr.filter(function(a){return !companySet[a.plate];}).sort(function(a,b){return b.cost-a.cost;});
   var byTotal=compRows.concat(subRows).slice(0,20);
   document.getElementById('dfleet-table').innerHTML = byTotal.length?
-    '<table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th>ประเภท</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">น้ำมัน</th><th style="text-align:right">ซ่อม</th><th style="text-align:right">รวมต้นทุน</th></tr></thead><tbody>'+
-    byTotal.map(function(a){ var tag=companySet[a.plate]?'<span style="font-size:10px;background:#D1FAE5;color:#065F46;padding:1px 7px;border-radius:8px;font-weight:700;white-space:nowrap">🏢 บริษัท</span>':'<span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:1px 7px;border-radius:8px;font-weight:700;white-space:nowrap">🤝 ร่วม</span>'; return '<tr><td style="font-weight:700">'+_finEsc(a.plate)+'</td><td>'+tag+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right">฿'+_dashFmt(a.fuel)+'</td><td style="text-align:right">฿'+_dashFmt(a.maint)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">฿'+_dashFmt(a.total)+'</td></tr>'; }).join('')+
+    '<table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th>ประเภท</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">น้ำมัน</th><th style="text-align:right">ซ่อม</th><th style="text-align:right">รวม (น้ำมัน+ซ่อม)</th></tr></thead><tbody>'+
+    byTotal.map(function(a){ var tag=companySet[a.plate]?'<span style="font-size:10px;background:#D1FAE5;color:#065F46;padding:1px 7px;border-radius:8px;font-weight:700;white-space:nowrap">🏢 บริษัท</span>':'<span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:1px 7px;border-radius:8px;font-weight:700;white-space:nowrap">🤝 ร่วม</span>'; return '<tr><td style="font-weight:700">'+_finEsc(a.plate)+'</td><td>'+tag+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right">฿'+_dashFmt(a.fuel)+'</td><td style="text-align:right">฿'+_dashFmt(a.maint)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">฿'+_dashFmt(a.cost)+'</td></tr>'; }).join('')+
     '</tbody></table>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลในช่วงนี้</div>';
 }
 
