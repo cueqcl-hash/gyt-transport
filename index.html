@@ -301,6 +301,15 @@ tr:hover td{background:#FAFCFB}
 .dfin-period:focus{outline:none;border-color:#FFD400;box-shadow:0 0 0 3px rgba(255,212,0,.4)}
 .dfin-period option{color:#111;background:#fff;font-weight:600}
 @keyframes dfinPulse{0%,100%{box-shadow:0 3px 12px rgba(45,122,79,.4)}50%{box-shadow:0 4px 22px rgba(45,122,79,.75)}}
+.dfin-modebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dfin-modes{display:inline-flex;background:#EEF1ED;border-radius:11px;padding:3px;gap:2px}
+.dfin-mbtn{border:none;background:transparent;padding:8px 14px;border-radius:9px;font-family:var(--font);font-size:13px;font-weight:700;color:#5b6b62;cursor:pointer;transition:all .12s}
+.dfin-mbtn.active{background:linear-gradient(135deg,#2D7A4F,#1E5C3A);color:#fff;box-shadow:0 2px 8px rgba(45,122,79,.4)}
+.dfin-mbtn:hover:not(.active){color:#1E5C3A}
+.dfin-multibox{display:flex;flex-wrap:wrap;gap:6px;max-width:560px}
+.dfin-mchk{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;user-select:none}
+.dfin-mchk:has(input:checked){border-color:var(--green);background:#ECFDF5;color:var(--green-d)}
+.dfin-mchk input{cursor:pointer;margin:0}
 .dfin-cov{background:var(--yellow-l);border:1px solid var(--yellow-m);border-radius:10px;padding:9px 14px;font-size:12px;color:var(--yellow-d);margin-bottom:14px}
 .dfin-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
 .dfin-kpi{background:#fff;border-radius:14px;padding:15px 17px;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative;overflow:hidden}
@@ -777,11 +786,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <div class="dfin-title">💰 ภาพรวมการเงิน (ผู้บริหาร)</div>
               <div class="dfin-sub">เฉพาะกรรมการ / DONUT / PISOLN — ข้อมูลสดจากระบบ</div>
             </div>
-            <select id="dash-fin-period" class="dfin-period" onchange="renderFinanceDashboard()">
-              <option value="month" selected>📅 เดือนนี้</option>
-              <option value="quarter">📅 ไตรมาสนี้</option>
-              <option value="year">📅 ปีนี้</option>
-            </select>
+            <div class="dfin-modebar">
+              <div class="dfin-modes">
+                <button class="dfin-mbtn active" id="dmode-month" onclick="_dashSetMode('month')">📅 รายเดือน</button>
+                <button class="dfin-mbtn" id="dmode-year" onclick="_dashSetMode('year')">📆 รายปี</button>
+                <button class="dfin-mbtn" id="dmode-multi" onclick="_dashSetMode('multi')">🗓️ หลายเดือน</button>
+              </div>
+              <div id="dfin-period-ctrl"></div>
+            </div>
           </div>
           <div id="dfin-cov" class="dfin-cov" style="display:none"></div>
           <div class="dfin-kpis">
@@ -18703,14 +18715,51 @@ function _dashJobOpCost(j){ var c=j.costs||{}; return _dashPickAmt(c,'trip')+_da
 // normalize ทะเบียน — ตัดส่วนจังหวัด/ช่องว่างท้าย ("77-7108 กท." → "77-7108") ให้ jobs/fuel/tractors จับคู่กันได้
 function _dashPlateKey(p){ return String(p||'').trim().split(/\s+/)[0].trim(); }
 function _dashInRange(iso, from, to){ if(!iso) return false; var t=new Date(iso).getTime(); if(isNaN(t)) return false; return t>=from.getTime() && t<=to.getTime(); }
+// เช็คว่า date อยู่ในขอบเขต scope: ถ้า scope.months (Set 'YYYY-MM') ใช้แบบเลือกหลายเดือน (ไม่ติดกันได้) ไม่งั้นใช้ช่วง from..to
+function _dashInPr(iso, sc){ if(!iso||!sc) return false; var d=new Date(iso), t=d.getTime(); if(isNaN(t)) return false; if(sc.months){ return sc.months.has(d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)); } return (sc.from&&sc.to)?(t>=sc.from.getTime()&&t<=sc.to.getTime()):false; }
 
 // ช่วงวันที่ของ period ที่เลือก + ช่วงก่อนหน้า (ไว้เทียบ %)
-function _dashPeriod(key){
-  var now=new Date(), y=now.getFullYear(), m=now.getMonth();
-  if(key && key.indexOf('m:')===0){ var pp=key.slice(2).split('-'), yy=parseInt(pp[0],10), mm=parseInt(pp[1],10)-1; return {from:new Date(yy,mm,1), to:new Date(yy,mm+1,0,23,59,59), pFrom:new Date(yy,mm-1,1), pTo:new Date(yy,mm,0,23,59,59)}; }
-  if(key==='quarter'){ var q=Math.floor(m/3); return {from:new Date(y,q*3,1), to:new Date(y,q*3+3,0,23,59,59), pFrom:new Date(y,q*3-3,1), pTo:new Date(y,q*3,0,23,59,59)}; }
-  if(key==='year'){ return {from:new Date(y,0,1), to:new Date(y,11,31,23,59,59), pFrom:new Date(y-1,0,1), pTo:new Date(y-1,11,31,23,59,59)}; }
-  return {from:new Date(y,m,1), to:new Date(y,m+1,0,23,59,59), pFrom:new Date(y,m-1,1), pTo:new Date(y,m,0,23,59,59)};
+var _dashMode='month';          // 'month' | 'year' | 'multi'
+var _dashCtrlInit=false;
+function _dashMK(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
+// คำนวณ period ตามโหมด+ค่าใน control (default = เดือนปัจจุบัน, เทียบเดือนก่อน; ปี/หลายเดือน ไม่เทียบ)
+function _dashPeriod(){
+  var now=new Date();
+  if(_dashMode==='year'){
+    var y=parseInt((document.getElementById('dash-year')||{}).value||now.getFullYear(),10);
+    return {from:new Date(y,0,1), to:new Date(y,11,31,23,59,59), noCompare:true, label:'ปี '+(y+543)};
+  }
+  if(_dashMode==='multi'){
+    var set=_dashMultiGet();
+    if(!set.size){ set=new Set([_dashMK(now)]); }
+    var arr=Array.from(set).sort(), f=arr[0].split('-'), l=arr[arr.length-1].split('-');
+    return {from:new Date(+f[0],+f[1]-1,1), to:new Date(+l[0],+l[1],0,23,59,59), months:set, noCompare:true, label:set.size+' เดือน'};
+  }
+  var mv=(document.getElementById('dash-month')||{}).value, y2, m2;
+  if(mv){ var p=mv.split('-'); y2=+p[0]; m2=+p[1]-1; } else { y2=now.getFullYear(); m2=now.getMonth(); }
+  return {from:new Date(y2,m2,1), to:new Date(y2,m2+1,0,23,59,59), pFrom:new Date(y2,m2-1,1), pTo:new Date(y2,m2,0,23,59,59), noCompare:false, label:_dashThaiMonth(m2+1)+' '+(y2+543)};
+}
+function _dashMultiGet(){ var s=new Set(); document.querySelectorAll('#dfin-period-ctrl input[type=checkbox]:checked').forEach(function(c){ s.add(c.value); }); return s; }
+function _dashSetMode(mode){
+  _dashMode=mode;
+  var btns=document.querySelectorAll('.dfin-mbtn'); for(var i=0;i<btns.length;i++) btns[i].classList.remove('active');
+  var ab=document.getElementById('dmode-'+mode); if(ab) ab.classList.add('active');
+  _dashBuildPeriodCtrl();
+  renderFinanceDashboard();
+}
+function _dashBuildPeriodCtrl(){
+  var el=document.getElementById('dfin-period-ctrl'); if(!el) return;
+  var now=new Date(), o='';
+  if(_dashMode==='year'){
+    for(var y=now.getFullYear(); y>=now.getFullYear()-4; y--){ o+='<option value="'+y+'">ปี '+(y+543)+'</option>'; }
+    el.innerHTML='<select class="dfin-period" id="dash-year" onchange="renderFinanceDashboard()">'+o+'</select>';
+  } else if(_dashMode==='multi'){
+    for(var i=0;i<12;i++){ var d=new Date(now.getFullYear(), now.getMonth()-i, 1); o+='<label class="dfin-mchk"><input type="checkbox" value="'+_dashMK(d)+'" '+(i===0?'checked':'')+' onchange="renderFinanceDashboard()"> '+_dashThaiMonth(d.getMonth()+1)+' '+(d.getFullYear()+543)+'</label>'; }
+    el.innerHTML='<div class="dfin-multibox">'+o+'</div>';
+  } else {
+    for(var i=0;i<24;i++){ var d=new Date(now.getFullYear(), now.getMonth()-i, 1); o+='<option value="'+_dashMK(d)+'">'+_dashThaiMonth(d.getMonth()+1)+' '+(d.getFullYear()+543)+'</option>'; }
+    el.innerHTML='<select class="dfin-period" id="dash-month" onchange="renderFinanceDashboard()">'+o+'</select>';
+  }
 }
 
 // เติม dropdown ช่วงเวลา: presets + รายเดือนย้อนหลัง 12 เดือน (ทำครั้งเดียว ไม่ล้างค่าที่เลือกไว้)
@@ -18766,9 +18815,8 @@ async function renderFinanceDashboard(){
   if(!box) return;
   if(!_dashCanSeeFinance()){ box.style.display='none'; return; }
   box.style.display='';
-  _dashFillPeriodOptions();
-  var key=(document.getElementById('dash-fin-period')||{}).value||'month';
-  var pr=_dashPeriod(key);
+  if(!_dashCtrlInit){ _dashBuildPeriodCtrl(); _dashCtrlInit=true; }
+  var pr=_dashPeriod();
   await _dashEnsureFinData();
 
   var FL=(typeof _finFuelLogs!=='undefined'&&_finFuelLogs)?_finFuelLogs:[];
@@ -18776,12 +18824,12 @@ async function renderFinanceDashboard(){
   var BL=(typeof _BL_BILLS!=='undefined'&&_BL_BILLS)?_BL_BILLS:[];
 
   // คำนวณยอดของช่วงวันที่ที่กำหนด
-  function calc(from,to){
+  function calc(sc){
     var rev=0, opCost=0, n=0, nPriced=0, fuel=0, maint=0;
     var brk={trip:0,toll:0,other:0};
     jobs.forEach(function(j){
       if(j.status==='ยกเลิก') return;
-      if(!_dashInRange(j.startdate, from, to)) return;
+      if(!_dashInPr(j.startdate, sc)) return;
       n++;
       var r=_dashJobRevenue(j); if(r>0){ rev+=r; nPriced++; }
       var c=j.costs||{};
@@ -18789,12 +18837,12 @@ async function renderFinanceDashboard(){
       brk.other+=_dashPickAmt(c,'box')+_dashPickAmt(c,'recv')+_dashPickAmt(c,'ret')+_dashPickAmt(c,'port')+_dashPickAmt(c,'move')+_dashPickAmt(c,'misc');
     });
     opCost=brk.trip+brk.toll+brk.other;
-    FL.forEach(function(f){ if(_dashInRange(f.fuel_date,from,to)) fuel+=(parseFloat(f.amount)||((parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0))); });
-    MT.forEach(function(r){ if(_dashInRange(r.service_date,from,to)) maint+=(parseFloat(r.total_amount)||0); });
+    FL.forEach(function(f){ if(_dashInPr(f.fuel_date,sc)) fuel+=(parseFloat(f.amount)||((parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0))); });
+    MT.forEach(function(r){ if(_dashInPr(r.service_date,sc)) maint+=(parseFloat(r.total_amount)||0); });
     var cost=opCost+fuel+maint;
     return {rev:rev,cost:cost,profit:rev-cost,fuel:fuel,maint:maint,n:n,nPriced:nPriced,brk:brk};
   }
-  var cur=calc(pr.from,pr.to), prev=calc(pr.pFrom,pr.pTo);
+  var cur=calc(pr), prev=pr.noCompare?null:calc({from:pr.pFrom,to:pr.pTo});
 
   // ยอดค้างรับ (status='issued') + รวมรายลูกค้า
   var arTotal=0, arCount=0, arByCust={};
@@ -18810,19 +18858,19 @@ async function renderFinanceDashboard(){
 
   // Top ลูกค้าตามรายได้ (ช่วงที่เลือก)
   var revByCust={};
-  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInRange(j.startdate,pr.from,pr.to))return; var r=_dashJobRevenue(j); if(r<=0)return; var nm=j.customer||j.shipper||'(ไม่ระบุ)'; revByCust[nm]=(revByCust[nm]||0)+r; });
+  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,pr))return; var r=_dashJobRevenue(j); if(r<=0)return; var nm=j.customer||j.shipper||'(ไม่ระบุ)'; revByCust[nm]=(revByCust[nm]||0)+r; });
 
   // ===== KPI =====
   document.getElementById('dfin-rev').innerHTML='฿'+_dashFmt(cur.rev);
-  document.getElementById('dfin-rev-t').innerHTML=_dashTrend(cur.rev,prev.rev,true)+'<span>เทียบช่วงก่อน ฿'+_dashFmtM(prev.rev)+'</span>';
+  document.getElementById('dfin-rev-t').innerHTML=_dashTrend(cur.rev,prev?prev.rev:null,true)+(prev?'<span>เทียบเดือนก่อน ฿'+_dashFmtM(prev.rev)+'</span>':'<span>'+_finEsc(pr.label||'')+'</span>');
   var margin=cur.rev>0?(cur.profit/cur.rev*100):0;
   document.getElementById('dfin-profit').innerHTML='฿'+_dashFmt(cur.profit)+' <small>('+margin.toFixed(1)+'%)</small>';
-  document.getElementById('dfin-profit-t').innerHTML=_dashTrend(cur.profit,prev.profit,true)+'<span>รายได้ − ต้นทุนรวม</span>';
+  document.getElementById('dfin-profit-t').innerHTML=_dashTrend(cur.profit,prev?prev.profit:null,true)+'<span>รายได้ − ต้นทุนรวม</span>';
   document.getElementById('dfin-ar').innerHTML='฿'+_dashFmt(arTotal);
   document.getElementById('dfin-ar-t').innerHTML='<span>'+arCount+' ใบวางบิลยังไม่จ่าย</span>';
-  var fuelPct=cur.rev>0?(cur.fuel/cur.rev*100):0, pFuelPct=prev.rev>0?(prev.fuel/prev.rev*100):0;
+  var fuelPct=cur.rev>0?(cur.fuel/cur.rev*100):0, pFuelPct=(prev&&prev.rev>0)?(prev.fuel/prev.rev*100):0;
   document.getElementById('dfin-fuel').innerHTML=fuelPct.toFixed(0)+'% <small>ของรายได้</small>';
-  document.getElementById('dfin-fuel-t').innerHTML=_dashTrend(fuelPct,pFuelPct,false)+'<span>฿'+_dashFmtM(cur.fuel)+'</span>';
+  document.getElementById('dfin-fuel-t').innerHTML=_dashTrend(fuelPct,prev?pFuelPct:null,false)+'<span>฿'+_dashFmtM(cur.fuel)+'</span>';
 
   // ===== coverage note =====
   var cov=document.getElementById('dfin-cov');
@@ -18831,7 +18879,7 @@ async function renderFinanceDashboard(){
 
   // ===== trend chart 12 เดือน =====
   var labels=[], revArr=[], costArr=[], base=new Date(pr.to.getFullYear(), pr.to.getMonth(), 1);
-  for(var i=11;i>=0;i--){ var ms=new Date(base.getFullYear(), base.getMonth()-i, 1), me=new Date(ms.getFullYear(), ms.getMonth()+1, 0,23,59,59); var cc=calc(ms,me); labels.push(_dashThaiMonth(ms.getMonth()+1)+' '+String((ms.getFullYear()+543)%100)); revArr.push(Math.round(cc.rev)); costArr.push(Math.round(cc.cost)); }
+  for(var i=11;i>=0;i--){ var ms=new Date(base.getFullYear(), base.getMonth()-i, 1), me=new Date(ms.getFullYear(), ms.getMonth()+1, 0,23,59,59); var cc=calc({from:ms,to:me}); labels.push(_dashThaiMonth(ms.getMonth()+1)+' '+String((ms.getFullYear()+543)%100)); revArr.push(Math.round(cc.rev)); costArr.push(Math.round(cc.cost)); }
   _dashMkChart('dashTrendChart',{type:'line',data:{labels:labels,datasets:[
     {label:'รายได้',data:revArr,borderColor:'#2D7A4F',backgroundColor:'rgba(45,122,79,.08)',fill:true,tension:.35,borderWidth:2.5,pointRadius:2},
     {label:'ต้นทุน',data:costArr,borderColor:'#DC2626',fill:false,tension:.35,borderWidth:2,borderDash:[5,4],pointRadius:2}
@@ -18872,9 +18920,9 @@ function _dashRenderFleet(pr, FL, MT){
   var tractorList=(typeof tractors!=='undefined'?tractors:[]);
   var agg={};
   function ensure(p){ if(!agg[p]) agg[p]={plate:p,trips:0,fuel:0,maint:0,op:0}; return agg[p]; }
-  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInRange(j.startdate,pr.from,pr.to))return; var p=_dashPlateKey(j.plate); if(!p)return; var a=ensure(p); a.trips++; a.op+=_dashJobOpCost(j); });
-  FL.forEach(function(f){ if(!_dashInRange(f.fuel_date,pr.from,pr.to))return; var p=_dashPlateKey(f.plate); if(!p)return; ensure(p).fuel+=(parseFloat(f.amount)||((parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0))); });
-  MT.forEach(function(r){ if(!_dashInRange(r.service_date,pr.from,pr.to))return; var v=vmap[(r.vehicle_type||'')+':'+(r.vehicle_id||'')]; var p=v?_dashPlateKey(v.plate):''; if(!p)return; ensure(p).maint+=(parseFloat(r.total_amount)||0); });
+  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,pr))return; var p=_dashPlateKey(j.plate); if(!p)return; var a=ensure(p); a.trips++; a.op+=_dashJobOpCost(j); });
+  FL.forEach(function(f){ if(!_dashInPr(f.fuel_date,pr))return; var p=_dashPlateKey(f.plate); if(!p)return; ensure(p).fuel+=(parseFloat(f.amount)||((parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0))); });
+  MT.forEach(function(r){ if(!_dashInPr(r.service_date,pr))return; var v=vmap[(r.vehicle_type||'')+':'+(r.vehicle_id||'')]; var p=v?_dashPlateKey(v.plate):''; if(!p)return; ensure(p).maint+=(parseFloat(r.total_amount)||0); });
 
   var arr=Object.keys(agg).map(function(k){ var a=agg[k]; a.cost=a.fuel+a.maint; a.total=a.fuel+a.maint+a.op; return a; });
   var totalTrips=arr.reduce(function(s,a){return s+a.trips;},0);
@@ -18917,27 +18965,28 @@ function _dashRenderFleet(pr, FL, MT){
 
 // เฟส 3 — ลูกค้า & แนวโน้ม: ลูกค้าใหม่/หาย, กระจุกตัวรายได้, ลูกค้าโต/ลด, แนวโน้มเที่ยว
 function _dashRenderCustomers(pr){
-  function custStats(from,to){
+  function custStats(sc){
     var rev={}, trips={};
-    jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInRange(j.startdate,from,to))return; var nm=((j.customer||j.shipper||'').trim())||'(ไม่ระบุ)'; trips[nm]=(trips[nm]||0)+1; var r=_dashJobRevenue(j); if(r>0) rev[nm]=(rev[nm]||0)+r; });
+    jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,sc))return; var nm=((j.customer||j.shipper||'').trim())||'(ไม่ระบุ)'; trips[nm]=(trips[nm]||0)+1; var r=_dashJobRevenue(j); if(r>0) rev[nm]=(rev[nm]||0)+r; });
     return {rev:rev, trips:trips};
   }
-  var cur=custStats(pr.from,pr.to), prev=custStats(pr.pFrom,pr.pTo);
+  var cmp=!pr.noCompare;
+  var cur=custStats(pr), prev=cmp?custStats({from:pr.pFrom,to:pr.pTo}):{rev:{},trips:{}};
   var curNames=Object.keys(cur.trips), prevNames=Object.keys(prev.trips);
   var curSet={}; curNames.forEach(function(n){curSet[n]=1;});
   var prevSet={}; prevNames.forEach(function(n){prevSet[n]=1;});
-  var newC=curNames.filter(function(n){return !prevSet[n];});
-  var lostC=prevNames.filter(function(n){return !curSet[n];});
+  var newC=cmp?curNames.filter(function(n){return !prevSet[n];}):[];
+  var lostC=cmp?prevNames.filter(function(n){return !curSet[n];}):[];
   var totalRev=0; curNames.forEach(function(n){ totalRev+=(cur.rev[n]||0); });
   var top5=curNames.map(function(n){return cur.rev[n]||0;}).sort(function(a,b){return b-a;}).slice(0,5).reduce(function(s,v){return s+v;},0);
   var conc=totalRev>0?(top5/totalRev*100):0;
 
   document.getElementById('dcust-active').innerHTML=_dashFmt(curNames.length)+' <small>ราย</small>';
   document.getElementById('dcust-active-t').innerHTML='<span>มีงานในช่วงนี้</span>';
-  document.getElementById('dcust-new').innerHTML=_dashFmt(newC.length)+' <small>ราย</small>';
-  document.getElementById('dcust-new-t').innerHTML='<span>ไม่เคยมีงานช่วงก่อน</span>';
-  document.getElementById('dcust-lost').innerHTML=_dashFmt(lostC.length)+' <small>ราย</small>';
-  document.getElementById('dcust-lost-t').innerHTML='<span>ช่วงก่อนมี ช่วงนี้หาย</span>';
+  document.getElementById('dcust-new').innerHTML=cmp?(_dashFmt(newC.length)+' <small>ราย</small>'):'<small style="color:var(--text-3)">—</small>';
+  document.getElementById('dcust-new-t').innerHTML=cmp?'<span>ไม่เคยมีงานเดือนก่อน</span>':'<span>ดูในโหมดรายเดือน</span>';
+  document.getElementById('dcust-lost').innerHTML=cmp?(_dashFmt(lostC.length)+' <small>ราย</small>'):'<small style="color:var(--text-3)">—</small>';
+  document.getElementById('dcust-lost-t').innerHTML=cmp?'<span>เดือนก่อนมี เดือนนี้หาย</span>':'<span>ดูในโหมดรายเดือน</span>';
   document.getElementById('dcust-conc').innerHTML=conc.toFixed(0)+'%';
   document.getElementById('dcust-conc-t').innerHTML='<span>รายได้จาก 5 ลูกค้าใหญ่สุด</span>';
 
@@ -18951,7 +19000,7 @@ function _dashRenderCustomers(pr){
       return '<div class="dfin-li"><span class="nm">'+icon+' '+_finEsc(x.nm)+'</span><span class="age" style="color:var(--text-3)">'+x.t+' เที่ยว</span></div>';
     }).join('');
   }
-  document.getElementById('dcust-newlost').innerHTML = nmList(newC, cur.trips, '🆕', 'ไม่มีลูกค้าใหม่ช่วงนี้') + nmList(lostC, prev.trips, '⚠️', 'ไม่มีลูกค้าหาย 🎉');
+  document.getElementById('dcust-newlost').innerHTML = cmp ? (nmList(newC, cur.trips, '🆕', 'ไม่มีลูกค้าใหม่เดือนนี้') + nmList(lostC, prev.trips, '⚠️', 'ไม่มีลูกค้าหาย 🎉')) : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">เปรียบเทียบลูกค้าใหม่/หาย ดูได้ในโหมด <b>รายเดือน</b></div>';
 
   var allNames={}; curNames.concat(prevNames).forEach(function(n){allNames[n]=1;});
   var rows=Object.keys(allNames).map(function(n){ var c=cur.rev[n]||0, p=prev.rev[n]||0; return {nm:n, cur:c, prev:p, chg:c-p}; });
@@ -18962,15 +19011,15 @@ function _dashRenderCustomers(pr){
   }
   var ups=rows.filter(function(r){return r.chg>0;}).sort(function(a,b){return b.chg-a.chg;}).slice(0,6);
   var downs=rows.filter(function(r){return r.chg<0;}).sort(function(a,b){return a.chg-b.chg;}).slice(0,6);
-  document.getElementById('dcust-up').innerHTML = ups.length? ups.map(gRow).join('') : '<div style="color:var(--text-3);font-size:12px;padding:6px 0">ยังไม่มีข้อมูลโตขึ้น</div>';
-  document.getElementById('dcust-down').innerHTML = downs.length? downs.map(gRow).join('') : '<div style="color:var(--text-3);font-size:12px;padding:6px 0">ไม่มีลูกค้าลดลง 🎉</div>';
+  document.getElementById('dcust-up').innerHTML = !cmp ? '<div style="color:var(--text-3);font-size:12px;padding:10px 0">เปรียบเทียบดูได้ในโหมด <b>รายเดือน</b></div>' : (ups.length? ups.map(gRow).join('') : '<div style="color:var(--text-3);font-size:12px;padding:6px 0">ยังไม่มีข้อมูลโตขึ้น</div>');
+  document.getElementById('dcust-down').innerHTML = !cmp ? '<div style="color:var(--text-3);font-size:12px;padding:10px 0">เปรียบเทียบดูได้ในโหมด <b>รายเดือน</b></div>' : (downs.length? downs.map(gRow).join('') : '<div style="color:var(--text-3);font-size:12px;padding:6px 0">ไม่มีลูกค้าลดลง 🎉</div>');
 }
 
 // เฟส 4 — คนขับ: เที่ยว/รายได้/เบิก รายคน (ความปลอดภัย Cartrack = เฟสถัดไป ยังไม่อยู่ใน DB)
 function _dashRenderDrivers(pr){
   var agg={};
   function ens(d){ if(!agg[d]) agg[d]={drv:d,trips:0,rev:0,pay:0}; return agg[d]; }
-  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInRange(j.startdate,pr.from,pr.to))return; var d=(j.driver||'').trim(); if(!d)return; var a=ens(d); a.trips++; a.rev+=_dashJobRevenue(j); var c=j.costs||{}; a.pay+=_dashPickAmt(c,'trip'); });
+  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,pr))return; var d=(j.driver||'').trim(); if(!d)return; var a=ens(d); a.trips++; a.rev+=_dashJobRevenue(j); var c=j.costs||{}; a.pay+=_dashPickAmt(c,'trip'); });
   var arr=Object.keys(agg).map(function(k){return agg[k];});
   var active=arr.length;
   var totTrips=arr.reduce(function(s,a){return s+a.trips;},0);
