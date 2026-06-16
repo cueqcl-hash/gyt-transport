@@ -18845,10 +18845,10 @@ async function renderFinanceDashboard(){
   }
   var cur=calc(pr), prev=pr.noCompare?null:calc({from:pr.pFrom,to:pr.pTo});
 
-  // ยอดค้างรับ (status='issued') + รวมรายลูกค้า
+  // ยอดค้างรับ = บิลที่ยังไม่จ่าย (สถานะจริงในระบบ = 'unpaid'; เผื่อ 'issued' เก่าด้วย)
   var arTotal=0, arCount=0, arByCust={};
   BL.forEach(function(b){
-    if(b.status!=='issued') return;
+    if(b.status!=='unpaid' && b.status!=='issued') return;
     var amt=parseFloat(b.net_amt)||0; arTotal+=amt; arCount++;
     var nm=(b.customer_snapshot&&b.customer_snapshot.name)||b.customer_code||'(ไม่ระบุ)';
     if(!arByCust[nm]) arByCust[nm]={amt:0,oldest:null};
