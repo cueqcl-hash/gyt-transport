@@ -5536,7 +5536,7 @@ function previewMulti(){
   document.getElementById('mc-preview-list').innerHTML=html;
 }
 
-function saveMulti(){
+async function saveMulti(){
   const customer=sdGetValue('mc-customer').trim();
   const shipper=sdGetValue('mc-shipper').trim();
   const origin=document.getElementById('mc-origin').value.trim();
@@ -5586,7 +5586,7 @@ function saveMulti(){
   // 🆕 v165 — เลขฐานเดียวต่อ BL; ถ้า "เพิ่มตู้ใน BL เดิม" ใช้ฐานนั้น + ต่อ suffix จากตู้สุดท้าย
   var _mcBase, _mcSfxStart;
   if(_addToBase){ _mcBase=_addToBase; _mcSfxStart=_maxSuffixForBase(_addToBase); }
-  else { _mcBase=nextJID++; _mcSfxStart=0; }
+  else { var _nb=await _nextJobBase(); nextJID=_nb+1; _mcBase=_nb; _mcSfxStart=0; }
   for(let i=1;i<=n;i++){
     // Q2 (Option A): ใช้ override per-row ถ้ามี, ไม่งั้น fallback to shared
     var rOrigin = (document.getElementById('mc-r'+i+'-origin')?.value || '').trim() || origin;
@@ -19832,15 +19832,28 @@ function autoResizeNote(ta){
   var h=Math.min(ta.scrollHeight, 240);
   ta.style.height=(h<38?38:h)+'px';
 }
-function saveJob(){
+// 🆕 จองเลขฐานงานแบบกันชนข้ามเครื่อง: ถาม server หา max base ล่าสุด แล้วใช้ค่าที่สูงกว่าระหว่าง local กับ server+1
+// แก้ปัญหา nextJID ใน cache เครื่องเก่า/ค้าง ทำให้ 2 คนสร้างงานพร้อมกันได้เลขฐานชนกัน (offline จะ fallback ใช้ local)
+async function _nextJobBase(){
+  var base = nextJID;
+  try{
+    var recent = await sbFetch('gyt_jobs','GET',null,'?select=id&order=created_at.desc&limit=400');
+    var mx=0; (recent||[]).forEach(function(j){ var b=_jobBase(j.id); if(b>mx) mx=b; });
+    if(mx+1 > base) base = mx+1;
+  }catch(e){ console.warn('[jobid] server base check failed, ใช้ local nextJID', e); }
+  return base;
+}
+async function saveJob(){
   const customer=sdGetValue('fj-customer').trim();
   const shipper=sdGetValue('fj-shipper').trim();
   const origin=document.getElementById('fj-origin').value.trim();
   const dest=document.getElementById('fj-dest').value.trim();
   const startdate=document.getElementById('fj-startdate').value;
   if(!customer||!shipper||!origin||!dest||!startdate){showToast('กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบ');return;}
+  let _jid=editJID;
+  if(!_jid){ var _b=await _nextJobBase(); nextJID=_b+1; _jid='JOB-'+_b+'-01'; }
   const obj={
-    id:editJID||('JOB-'+(nextJID++)+'-01'),
+    id:_jid,
     startdate,deliverdate:document.getElementById('fj-deliverdate').value,
     customer,phone:document.getElementById('fj-phone').value.trim(),
     shipper,carrier:document.getElementById('fj-carrier').value.trim(),
@@ -24323,7 +24336,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.175';
+const APP_VERSION = '2026.04.29.176';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -31047,4 +31060,4 @@ async function rcptLoadDoneList(){
   </div>
 </div>
 </div>
-<!-- deploy v175 — fix: normalize ทะเบียน (กท.) ในตารางต้นทุนรายคัน -->
+<!-- deploy v176 — fix: กันเลขฐาน JOB ชนกันข้ามเครื่อง (server base check) -->
