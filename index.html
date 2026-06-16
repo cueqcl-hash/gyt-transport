@@ -834,6 +834,22 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="dfin-card"><div class="dfin-ct">📉 ลูกค้าลดลง (รายได้)</div><div id="dcust-down"></div></div>
           </div>
 
+          <!-- 🆕 เฟส 4 — คนขับ -->
+          <div class="dfin-bar" style="margin-top:6px">
+            <div><div class="dfin-title">👤 คนขับ</div><div class="dfin-sub">ผลงาน + ค่าแรงคนขับ ตามช่วงเวลาที่เลือก</div></div>
+          </div>
+          <div class="dfin-kpis">
+            <div class="dfin-kpi k-rev"><div class="dfin-lab">👤 คนขับที่มีงาน</div><div class="dfin-val" id="ddrv-active">—</div><div class="dfin-foot" id="ddrv-active-t"></div></div>
+            <div class="dfin-kpi k-profit"><div class="dfin-lab">📦 เที่ยวเฉลี่ย/คน</div><div class="dfin-val" id="ddrv-avg">—</div><div class="dfin-foot" id="ddrv-avg-t"></div></div>
+            <div class="dfin-kpi k-fuel"><div class="dfin-lab">💵 เบิกรวม (ค่าแรง)</div><div class="dfin-val" id="ddrv-pay">—</div><div class="dfin-foot" id="ddrv-pay-t"></div></div>
+            <div class="dfin-kpi k-ar"><div class="dfin-lab">⚡ รายได้/เที่ยว</div><div class="dfin-val" id="ddrv-eff">—</div><div class="dfin-foot" id="ddrv-eff-t"></div></div>
+          </div>
+          <div class="dfin-row">
+            <div class="dfin-card"><div class="dfin-ct">Top คนขับตามจำนวนเที่ยว</div><div class="dfin-chart"><canvas id="dashDrvChart"></canvas></div></div>
+            <div class="dfin-card"><div class="dfin-ct">🛡️ ความปลอดภัย (Cartrack)</div><div id="ddrv-safety"></div></div>
+          </div>
+          <div class="dfin-card" style="margin-bottom:18px"><div class="dfin-ct">💼 ผลงานรายคนขับ (ช่วงที่เลือก)</div><div id="ddrv-table" style="overflow-x:auto"></div></div>
+
           <!-- 🆕 ค่าทางด่วน M-Flow รถส่วนตัวกรรมการ (ตารางแยก ไม่นับต้นทุนบริษัท) -->
           <div id="dfin-personal-tolls" style="margin-bottom:18px"></div>
         </div>
@@ -18843,6 +18859,8 @@ async function renderFinanceDashboard(){
   try{ _dashRenderFleet(pr, FL, MT); }catch(e){ console.warn('fleet dash', e); }
   // ===== เฟส 3: ลูกค้า & แนวโน้ม =====
   try{ _dashRenderCustomers(pr); }catch(e){ console.warn('cust dash', e); }
+  // ===== เฟส 4: คนขับ =====
+  try{ _dashRenderDrivers(pr); }catch(e){ console.warn('driver dash', e); }
   // ===== ค่าทางด่วนรถส่วนตัวกรรมการ (ตารางแยก ไม่นับต้นทุน) =====
   try{ renderPersonalTolls(); }catch(e){ console.warn('personal tolls', e); }
 }
@@ -18946,6 +18964,37 @@ function _dashRenderCustomers(pr){
   var downs=rows.filter(function(r){return r.chg<0;}).sort(function(a,b){return a.chg-b.chg;}).slice(0,6);
   document.getElementById('dcust-up').innerHTML = ups.length? ups.map(gRow).join('') : '<div style="color:var(--text-3);font-size:12px;padding:6px 0">ยังไม่มีข้อมูลโตขึ้น</div>';
   document.getElementById('dcust-down').innerHTML = downs.length? downs.map(gRow).join('') : '<div style="color:var(--text-3);font-size:12px;padding:6px 0">ไม่มีลูกค้าลดลง 🎉</div>';
+}
+
+// เฟส 4 — คนขับ: เที่ยว/รายได้/เบิก รายคน (ความปลอดภัย Cartrack = เฟสถัดไป ยังไม่อยู่ใน DB)
+function _dashRenderDrivers(pr){
+  var agg={};
+  function ens(d){ if(!agg[d]) agg[d]={drv:d,trips:0,rev:0,pay:0}; return agg[d]; }
+  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInRange(j.startdate,pr.from,pr.to))return; var d=(j.driver||'').trim(); if(!d)return; var a=ens(d); a.trips++; a.rev+=_dashJobRevenue(j); var c=j.costs||{}; a.pay+=_dashPickAmt(c,'trip'); });
+  var arr=Object.keys(agg).map(function(k){return agg[k];});
+  var active=arr.length;
+  var totTrips=arr.reduce(function(s,a){return s+a.trips;},0);
+  var totPay=arr.reduce(function(s,a){return s+a.pay;},0);
+  var totRev=arr.reduce(function(s,a){return s+a.rev;},0);
+  document.getElementById('ddrv-active').innerHTML=_dashFmt(active)+' <small>คน</small>';
+  document.getElementById('ddrv-active-t').innerHTML='<span>มีงานวิ่งในช่วงนี้</span>';
+  document.getElementById('ddrv-avg').innerHTML=(active>0?(totTrips/active).toFixed(1):'0');
+  document.getElementById('ddrv-avg-t').innerHTML='<span>เที่ยวรวม '+_dashFmt(totTrips)+'</span>';
+  document.getElementById('ddrv-pay').innerHTML='฿'+_dashFmt(totPay);
+  document.getElementById('ddrv-pay-t').innerHTML='<span>ค่าแรงคนขับรวม</span>';
+  document.getElementById('ddrv-eff').innerHTML='฿'+_dashFmt(totTrips>0?(totRev/totTrips):0);
+  document.getElementById('ddrv-eff-t').innerHTML='<span>รายได้เฉลี่ยต่อเที่ยว</span>';
+
+  var byTrips=arr.slice().sort(function(a,b){return b.trips-a.trips;}).slice(0,8);
+  _dashMkChart('dashDrvChart',{type:'bar',data:{labels:byTrips.map(function(a){return a.drv;}),datasets:[{label:'จำนวนเที่ยว',data:byTrips.map(function(a){return a.trips;}),backgroundColor:'#2563EB'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#f0f0f0'},ticks:{font:{family:'Sarabun'}}},y:{grid:{display:false},ticks:{font:{family:'Sarabun',size:11}}}}}});
+
+  document.getElementById('ddrv-safety').innerHTML='<div style="color:var(--text-3);font-size:12.5px;line-height:1.8;padding:6px 0">ข้อมูลพฤติกรรมการขับ (เบรกแรง · ออกตัวแรง · เลี้ยวแรง · ความเร็วเกิน) อยู่ในระบบ <b>Cartrack</b> ซึ่งยังไม่ได้นำเข้า Supabase<br><span style="color:#92400E;font-weight:600">→ เฟสถัดไป: import Cartrack เพื่อโชว์คะแนนความปลอดภัยรายคน</span></div>';
+
+  var byT=arr.slice().sort(function(a,b){return b.trips-a.trips;}).slice(0,15);
+  document.getElementById('ddrv-table').innerHTML = byT.length?
+    '<table class="dfleet-tbl"><thead><tr><th>คนขับ</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">รายได้ที่ทำได้</th><th style="text-align:right">เบิก (ค่าแรง)</th><th style="text-align:right">รายได้/เที่ยว</th></tr></thead><tbody>'+
+    byT.map(function(a){ return '<tr><td style="font-weight:700">'+_finEsc(a.drv)+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right">฿'+_dashFmt(a.rev)+'</td><td style="text-align:right">฿'+_dashFmt(a.pay)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">฿'+_dashFmt(a.trips>0?(a.rev/a.trips):0)+'</td></tr>'; }).join('')+
+    '</tbody></table>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลคนขับในช่วงนี้</div>';
 }
 
 // ค่าทางด่วน M-Flow รถส่วนตัวกรรมการ (ตารางแยก gyt_personal_tolls — แสดงอย่างเดียว ไม่นับต้นทุนบริษัท)
