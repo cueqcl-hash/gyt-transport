@@ -18785,7 +18785,7 @@ function _dashEnsureFinData(){
   _dashFinDataPromise = (async function(){
     var tasks=[];
     if(typeof _BL_BILLS==='undefined' || !_BL_BILLS || !_BL_BILLS.length){
-      tasks.push(sbFetchAll('gyt_billings','?select=*&order=bill_date.desc&limit=2000').then(function(r){ try{ _BL_BILLS=r||[]; }catch(e){ window._BL_BILLS=r||[]; } }).catch(function(e){ console.warn('[dash] billings load', e); }));
+      tasks.push(sbFetchAll('gyt_billings','?select=*&order=bill_date.desc').then(function(r){ try{ _BL_BILLS=r||[]; }catch(e){ window._BL_BILLS=r||[]; } }).catch(function(e){ console.warn('[dash] billings load', e); }));
     }
     if(typeof _finFuelLogs==='undefined' || !_finFuelLogs || !_finFuelLogs.length){
       tasks.push(sbFetchAll('gyt_fuel_logs','?select=*&order=fuel_date.desc').then(function(r){ try{ _finFuelLogs=r||[]; }catch(e){ window._finFuelLogs=r||[]; } }).catch(function(e){ console.warn('[dash] fuel load', e); }));
@@ -29097,11 +29097,11 @@ function billingSwitchView(mode){
 async function billingLoadAll(){
   try{
     // 🆕 v116 — sort ใบล่าสุดอยู่บนสุด (bill_date desc, ตามด้วย created_at เป็น tiebreaker)
-    var url1 = SUPA_URL + '/rest/v1/gyt_billings?select=*&order=bill_date.desc,created_at.desc&limit=2000';
+    // 🆕 paginate ดึงบิลครบทุกใบ (Supabase cap 1000/request → ต้อง sbFetchAll ไม่งั้นเห็นแค่ 1000)
     var url2 = SUPA_URL + '/rest/v1/gyt_billing_master?select=*&is_active=eq.true&order=customer_code.asc&limit=200';
     var h = {apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY};
     var [b, m] = await Promise.all([
-      fetch(url1, {headers:h}).then(function(r){return r.json();}),
+      sbFetchAll('gyt_billings','?select=*&order=bill_date.desc,created_at.desc'),
       fetch(url2, {headers:h}).then(function(r){return r.json();})
     ]);
     _BL_BILLS = Array.isArray(b) ? b : [];
