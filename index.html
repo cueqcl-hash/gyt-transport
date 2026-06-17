@@ -5560,8 +5560,8 @@ function initApp(){
     {id:'receipts',icon:'📋',label:'บันทึกใบเสร็จ',     perm:'manage_receipts'},  // 🆕 v083
     {id:'billing', icon:'📑',label:'ใบวางบิล',           perm:'manage_billing'},   // 🆕 v114
     {id:'maintenance',icon:'🛠',label:'ซ่อมบำรุงรถ',       perm:'view_maintenance'}, // Phase 1A
-    {id:'reconcile',icon:'🧮',label:'รวมค่าใช้จ่าย (ปิดบัญชี)', perm:'view_closing_sum', stagingOnly:true},   // 🆕 รวม+กระทบยอดค่าใช้จ่ายที่ปิดบัญชี ↔ งานขนส่ง (เห็นเฉพาะ กรรมการ/PISOLN/DONUT)
-    {id:'closing',  icon:'🧾',label:'ปิดรอบค่าใช้จ่าย',     perm:'manage_closing', stagingOnly:true},   // 🆕 ใบปิดรอบค่าใช้จ่าย (คนโอน) — staging only
+    {id:'reconcile',icon:'🧮',label:'รวมค่าใช้จ่าย (ปิดบัญชี)', perm:'view_closing_sum'},   // 🆕 รวม+กระทบยอดค่าใช้จ่ายที่ปิดบัญชี ↔ งานขนส่ง (เห็นเฉพาะ กรรมการ/PISOLN/DONUT) — เปิด prod v186
+    {id:'closing',  icon:'🧾',label:'ปิดรอบค่าใช้จ่าย',     perm:'manage_closing'},   // 🆕 ใบปิดรอบค่าใช้จ่าย (คนโอน) — เปิด prod v186
     {id:'inspection',icon:'✅',label:'ตรวจสภาพรถ',          perm:'view_inspection'},   // Phase 1A
     {id:'subcontractors',icon:'🚚',label:'รถร่วม',        perm:'manage_billing'}, // 🆕 v181 — รถร่วม (น้าปุ้ม)
     {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
