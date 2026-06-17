@@ -1248,6 +1248,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           .bl-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10.5px;font-weight:600;letter-spacing:0.02em}
           .bl-badge.draft{background:#F3F4F6;color:#6B7280}
           .bl-badge.issued{background:#FEF3C7;color:#92400E}
+          .bl-badge.unpaid{background:#FEF3C7;color:#92400E}
           .bl-badge.paid{background:#D1FAE5;color:#065F46}
           .bl-row-hover:hover{background:#F9FAFB;cursor:pointer}
         </style>
@@ -24365,7 +24366,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.179';
+const APP_VERSION = '2026.04.29.180';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -29073,7 +29074,7 @@ function billingRenderStats(){
   var bills = _BL_BILLS;
   var total = bills.length;
   var draft = bills.filter(function(b){return b.status==='draft';});
-  var issued = bills.filter(function(b){return b.status==='issued';});
+  var issued = bills.filter(function(b){return b.status==='unpaid' || b.status==='issued';});
   var paid = bills.filter(function(b){return b.status==='paid';});
   var totalAmt = bills.reduce(function(s,b){return s+(+b.net_amt||0);}, 0);
   var issuedAmt = issued.reduce(function(s,b){return s+(+b.net_amt||0);}, 0);
@@ -29105,7 +29106,7 @@ function billingRenderIssued(){
   tbody.innerHTML = bills.map(function(b){
     var snap = b.customer_snapshot||{};
     var items = Array.isArray(b.line_items) ? b.line_items.length : 0;
-    var statusLabel = {draft:'📝 ร่าง', issued:'📤 ออกใบแล้ว', paid:'✅ จ่ายแล้ว'}[b.status] || b.status;
+    var statusLabel = {draft:'📝 ร่าง', issued:'📤 ออกใบแล้ว', unpaid:'📤 ค้างจ่าย', paid:'✅ จ่ายแล้ว'}[b.status] || b.status;
     return '<tr class="bl-row-hover">'+
       '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--green-d);font-weight:600">'+_bl_esc(b.bill_no)+'</td>'+
       '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11.5px;color:var(--text-2)">'+_bl_date(b.bill_date)+'</td>'+
@@ -29119,7 +29120,7 @@ function billingRenderIssued(){
       '</td>'+
       '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+
         '<button class="tbl-action tbl-icon-btn" onclick="billingViewBill('+b.id+')" data-tip="ดูใบวางบิล" style="color:var(--green)">👁</button>'+
-        (b.status==='issued' ? '<button class="tbl-action tbl-icon-btn" onclick="billingMarkPaid('+b.id+')" data-tip="บันทึกว่าจ่ายแล้ว" style="color:#10B981">💰</button>' : '')+
+        ((b.status==='unpaid' || b.status==='issued') ? '<button class="tbl-action tbl-icon-btn" onclick="billingMarkPaid('+b.id+')" data-tip="บันทึกว่าจ่ายแล้ว" style="color:#10B981">💰</button>' : '')+
       '</td>'+
       '</tr>';
   }).join('');
@@ -29310,7 +29311,7 @@ async function billingCreateBill(){
       wht_pct_snapshot: wht_pct, wht_amt: wht_amt,
       vat_pct_snapshot: vat_pct, vat_amt: vat_amt,
       net_amt: net_amt,
-      status: 'draft',
+      status: 'unpaid',
       created_by: currentUser ? (currentUser.fname+' '+currentUser.lname).trim() : 'unknown'
     };
     var resp = await fetch(SUPA_URL+'/rest/v1/gyt_billings', {
@@ -31089,4 +31090,4 @@ async function rcptLoadDoneList(){
   </div>
 </div>
 </div>
-<!-- deploy v179 — fix Billing Party ใช้ข้อมูล Shipper (master เก่าหาย) -->
+<!-- deploy v180 — fix billing status filter 'issued'/'draft' → 'unpaid'/'paid' (cards+mark-paid+createBill) -->
