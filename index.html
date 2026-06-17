@@ -18786,7 +18786,7 @@ async function renderFinanceDashboard(){
   // คำนวณยอดของช่วงวันที่ที่กำหนด
   function calc(sc){
     var rev=0, opCost=0, n=0, nPriced=0, fuel=0, maint=0;
-    var brk={trip:0,toll:0,other:0};
+    var brk={trip:0,toll:0,recv:0,box:0,ret:0,port:0,move:0,misc:0};
     jobs.forEach(function(j){
       if(j.status==='ยกเลิก') return;
       if(!_dashInPr(j.startdate, sc)) return;
@@ -18794,9 +18794,9 @@ async function renderFinanceDashboard(){
       var r=_dashJobRevenue(j); if(r>0){ rev+=r; nPriced++; }
       var c=j.costs||{};
       brk.trip+=_dashPickAmt(c,'trip'); brk.toll+=_dashPickAmt(c,'toll');
-      brk.other+=_dashPickAmt(c,'box')+_dashPickAmt(c,'recv')+_dashPickAmt(c,'ret')+_dashPickAmt(c,'port')+_dashPickAmt(c,'move')+_dashPickAmt(c,'misc');
+      brk.recv+=_dashPickAmt(c,'recv'); brk.box+=_dashPickAmt(c,'box'); brk.ret+=_dashPickAmt(c,'ret'); brk.port+=_dashPickAmt(c,'port'); brk.move+=_dashPickAmt(c,'move'); brk.misc+=_dashPickAmt(c,'misc');
     });
-    opCost=brk.trip+brk.toll+brk.other;
+    opCost=brk.trip+brk.toll+brk.recv+brk.box+brk.ret+brk.port+brk.move+brk.misc;
     FL.forEach(function(f){ if(_dashInPr(f.fuel_date,sc)) fuel+=(parseFloat(f.amount)||((parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0))); });
     MT.forEach(function(r){ if(_dashInPr(r.service_date,sc)) maint+=(parseFloat(r.total_amount)||0); });
     var cost=opCost+fuel+maint;
@@ -18852,7 +18852,7 @@ async function renderFinanceDashboard(){
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:13,font:{family:'Sarabun'}}}},scales:{y:{ticks:{callback:function(v){return '฿'+_dashFmtM(v);},font:{family:'Sarabun'}},grid:{color:'#f0f0f0'}},x:{grid:{display:false},ticks:{font:{family:'Sarabun'}}}}}});
 
   // ===== cost donut =====
-  _dashMkChart('dashCostChart',{type:'doughnut',data:{labels:['น้ำมัน','เบิกคนขับ','ค่าซ่อม','ทางด่วน','อื่นๆ'],datasets:[{data:[Math.round(cur.fuel),Math.round(cur.brk.trip),Math.round(cur.maint),Math.round(cur.brk.toll),Math.round(cur.brk.other)],backgroundColor:['#DC2626','#2563EB','#D97706','#7C3AED','#9CA3AF'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{boxWidth:12,font:{family:'Sarabun',size:12}}}}}});
+  _dashMkChart('dashCostChart',{type:'doughnut',data:{labels:['น้ำมัน','เบิกคนขับ','ค่าซ่อม','ทางด่วน','รับตู้','ยกตู้','คืนตู้','ผ่านท่า','ย้ายตู้','อื่นๆ'],datasets:[{data:[Math.round(cur.fuel),Math.round(cur.brk.trip),Math.round(cur.maint),Math.round(cur.brk.toll),Math.round(cur.brk.recv),Math.round(cur.brk.box),Math.round(cur.brk.ret),Math.round(cur.brk.port),Math.round(cur.brk.move),Math.round(cur.brk.misc)],backgroundColor:['#DC2626','#2563EB','#D97706','#7C3AED','#0EA5E9','#14B8A6','#F59E0B','#8B5CF6','#EC4899','#9CA3AF'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:11,font:{family:'Sarabun',size:11}}}}}});
 
   // ===== AR list =====
   var arArr=Object.keys(arByCust).map(function(k){return {nm:k,amt:arByCust[k].amt,oldest:arByCust[k].oldest};}).sort(function(a,b){return b.amt-a.amt;}).slice(0,6);
