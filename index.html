@@ -19922,8 +19922,44 @@ async function _rateLoad(){
     var rows = await sbFetchAll('gyt_customer_rates', '?is_active=eq.true&select=shipper,agent,origin,dest,route_text,size,price,trips,source_type,as_of,fuel_tiers');
     _rateDB = rows || [];
     console.log('[rates] loaded', _rateDB.length);
-  } catch(e){ console.warn('[rates] load failed:', e.message); _rateDB = []; }
+    await _rateMergeLiveBills();   // 🆕 v183 — ผสมราคาจากบิลจริงแบบสด
+  } catch(e){ console.warn('[rates] load failed:', e.message); _rateDB = _rateDB || []; }
   finally { _rateLoading = false; }
+}
+// 🆕 v183 — ผสมราคาจากบิลจริง (gyt_billings) เข้า _rateDB แบบสด
+//   ราคาเปลี่ยน = จุดใหม่ (as_of ใหม่ → ชนะตอนจัดอันดับ) · ราคาเท่าเดิม = รวม trips (ไม่ลบของเก่า)
+async function _rateMergeLiveBills(){
+  try{
+    var bills = (typeof _BL_BILLS!=='undefined' && _BL_BILLS && _BL_BILLS.length) ? _BL_BILLS
+              : await sbFetchAll('gyt_billings','?select=bill_date,customer_snapshot,line_items&order=bill_date.desc&limit=1500');
+    if(!bills || !bills.length) return;
+    var agg = {};
+    bills.forEach(function(b){
+      var cust = (b.customer_snapshot && b.customer_snapshot.name) ? b.customer_snapshot.name : '';
+      var curShipper = '';
+      (b.line_items || []).forEach(function(it){
+        var desc = String(it.desc||'').trim();
+        var sm = desc.match(/^ค่าขนส่ง\s*[:：]\s*(.+)/);   // บรรทัดหัว shipper
+        if(sm){ curShipper = sm[1].trim(); return; }
+        var freight = Number(it.amt_freight)||0;
+        if(freight <= 0) return;                            // เอาเฉพาะบรรทัดค่าขนส่ง
+        if(/^(ค่าคืนตู้|ค่าลงของ|รวม|หัก|บวก|เบอร์ตู้|ลานคืนตู้|ค่าเสียเวลา)/.test(desc)) return;
+        var per = null, pm = desc.match(/@\s*([\d,]+(?:\.\d+)?)/);
+        if(pm){ per = parseFloat(pm[1].replace(/,/g,'')); }
+        var qm = String(it.container_size||'').match(/[xX*]\s*(\d+)/); var qty = qm ? parseInt(qm[1],10) : 1;
+        if(per==null){ per = (qty>0) ? freight/qty : freight; }
+        if(!per || per<=0) return;
+        var route = desc.replace(/\(\s*@.*$/,'').replace(/\[.*$/,'').trim();   // ตัด "( @ .. )" / "[ .. ]" ท้าย
+        var size = _rateSizeFromType(it.container_size) || (String(it.container_size||'').indexOf('40')>=0 ? "40'" : "20'");
+        var asof = it.date || b.bill_date || '';
+        var key = (curShipper||cust)+'|'+route+'|'+size+'|'+Math.round(per);
+        if(!agg[key]){ agg[key] = {shipper:(curShipper||null), agent:cust, origin:null, dest:null, route_text:route, size:size, price:per, trips:0, source_type:'bill-live', as_of:asof, fuel_tiers:null}; }
+        var a = agg[key]; a.trips++; if(String(asof) > String(a.as_of)) a.as_of = asof;
+      });
+    });
+    var live = Object.keys(agg).map(function(k){ return agg[k]; });
+    if(live.length){ _rateDB = _rateDB.concat(live); console.log('[rates] +live bills', live.length); }
+  }catch(e){ console.warn('[rates] live-merge failed:', e.message); }
 }
 function _rateSizeFromType(t){
   t = String(t||'');
@@ -20024,7 +20060,8 @@ function _rateScoreRows(size, sh, cuKey, oTok, dTok, rTok){
     if((r.trips||0) >= 3) score += 1;
     if(score >= 4) out.push({row:r, score:score});
   }
-  out.sort(function(a,b){ return b.score - a.score || (b.row.trips||0) - (a.row.trips||0); });
+  // v183 — score ก่อน, แล้ว as_of ใหม่สุด (ราคาล่าสุดชนะ), แล้วค่อย trips
+  out.sort(function(a,b){ return (b.score - a.score) || String(b.row.as_of||'').localeCompare(String(a.row.as_of||'')) || ((b.row.trips||0) - (a.row.trips||0)); });
   return out;
 }
 function _rateSuggest(shipper, customer, origin, dest, returnyard, ctype){
@@ -24774,7 +24811,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.182';
+const APP_VERSION = '2026.04.29.183';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -29445,6 +29482,7 @@ async function billingLoadAll(){
     ]);
     _BL_BILLS = Array.isArray(b) ? b : [];
     _BL_MASTER = Array.isArray(m) ? m : [];
+    if(typeof _rateDB!=='undefined'){ _rateDB = null; }  // 🆕 v183 — บิลอัปเดต → ให้ราคาแนะนำรีเฟรชสดรอบหน้า
     billingRenderStats();
     billingRenderIssued();
     billingRenderMaster();
