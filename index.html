@@ -5629,9 +5629,9 @@ const SD_DATA = {
   'fj-shipper':  ()=>shippers.map(s=>({label:s.name,value:s.name,sub:s.taxid||''})),
   'mc-customer': function(){return customers.map(function(c){return {label:c.name,value:c.name,sub:(c.code?'['+c.code+'] ':'')+( c.phone||''),phone:c.phone||''};});},
   'mc-shipper':  ()=>shippers.map(s=>({label:s.name,value:s.name,sub:s.taxid||''})),
-  // 🆕 v106 fix — register billing party here so it's always available (was only set by populateBillingDropdown which may not run on boot)
-  'fj-billing-party': function(){return (window.billings||[]).map(function(b){return {label:b.name,value:b.name,sub:(b.taxid?'Tax ID: '+b.taxid:'')+(b.note?' | '+b.note:'')};});},
-  'mc-billing-party': function(){return (window.billings||[]).map(function(b){return {label:b.name,value:b.name,sub:(b.taxid?'Tax ID: '+b.taxid:'')+(b.note?' | '+b.note:'')};});},
+  // 🆕 Billing Party ใช้ข้อมูล Shipper (ตาราง gyt_billings ถูก invoices ยึดไป master เก่าหาย → ใช้ shippers แทน)
+  'fj-billing-party': function(){return shippers.map(function(s){return {label:s.name,value:s.name,sub:(s.taxid?'Tax ID: '+s.taxid:'')};});},
+  'mc-billing-party': function(){return shippers.map(function(s){return {label:s.name,value:s.name,sub:(s.taxid?'Tax ID: '+s.taxid:'')};});},
   // 🆕 v105 — Calculator dropdowns (origin/stop/dest) using sd-* for proper arrow key navigation
   'gc-origin': function(){return [{label:'ท่าเรือกรุงเทพ'},{label:'ท่าเรือแหลมฉบัง'},{label:'PAT (ท่าเรือกรุงเทพ)'},{label:'PORT (ท่าเรือ)'}].map(function(o){o.value=o.label;return o;});},
   'gc-dest':   function(){return [{label:'ท่าเรือกรุงเทพ'},{label:'ท่าเรือแหลมฉบัง'},{label:'PAT (ท่าเรือกรุงเทพ)'},{label:'PORT (ท่าเรือ)'}].map(function(o){o.value=o.label;return o;});},
@@ -6113,7 +6113,7 @@ function sdBillingBlur(id){
     var fp=id.startsWith('fj')?'fj':'mc';
     var val=sdGetValue(id);
     if(val){
-      var b=billings.find(function(x){return x.name===val;});
+      var b=shippers.find(function(x){return x.name===val;});  // 🆕 Billing Party ใช้ shippers แทน billings ที่หาย
       if(b){
         var rn=document.getElementById(fp+'-receipt-name');if(rn)rn.value=b.name;
         var ra=document.getElementById(fp+'-receipt-addr');if(ra)ra.value=b.addr||'';
@@ -6212,8 +6212,8 @@ function deleteBilling(id){
   showToast('ลบข้อมูลเรียบร้อย');
 }
 function populateBillingDropdown(){
-  // Update SD_DATA for billing fields
-  SD_DATA['fj-billing-party'] = function(){return billings.map(function(b){return {label:b.name,value:b.name,sub:(b.taxid?'Tax ID: '+b.taxid:'')+(b.note?' | '+b.note:'')};});};
+  // 🆕 Billing Party ใช้ข้อมูล Shipper (master เก่าใน gyt_billings หาย — ใช้ shippers แทน)
+  SD_DATA['fj-billing-party'] = function(){return shippers.map(function(s){return {label:s.name,value:s.name,sub:(s.taxid?'Tax ID: '+s.taxid:'')};});};
   SD_DATA['mc-billing-party'] = SD_DATA['fj-billing-party'];
 }
 
