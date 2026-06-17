@@ -1928,6 +1928,245 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   
       </div>
 
+      <!-- ════════════ รถร่วม (Subcontractor) — v181 ════════════ -->
+      <div id="pg-subcontractors" class="screen">
+        <style>
+          .rr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+          .rr-stat{background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 14px;border-left:4px solid var(--green)}
+          .rr-stat.total{border-left-color:#3B82F6}
+          .rr-stat.paid{border-left-color:#10B981}
+          .rr-stat.unpaid{border-left-color:#F59E0B}
+          .rr-stat-label{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:600}
+          .rr-stat-value{font-size:22px;font-weight:700;color:var(--text-1);margin-top:4px;font-family:var(--mono)}
+          .rr-stat-sub{font-size:11px;color:var(--text-3);margin-top:2px}
+          .rr-bar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+          .rr-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10.5px;font-weight:600;cursor:pointer;border:none}
+          .rr-badge.paid{background:#D1FAE5;color:#065F46}
+          .rr-badge.unpaid{background:#FEF3C7;color:#92400E}
+          .rr-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+          .rr-tbl thead tr{background:#F2F7F4}
+          .rr-tbl th{padding:8px 9px;text-align:left;font-weight:600;color:var(--text-2);border-bottom:2px solid var(--border);white-space:nowrap}
+          .rr-tbl td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top}
+          .rr-tbl tbody tr:hover{background:#F9FAFB}
+          .rr-note{background:#FEF9E7;border:1px solid #F7E08A;border-radius:8px;padding:11px 14px;font-size:12.5px;color:#7a5d00;margin-bottom:14px}
+          .rr-iconbtn{background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;opacity:0.7}
+          .rr-iconbtn:hover{opacity:1}
+          .rr-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9000;align-items:center;justify-content:center}
+          .rr-modal-bg.open{display:flex}
+          .rr-modal{background:#fff;border-radius:12px;padding:20px;width:min(560px,92vw);max-height:90vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,0.25)}
+          .rr-modal h3{margin:0 0 14px;font-size:16px;color:var(--text-1)}
+          .rr-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+          .rr-fld{margin-bottom:10px}
+          .rr-fld label{display:block;font-size:11.5px;color:var(--text-2);margin-bottom:3px;font-weight:600}
+        </style>
+
+        <div class="rr-note" id="rr-note">
+          🚚 <b>รถร่วม</b> — บันทึกงานที่จ้างรถร่วมวิ่ง + ติดตามการจ่ายเงิน (ต้นทุน ไม่ใช่รายได้ จึงแยกจากใบวางบิล)
+        </div>
+
+        <div class="rr-stats" id="rr-stats">
+          <div class="rr-stat total"><div class="rr-stat-label">รวมงานรถร่วม</div><div class="rr-stat-value" id="rr-s-jobs">—</div><div class="rr-stat-sub" id="rr-s-subs">— เจ้า</div></div>
+          <div class="rr-stat"><div class="rr-stat-label">ค่าจ้างรวม</div><div class="rr-stat-value" id="rr-s-hire">—</div><div class="rr-stat-sub">บาท (ต้นทุน)</div></div>
+          <div class="rr-stat paid"><div class="rr-stat-label">จ่ายแล้ว</div><div class="rr-stat-value" id="rr-s-paid">—</div><div class="rr-stat-sub">บาท</div></div>
+          <div class="rr-stat unpaid"><div class="rr-stat-label">ค้างจ่าย</div><div class="rr-stat-value" id="rr-s-unpaid">—</div><div class="rr-stat-sub">บาท</div></div>
+        </div>
+
+        <div class="rr-bar">
+          <button class="btn btn-green" onclick="rrOpenForm()" style="height:32px"><span>➕</span> เพิ่มงานรถร่วม</button>
+          <select class="fi" id="rr-flt-sub" onchange="rrRender()" style="width:170px;height:32px"><option value="">เจ้ารถร่วม: ทั้งหมด</option></select>
+          <select class="fi" id="rr-flt-status" onchange="rrRender()" style="width:140px;height:32px">
+            <option value="">สถานะ: ทั้งหมด</option><option value="unpaid">ค้างจ่าย</option><option value="paid">จ่ายแล้ว</option>
+          </select>
+          <input class="fi" id="rr-flt-q" placeholder="🔍 ค้นลูกค้า / ปลายทาง / ตู้..." oninput="rrRender()" style="flex:1;min-width:180px;height:32px">
+          <button class="btn btn-ghost" onclick="rrLoad()" style="height:32px"><span>🔄</span> Refresh</button>
+        </div>
+
+        <div class="tbl-wrap"><div class="tbl-scroll">
+          <table class="rr-tbl">
+            <thead><tr>
+              <th>วันที่</th><th>เจ้ารถร่วม</th><th>ลูกค้า</th><th>ปลายทาง</th><th>ตู้</th>
+              <th style="text-align:right">ค่าจ้าง</th><th style="text-align:right">ค่าคืนตู้</th><th>สถานะ</th><th></th>
+            </tr></thead>
+            <tbody id="rr-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-3)">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div></div>
+
+        <!-- Add/Edit modal -->
+        <div class="rr-modal-bg" id="rr-modal-bg" onclick="if(event.target===this)rrCloseForm()">
+          <div class="rr-modal">
+            <h3 id="rr-modal-title">เพิ่มงานรถร่วม</h3>
+            <div class="rr-grid2">
+              <div class="rr-fld"><label>เจ้ารถร่วม *</label><input class="fi" id="rr-f-sub" list="rr-sublist" placeholder="เช่น พี่โย่ง"><datalist id="rr-sublist"></datalist></div>
+              <div class="rr-fld"><label>วันที่ (วว/ดด/ปปปป พ.ศ.)</label><input class="fi" id="rr-f-date" placeholder="08/10/2568"></div>
+            </div>
+            <div class="rr-grid2">
+              <div class="rr-fld"><label>ลูกค้า</label><input class="fi" id="rr-f-cust"></div>
+              <div class="rr-fld"><label>ปลายทาง</label><input class="fi" id="rr-f-dest"></div>
+            </div>
+            <div class="rr-grid2">
+              <div class="rr-fld"><label>ขนาดตู้</label><input class="fi" id="rr-f-size" placeholder="40*1"></div>
+              <div class="rr-fld"><label>เบอร์ตู้</label><input class="fi" id="rr-f-cont"></div>
+            </div>
+            <div class="rr-grid2">
+              <div class="rr-fld"><label>ค่าจ้าง (บาท) *</label><input class="fi" id="rr-f-hire" type="number" step="0.01"></div>
+              <div class="rr-fld"><label>ค่าคืนตู้ (บาท)</label><input class="fi" id="rr-f-ret" type="number" step="0.01"></div>
+            </div>
+            <div class="rr-grid2">
+              <div class="rr-fld"><label>สถานะ</label><select class="fi" id="rr-f-status"><option value="unpaid">ค้างจ่าย</option><option value="paid">จ่ายแล้ว</option></select></div>
+              <div class="rr-fld"><label>เลขที่ใบ (voucher)</label><input class="fi" id="rr-f-voucher" placeholder="68/001"></div>
+            </div>
+            <div class="rr-fld"><label>หมายเหตุ</label><input class="fi" id="rr-f-note"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+              <button class="btn btn-ghost" onclick="rrCloseForm()">ยกเลิก</button>
+              <button class="btn btn-green" id="rr-save-btn" onclick="rrSaveJob()">บันทึก</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+      // ════════════ รถร่วม (Subcontractor) feature — v181 ════════════
+      var _rrJobs = [], _rrSubs = [], _rrEditId = null, _rrLoadedOnce = false;
+      function rrFmt(n){ n=Number(n)||0; return n.toLocaleString('en-US',{maximumFractionDigits:2}); }
+      function rrEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+      function rrDateDisp(iso){ if(!iso) return '-'; var p=String(iso).split('T')[0].split('-'); if(p.length<3) return iso; return p[2]+'/'+p[1]+'/'+p[0]; }
+      function rrToIso(s){ var m=String(s||'').match(/(\d{1,2})\D+(\d{1,2})\D+(\d{2,4})/); if(!m) return null; var y=m[3]; if(y.length<=2) y='25'+y; return y+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2); }
+
+      function rrInit(){ if(!_rrLoadedOnce){ rrLoad(); } else { rrRender(); } }
+
+      async function rrLoad(){
+        var tb=document.getElementById('rr-tbody');
+        if(tb) tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-3)">กำลังโหลด...</td></tr>';
+        var jobs=null, subs=null;
+        try{ jobs=await sbFetch('gyt_subcontractor_jobs','GET',null,'?order=job_date.desc'); }catch(e){ jobs=null; }
+        try{ subs=await sbFetch('gyt_subcontractors','GET',null,'?order=name'); }catch(e){ subs=null; }
+        if(jobs===null){
+          // offline / preview / ตารางยังไม่ถูกสร้างใน Supabase
+          _rrJobs=[]; _rrSubs=[]; _rrLoadedOnce=true;
+          if(tb) tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--text-3);line-height:1.7">'+
+            '⛅ ยังเชื่อมต่อฐานข้อมูลไม่ได้ หรือ <b>ตาราง gyt_subcontractor_jobs ยังไม่ถูกสร้าง</b><br>'+
+            '<span style="font-size:11.5px">ให้รัน <code>rr_schema.sql</code> ใน Supabase → SQL Editor ก่อน แล้วกด Refresh<br>ข้อมูลรถร่วม 746,860 บาท (10 เจ้า) พร้อม import</span></td></tr>';
+          rrStatsDash(true); return;
+        }
+        _rrJobs=jobs||[]; _rrSubs=subs||[]; _rrLoadedOnce=true;
+        rrFillSubSelectors(); rrRender();
+      }
+
+      function rrSubNames(){
+        var set={};
+        _rrSubs.forEach(function(s){ if(s.name) set[s.name]=1; });
+        _rrJobs.forEach(function(j){ if(j.subcontractor_name) set[j.subcontractor_name]=1; });
+        return Object.keys(set).sort();
+      }
+      function rrFillSubSelectors(){
+        var names=rrSubNames();
+        var flt=document.getElementById('rr-flt-sub');
+        if(flt){ var cur=flt.value; flt.innerHTML='<option value="">เจ้ารถร่วม: ทั้งหมด</option>'+names.map(function(n){return '<option value="'+rrEsc(n)+'">'+rrEsc(n)+'</option>';}).join(''); flt.value=cur; }
+        var dl=document.getElementById('rr-sublist');
+        if(dl) dl.innerHTML=names.map(function(n){return '<option value="'+rrEsc(n)+'">';}).join('');
+      }
+
+      function rrFiltered(){
+        var fs=(document.getElementById('rr-flt-sub')||{}).value||'';
+        var fst=(document.getElementById('rr-flt-status')||{}).value||'';
+        var q=((document.getElementById('rr-flt-q')||{}).value||'').toLowerCase().trim();
+        return _rrJobs.filter(function(j){
+          if(fs && j.subcontractor_name!==fs) return false;
+          if(fst && (j.status||'unpaid')!==fst) return false;
+          if(q){ var hay=((j.customer||'')+' '+(j.destination||'')+' '+(j.container_no||'')+' '+(j.subcontractor_name||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+          return true;
+        });
+      }
+
+      function rrStatsDash(empty){
+        var rows=empty?[]:_rrJobs;
+        var subs={}, hire=0, paid=0, unpaid=0;
+        rows.forEach(function(j){ if(j.subcontractor_name) subs[j.subcontractor_name]=1; var h=Number(j.hire_amount)||0; hire+=h; if((j.status||'unpaid')==='paid') paid+=h; else unpaid+=h; });
+        var set=function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+        set('rr-s-jobs', empty?'—':rows.length); set('rr-s-subs',(empty?0:Object.keys(subs).length)+' เจ้า');
+        set('rr-s-hire', empty?'—':rrFmt(hire)); set('rr-s-paid', empty?'—':rrFmt(paid)); set('rr-s-unpaid', empty?'—':rrFmt(unpaid));
+      }
+
+      function rrRender(){
+        rrStatsDash(false);
+        var tb=document.getElementById('rr-tbody'); if(!tb) return;
+        var rows=rrFiltered();
+        if(!rows.length){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-3)">ไม่มีงานรถร่วมตามเงื่อนไข</td></tr>'; return; }
+        tb.innerHTML=rows.map(function(j){
+          var st=(j.status||'unpaid');
+          var stLabel=st==='paid'?'✅ จ่ายแล้ว':'⏳ ค้างจ่าย';
+          var tu=(rrEsc(j.container_size||'')+(j.container_no?' / '+rrEsc(j.container_no):'')) || '-';
+          return '<tr>'+
+            '<td style="white-space:nowrap">'+rrDateDisp(j.job_date)+'</td>'+
+            '<td>'+rrEsc(j.subcontractor_name||'-')+'</td>'+
+            '<td>'+rrEsc(j.customer||'-')+'</td>'+
+            '<td>'+rrEsc(j.destination||'-')+'</td>'+
+            '<td>'+tu+'</td>'+
+            '<td style="text-align:right;font-family:var(--mono)">'+rrFmt(j.hire_amount)+'</td>'+
+            '<td style="text-align:right;font-family:var(--mono);color:var(--text-3)">'+rrFmt(j.container_return)+'</td>'+
+            '<td><button class="rr-badge '+st+'" onclick="rrTogglePaid('+j.id+')" title="คลิกเพื่อสลับสถานะ">'+stLabel+'</button></td>'+
+            '<td style="white-space:nowrap"><button class="rr-iconbtn" onclick="rrOpenForm('+j.id+')" title="แก้ไข">✏️</button>'+
+            '<button class="rr-iconbtn" onclick="rrDelete('+j.id+')" title="ลบ">🗑️</button></td>'+
+          '</tr>';
+        }).join('');
+      }
+
+      async function rrTogglePaid(id){
+        var j=_rrJobs.find(function(x){return x.id===id;}); if(!j) return;
+        var ns=(j.status||'unpaid')==='paid'?'unpaid':'paid';
+        var patch={status:ns, paid_date: ns==='paid'? (j.job_date||null) : null, paid_amount: ns==='paid'? (Number(j.hire_amount)||0) : null};
+        var r=await sb.update('gyt_subcontractor_jobs', id, patch);
+        if(r===null){ alert('บันทึกไม่สำเร็จ (เชื่อมต่อฐานข้อมูลไม่ได้)'); return; }
+        j.status=ns; j.paid_date=patch.paid_date; j.paid_amount=patch.paid_amount; rrRender();
+      }
+
+      function rrOpenForm(id){
+        _rrEditId=id||null;
+        var j= id? _rrJobs.find(function(x){return x.id===id;}) : null;
+        document.getElementById('rr-modal-title').textContent= j? 'แก้ไขงานรถร่วม' : 'เพิ่มงานรถร่วม';
+        var v=function(elid,val){ document.getElementById(elid).value=(val==null?'':val); };
+        v('rr-f-sub', j&&j.subcontractor_name); v('rr-f-date', j? rrDateDisp(j.job_date):'');
+        v('rr-f-cust', j&&j.customer); v('rr-f-dest', j&&j.destination);
+        v('rr-f-size', j&&j.container_size); v('rr-f-cont', j&&j.container_no);
+        v('rr-f-hire', j&&j.hire_amount); v('rr-f-ret', j&&j.container_return);
+        document.getElementById('rr-f-status').value=(j&&j.status)||'unpaid';
+        v('rr-f-voucher', j&&j.voucher_no); v('rr-f-note', j&&j.note);
+        rrFillSubSelectors();
+        document.getElementById('rr-modal-bg').classList.add('open');
+      }
+      function rrCloseForm(){ document.getElementById('rr-modal-bg').classList.remove('open'); _rrEditId=null; }
+
+      async function rrSaveJob(){
+        var g=function(elid){ return (document.getElementById(elid).value||'').trim(); };
+        var name=g('rr-f-sub'); var hire=Number(g('rr-f-hire'))||0;
+        if(!name){ alert('กรุณาใส่ชื่อเจ้ารถร่วม'); return; }
+        if(hire<=0){ alert('กรุณาใส่ค่าจ้าง'); return; }
+        var status=document.getElementById('rr-f-status').value||'unpaid';
+        var row={ subcontractor_name:name, job_date: rrToIso(g('rr-f-date')), customer:g('rr-f-cust'), destination:g('rr-f-dest'),
+          container_size:g('rr-f-size'), container_no:g('rr-f-cont'), hire_amount:hire, container_return:Number(g('rr-f-ret'))||0,
+          status:status, voucher_no:g('rr-f-voucher'), note:g('rr-f-note'),
+          paid_date: status==='paid'? (rrToIso(g('rr-f-date'))||null):null, paid_amount: status==='paid'? hire:null,
+          source:'manual', created_by:'webapp' };
+        var btn=document.getElementById('rr-save-btn'); btn.disabled=true; btn.textContent='กำลังบันทึก...';
+        try{
+          // auto-create subcontractor master row if new
+          if(rrSubNames().indexOf(name)<0){ try{ await sb.insert('gyt_subcontractors',{name:name}); }catch(e){} }
+          var res;
+          if(_rrEditId){ res=await sb.update('gyt_subcontractor_jobs', _rrEditId, row); }
+          else { res=await sb.insert('gyt_subcontractor_jobs', row); }
+          if(res===null){ alert('บันทึกไม่สำเร็จ — เชื่อมต่อฐานข้อมูลไม่ได้ หรือยังไม่ได้สร้างตาราง'); }
+          else { rrCloseForm(); await rrLoad(); }
+        } finally { btn.disabled=false; btn.textContent='บันทึก'; }
+      }
+
+      async function rrDelete(id){
+        if(!confirm('ลบงานรถร่วมนี้?')) return;
+        var r=await sb.delete('gyt_subcontractor_jobs', id);
+        if(r===null){ alert('ลบไม่สำเร็จ (เชื่อมต่อฐานข้อมูลไม่ได้)'); return; }
+        _rrJobs=_rrJobs.filter(function(x){return x.id!==id;}); rrRender();
+      }
+      </script>
+
       <!-- MAINTENANCE — Phase 1B (Tabs + อู่ซ่อม + รอบซ่อม) -->
       <div id="pg-maintenance" class="screen">
         <!-- Tabs -->
@@ -5221,6 +5460,7 @@ function initApp(){
     {id:'maintenance',icon:'🛠',label:'ซ่อมบำรุงรถ',       perm:'view_maintenance'}, // Phase 1A
     {id:'payouts',  icon:'💸',label:'ค่าใช้จ่ายคนรถ',       perm:'manage_finance', stagingOnly:true},   // 🆕 v153 — Driver Payouts (staging only)
     {id:'inspection',icon:'✅',label:'ตรวจสภาพรถ',          perm:'view_inspection'},   // Phase 1A
+    {id:'subcontractors',icon:'🚚',label:'รถร่วม',        perm:'manage_billing'}, // 🆕 v181 — รถร่วม (น้าปุ้ม)
     {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
   ];
   const visibleNav = ALL_NAV.filter(function(n){
@@ -5294,7 +5534,7 @@ function goPage(id, opts){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('pg-'+id)?.classList.add('active');
   document.getElementById('nav-'+id)?.classList.add('active');
-  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ',receipts:'บันทึกใบเสร็จเข้าออฟฟิศ',finance:'การเงิน',billing:'ใบวางบิล (น้าปุ้ม)',payouts:'ค่าใช้จ่ายคนรถ'};
+  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ',receipts:'บันทึกใบเสร็จเข้าออฟฟิศ',finance:'การเงิน',billing:'ใบวางบิล (น้าปุ้ม)',payouts:'ค่าใช้จ่ายคนรถ',subcontractors:'รถร่วม (น้าปุ้ม)'};
   document.getElementById('topbar-title').textContent=titles[id]||'';
   const badge=document.getElementById('topbar-badge');
   if(id==='jobs'){badge.style.display='block';badge.textContent='Green Yello Transport';}
@@ -5305,6 +5545,7 @@ function goPage(id, opts){
   if(id==='receipts' && typeof rcptInit==='function') rcptInit();  // 🆕 v083
   if(id==='billing'  && typeof billingInit==='function') billingInit();  // 🆕 v114
   if(id==='payouts'  && typeof renderPayouts==='function'){ renderPayouts(); dpSwitchTab('list'); }  // 🆕 v153
+  if(id==='subcontractors' && typeof rrInit==='function') rrInit();  // 🆕 v181 — รถร่วม
   // อัปเดตการซ่อน/แสดงปุ่มตาม perms (สำหรับหน้าใหม่ที่เพิ่งเปิด)
   if(typeof applyPermsToUI === 'function') setTimeout(applyPermsToUI, 0);
   // อัปเดต URL ให้ตรงกับหน้าปัจจุบัน → refresh จะอยู่หน้าเดิม + share link ได้
@@ -24381,7 +24622,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.180';
+const APP_VERSION = '2026.04.29.181';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
