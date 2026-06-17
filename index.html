@@ -808,7 +808,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           </div>
           <div class="dfin-row2">
             <div class="dfin-card"><div class="dfin-ct">🧾 ลูกค้าค้างรับสูงสุด <span style="font-size:11px;color:var(--text-3);font-weight:400">(ยอดค้าง ณ ปัจจุบัน · ไม่ขึ้นกับช่วงเวลา)</span></div><div id="dfin-ar-list"></div></div>
-            <div class="dfin-card"><div class="dfin-ct">🏢 Top ลูกค้า — เที่ยวมากสุด <span class="dfin-perlabel">(ช่วงที่เลือก)</span></div><div id="dfin-topcust"></div></div>
+            <div class="dfin-card"><div class="dfin-ct">🏢 Top ลูกค้า — ตามรายได้ <span class="dfin-perlabel">(ช่วงที่เลือก)</span></div><div id="dfin-topcust"></div></div>
           </div>
 
           <!-- 🆕 เฟส 2 — ฟลีต & ต้นทุนรถ -->
@@ -18804,6 +18804,13 @@ async function renderFinanceDashboard(){
   }
   var cur=calc(pr), prev=pr.noCompare?null:calc({from:pr.pFrom,to:pr.pTo});
 
+  // 🆕 รายได้จริง = ยอดวางบิลจาก gyt_billings (ตาม bill_date) แทน priceAmt ที่กรอกไม่ครบ
+  //    หลัง VAT = net_amt + wht_amt (= subtotal+vat, robust แม้บิลเก่า subtotal ว่าง) · ก่อน VAT = หลังVAT − vat_amt
+  function _billRev(sc){ var aft=0,bef=0; BL.forEach(function(b){ if(!_dashInPr(b.bill_date,sc))return; var net=parseFloat(b.net_amt)||0,wht=parseFloat(b.wht_amt)||0,vat=parseFloat(b.vat_amt)||0; var a=net+wht; aft+=a; bef+=(a-vat); }); return {after:aft,before:bef}; }
+  var curRev=_billRev(pr), prevRev=pr.noCompare?null:_billRev({from:pr.pFrom,to:pr.pTo});
+  cur.rev=curRev.after; cur.profit=cur.rev-cur.cost;
+  if(prev){ prev.rev=prevRev.after; prev.profit=prev.rev-prev.cost; }
+
   // ยอดค้างรับ = บิลที่ยังไม่จ่าย (สถานะจริงในระบบ = 'unpaid'; เผื่อ 'issued' เก่าด้วย)
   var arTotal=0, arCount=0, arByCust={};
   BL.forEach(function(b){
@@ -18816,13 +18823,13 @@ async function renderFinanceDashboard(){
     if(bd&&!isNaN(bd)&&(arByCust[nm].oldest===null||bd<arByCust[nm].oldest)) arByCust[nm].oldest=bd;
   });
 
-  // Top ลูกค้า — นับจำนวนเที่ยว (ขยับตามช่วงเสมอ) + แสดงรายได้ถ้ามี (รายได้ยังไม่ครบเพราะ import บัญชียังไม่เสร็จ)
+  // Top ลูกค้าตามรายได้จริง (ยอดวางบิลหลัง VAT ตาม bill_date)
   var custAgg={};
-  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,pr))return; var nm=j.customer||j.shipper||'(ไม่ระบุ)'; if(!custAgg[nm]) custAgg[nm]={trips:0,rev:0}; custAgg[nm].trips++; custAgg[nm].rev+=_dashJobRevenue(j); });
+  BL.forEach(function(b){ if(!_dashInPr(b.bill_date,pr))return; var net=parseFloat(b.net_amt)||0,wht=parseFloat(b.wht_amt)||0; var amt=net+wht; var nm=(b.customer_snapshot&&b.customer_snapshot.name)||b.customer_code||'(ไม่ระบุ)'; if(!custAgg[nm]) custAgg[nm]={rev:0,n:0}; custAgg[nm].rev+=amt; custAgg[nm].n++; });
 
   // ===== KPI =====
-  document.getElementById('dfin-rev').innerHTML='฿'+_dashFmt(cur.rev);
-  document.getElementById('dfin-rev-t').innerHTML=_dashTrend(cur.rev,prev?prev.rev:null,true)+(prev?'<span>เทียบเดือนก่อน ฿'+_dashFmtM(prev.rev)+'</span>':'<span>'+_finEsc(pr.label||'')+'</span>');
+  document.getElementById('dfin-rev').innerHTML='฿'+_dashFmt(cur.rev)+' <small>หลัง VAT</small>';
+  document.getElementById('dfin-rev-t').innerHTML=_dashTrend(cur.rev,prev?prev.rev:null,true)+'<span>ก่อน VAT ฿'+_dashFmt(curRev.before)+'</span>'+(prev?'<span>· เทียบ ฿'+_dashFmtM(prev.rev)+'</span>':'');
   var margin=cur.rev>0?(cur.profit/cur.rev*100):0;
   document.getElementById('dfin-profit').innerHTML='฿'+_dashFmt(cur.profit)+' <small>('+margin.toFixed(1)+'%)</small>';
   document.getElementById('dfin-profit-t').innerHTML=_dashTrend(cur.profit,prev?prev.profit:null,true)+'<span>รายได้ − ต้นทุนรวม</span>';
@@ -18832,14 +18839,13 @@ async function renderFinanceDashboard(){
   document.getElementById('dfin-fuel').innerHTML=fuelPct.toFixed(0)+'% <small>ของรายได้</small>';
   document.getElementById('dfin-fuel-t').innerHTML=_dashTrend(fuelPct,prev?pFuelPct:null,false)+'<span>฿'+_dashFmtM(cur.fuel)+'</span>';
 
-  // ===== coverage note =====
+  // ===== info note: แหล่งรายได้ =====
   var cov=document.getElementById('dfin-cov');
-  if(cur.n>0 && cur.nPriced<cur.n){ cov.style.display=''; cov.innerHTML='📌 รายได้คำนวณจากใบงานที่กรอกราคาแล้ว <b>'+Math.round(cur.nPriced/cur.n*100)+'%</b> ('+cur.nPriced+' จาก '+cur.n+' ใบในช่วงนี้) — ตัวเลขจริงจะสูงกว่านี้เมื่อกรอกราคาครบ'; }
-  else cov.style.display='none';
+  if(cov){ cov.style.display=''; cov.innerHTML='📌 รายได้คิดจาก<b>ยอดวางบิลจริง</b> (ตามวันที่ออกบิล) — ยอดหลัก = <b>หลัง VAT</b>, รีมาร์ค = ก่อน VAT'; }
 
   // ===== trend chart 12 เดือน =====
   var labels=[], revArr=[], costArr=[], base=new Date(pr.to.getFullYear(), pr.to.getMonth(), 1);
-  for(var i=11;i>=0;i--){ var ms=new Date(base.getFullYear(), base.getMonth()-i, 1), me=new Date(ms.getFullYear(), ms.getMonth()+1, 0,23,59,59); var cc=calc({from:ms,to:me}); labels.push(_dashThaiMonth(ms.getMonth()+1)+' '+String((ms.getFullYear()+543)%100)); revArr.push(Math.round(cc.rev)); costArr.push(Math.round(cc.cost)); }
+  for(var i=11;i>=0;i--){ var ms=new Date(base.getFullYear(), base.getMonth()-i, 1), me=new Date(ms.getFullYear(), ms.getMonth()+1, 0,23,59,59); var cc=calc({from:ms,to:me}); var br=_billRev({from:ms,to:me}); labels.push(_dashThaiMonth(ms.getMonth()+1)+' '+String((ms.getFullYear()+543)%100)); revArr.push(Math.round(br.after)); costArr.push(Math.round(cc.cost)); }
   _dashMkChart('dashTrendChart',{type:'line',data:{labels:labels,datasets:[
     {label:'รายได้',data:revArr,borderColor:'#2D7A4F',backgroundColor:'rgba(45,122,79,.08)',fill:true,tension:.35,borderWidth:2.5,pointRadius:2},
     {label:'ต้นทุน',data:costArr,borderColor:'#DC2626',fill:false,tension:.35,borderWidth:2,borderDash:[5,4],pointRadius:2}
@@ -18857,10 +18863,10 @@ async function renderFinanceDashboard(){
   }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ไม่มียอดค้างรับ 🎉</div>';
 
   // ===== Top customers =====
-  var tcArr=Object.keys(custAgg).map(function(k){return {nm:k,trips:custAgg[k].trips,rev:custAgg[k].rev};}).sort(function(a,b){return b.trips-a.trips;}).slice(0,6);
-  var tcMax=tcArr.length?tcArr[0].trips:1;
+  var tcArr=Object.keys(custAgg).map(function(k){return {nm:k,rev:custAgg[k].rev,n:custAgg[k].n};}).sort(function(a,b){return b.rev-a.rev;}).slice(0,6);
+  var tcMax=tcArr.length?tcArr[0].rev:1;
   document.getElementById('dfin-topcust').innerHTML = tcArr.length? tcArr.map(function(r){
-    return '<div class="dfin-li"><span class="nm">'+_finEsc(r.nm)+'</span><span class="amt">'+r.trips+' เที่ยว'+(r.rev>0?' · ฿'+_dashFmtM(r.rev):'')+'</span><span class="dfin-track"><i style="width:'+Math.round(r.trips/tcMax*100)+'%"></i></span></div>';
+    return '<div class="dfin-li"><span class="nm">'+_finEsc(r.nm)+'</span><span class="amt">฿'+_dashFmtM(r.rev)+' <span style="color:var(--text-3);font-weight:400">('+r.n+' ใบ)</span></span><span class="dfin-track"><i style="width:'+Math.round(r.rev/tcMax*100)+'%"></i></span></div>';
   }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลในช่วงนี้</div>';
 
   // ===== เฟส 2: ฟลีต & ต้นทุนรถ =====
