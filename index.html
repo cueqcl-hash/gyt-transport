@@ -18657,6 +18657,7 @@ function renderTeamStats(){
    ════════════════════════════════════════════════════════════════ */
 var _dashCharts = {};
 var _dashFinDataPromise = null;
+var _dashTollLogs = null;  // ค่าทางด่วนจริงจาก gyt_toll_logs (ไม่ใช่ job.costs.tollAmt ที่ว่าง)
 
 // สิทธิ์เห็นภาพรวมการเงิน: กรรมการ (role admin) + DONUT + PISOLN เท่านั้น
 function _dashCanSeeFinance(){
@@ -18752,6 +18753,9 @@ function _dashEnsureFinData(){
     if(typeof maintenanceRecords==='undefined' || !maintenanceRecords || !maintenanceRecords.length){
       tasks.push(sbFetchAll('gyt_maintenance','?select=*&order=service_date.desc').then(function(r){ try{ maintenanceRecords=r||[]; }catch(e){ window.maintenanceRecords=r||[]; } }).catch(function(e){ console.warn('[dash] maintenance load', e); }));
     }
+    if(!_dashTollLogs || !_dashTollLogs.length){
+      tasks.push(sbFetchAll('gyt_toll_logs','?select=toll_date,amount&order=toll_date.desc').then(function(r){ _dashTollLogs=r||[]; }).catch(function(e){ console.warn('[dash] toll load', e); }));
+    }
     if(tasks.length) await Promise.all(tasks);
   })();
   return _dashFinDataPromise;
@@ -18782,6 +18786,7 @@ async function renderFinanceDashboard(){
   var FL=(typeof _finFuelLogs!=='undefined'&&_finFuelLogs)?_finFuelLogs:[];
   var MT=(typeof maintenanceRecords!=='undefined'&&maintenanceRecords)?maintenanceRecords:[];
   var BL=(typeof _BL_BILLS!=='undefined'&&_BL_BILLS)?_BL_BILLS:[];
+  var TL=(_dashTollLogs)?_dashTollLogs:[];
 
   // คำนวณยอดของช่วงวันที่ที่กำหนด
   function calc(sc){
@@ -18793,12 +18798,14 @@ async function renderFinanceDashboard(){
       n++;
       var r=_dashJobRevenue(j); if(r>0){ rev+=r; nPriced++; }
       var c=j.costs||{};
-      brk.trip+=_dashPickAmt(c,'trip'); brk.toll+=_dashPickAmt(c,'toll');
+      brk.trip+=_dashPickAmt(c,'trip');
       brk.recv+=_dashPickAmt(c,'recv'); brk.box+=_dashPickAmt(c,'box'); brk.ret+=_dashPickAmt(c,'ret'); brk.port+=_dashPickAmt(c,'port'); brk.move+=_dashPickAmt(c,'move'); brk.misc+=_dashPickAmt(c,'misc');
     });
     opCost=brk.trip+brk.toll+brk.recv+brk.box+brk.ret+brk.port+brk.move+brk.misc;
     FL.forEach(function(f){ if(_dashInPr(f.fuel_date,sc)) fuel+=(parseFloat(f.amount)||((parseFloat(f.price_per_l)||0)*(parseFloat(f.liters)||0))); });
     MT.forEach(function(r){ if(_dashInPr(r.service_date,sc)) maint+=(parseFloat(r.total_amount)||0); });
+    TL.forEach(function(t){ if(_dashInPr(t.toll_date,sc)) brk.toll+=(parseFloat(t.amount)||0); });
+    opCost+=brk.toll;
     var cost=opCost+fuel+maint;
     return {rev:rev,cost:cost,profit:rev-cost,fuel:fuel,maint:maint,n:n,nPriced:nPriced,brk:brk};
   }
