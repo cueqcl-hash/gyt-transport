@@ -19004,6 +19004,7 @@ function renderTeamStats(){
 var _dashCharts = {};
 var _dashFinDataPromise = null;
 var _dashTollLogs = null;  // ค่าทางด่วนจริงจาก gyt_toll_logs (ไม่ใช่ job.costs.tollAmt ที่ว่าง)
+var _dashLegacyByJob = null;  // 🆕 guide เบิก/ค่าแรง จาก gyt_trip_legacy (dashboard โหลดมา overlay เอง — ก่อนนี้เห็นแค่หน้าการเงิน)
 
 // สิทธิ์เห็นภาพรวมการเงิน: กรรมการ (role admin) + DONUT + PISOLN เท่านั้น
 function _dashCanSeeFinance(){
@@ -19017,7 +19018,8 @@ function _dashFmt(n){ return Number(n||0).toLocaleString('th-TH',{maximumFractio
 function _dashFmtM(n){ n=Number(n||0); if(Math.abs(n)>=1e6) return (n/1e6).toFixed(2)+'M'; if(Math.abs(n)>=1e3) return (n/1e3).toFixed(0)+'K'; return _dashFmt(n); }
 function _dashPickAmt(c,f){ var x=c[f+'AmtConfirmed']; if(x!==undefined&&x!==''&&x!==null) return parseFloat(x)||0; return parseFloat(c[f+'Amt'])||0; }
 function _dashJobRevenue(j){ var c=j.costs||{}; var p=c.priceAmt; return (p!==undefined&&p!==null&&p!=='')?(parseFloat(p)||0):0; }
-function _dashJobOpCost(j){ var c=j.costs||{}; return _dashPickAmt(c,'trip')+_dashPickAmt(c,'toll')+_dashPickAmt(c,'box')+_dashPickAmt(c,'recv')+_dashPickAmt(c,'ret')+_dashPickAmt(c,'port')+_dashPickAmt(c,'move')+_dashPickAmt(c,'misc'); }
+function _dashTrip(j){ var v=_dashPickAmt(j.costs||{},'trip'); if(v) return v; var lt=_dashLegacyByJob&&_dashLegacyByJob[j.id]; return (lt&&lt.trip_fee)?(parseFloat(lt.trip_fee)||0):0; }  // 🆕 เบิก: ค่าในงาน(ยืนยัน/guide)ก่อน ถ้าว่างใช้ guide จาก gyt_trip_legacy
+function _dashJobOpCost(j){ var c=j.costs||{}; return _dashTrip(j)+_dashPickAmt(c,'toll')+_dashPickAmt(c,'box')+_dashPickAmt(c,'recv')+_dashPickAmt(c,'ret')+_dashPickAmt(c,'port')+_dashPickAmt(c,'move')+_dashPickAmt(c,'misc'); }
 // normalize ทะเบียน — ตัดส่วนจังหวัด/ช่องว่างท้าย ("77-7108 กท." → "77-7108") ให้ jobs/fuel/tractors จับคู่กันได้
 function _dashPlateKey(p){ return String(p||'').trim().split(/\s+/)[0].trim(); }
 function _dashInRange(iso, from, to){ if(!iso) return false; var t=new Date(iso).getTime(); if(isNaN(t)) return false; return t>=from.getTime() && t<=to.getTime(); }
@@ -19102,6 +19104,9 @@ function _dashEnsureFinData(){
     if(!_dashTollLogs || !_dashTollLogs.length){
       tasks.push(sbFetchAll('gyt_toll_logs','?select=toll_date,amount&order=toll_date.desc').then(function(r){ _dashTollLogs=r||[]; }).catch(function(e){ console.warn('[dash] toll load', e); }));
     }
+    if(!_dashLegacyByJob){
+      tasks.push(sbFetchAll('gyt_trip_legacy','?select=job_id,trip_fee').then(function(r){ var m={}; (r||[]).forEach(function(lt){ if(lt.job_id!=null) m[lt.job_id]=lt; }); _dashLegacyByJob=m; }).catch(function(e){ _dashLegacyByJob={}; console.warn('[dash] legacy load', e); }));
+    }
     if(tasks.length) await Promise.all(tasks);
   })();
   return _dashFinDataPromise;
@@ -19144,7 +19149,7 @@ async function renderFinanceDashboard(){
       n++;
       var r=_dashJobRevenue(j); if(r>0){ rev+=r; nPriced++; }
       var c=j.costs||{};
-      brk.trip+=_dashPickAmt(c,'trip');
+      brk.trip+=_dashTrip(j);
       brk.recv+=_dashPickAmt(c,'recv'); brk.box+=_dashPickAmt(c,'box'); brk.ret+=_dashPickAmt(c,'ret'); brk.port+=_dashPickAmt(c,'port'); brk.move+=_dashPickAmt(c,'move'); brk.misc+=_dashPickAmt(c,'misc');
     });
     opCost=brk.trip+brk.toll+brk.recv+brk.box+brk.ret+brk.port+brk.move+brk.misc;
@@ -19340,7 +19345,7 @@ function _dashRenderCustomers(pr){
 function _dashRenderDrivers(pr){
   var agg={};
   function ens(d){ if(!agg[d]) agg[d]={drv:d,trips:0,rev:0,pay:0}; return agg[d]; }
-  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,pr))return; var d=(j.driver||'').trim(); if(!d)return; var a=ens(d); a.trips++; a.rev+=_dashJobRevenue(j); var c=j.costs||{}; a.pay+=_dashPickAmt(c,'trip'); });
+  jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,pr))return; var d=(j.driver||'').trim(); if(!d)return; var a=ens(d); a.trips++; a.rev+=_dashJobRevenue(j); a.pay+=_dashTrip(j); });
   var arr=Object.keys(agg).map(function(k){return agg[k];});
   var active=arr.length;
   var totTrips=arr.reduce(function(s,a){return s+a.trips;},0);
@@ -19360,11 +19365,12 @@ function _dashRenderDrivers(pr){
 
   document.getElementById('ddrv-safety').innerHTML='<div style="color:var(--text-3);font-size:12.5px;line-height:1.8;padding:6px 0">ข้อมูลพฤติกรรมการขับ (เบรกแรง · ออกตัวแรง · เลี้ยวแรง · ความเร็วเกิน) อยู่ในระบบ <b>Cartrack</b> ซึ่งยังไม่ได้นำเข้า Supabase<br><span style="color:#92400E;font-weight:600">→ เฟสถัดไป: import Cartrack เพื่อโชว์คะแนนความปลอดภัยรายคน</span></div>';
 
-  var byT=arr.slice().sort(function(a,b){return b.trips-a.trips;}).slice(0,15);
+  var byT=arr.slice().sort(function(a,b){return (b.pay-a.pay)||(b.trips-a.trips);});  // เรียงตามเบิก(ที่มีข้อมูล) แล้วค่อยเที่ยว · โชว์ทุกคน
+  var _gy=function(v){ return v>0?'฿'+_dashFmt(v):'<span style="color:var(--text-3)">—</span>'; };
   document.getElementById('ddrv-table').innerHTML = byT.length?
-    '<table class="dfleet-tbl"><thead><tr><th>คนขับ</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">รายได้ที่ทำได้</th><th style="text-align:right">เบิก (ค่าแรง)</th><th style="text-align:right">รายได้/เที่ยว</th></tr></thead><tbody>'+
-    byT.map(function(a){ return '<tr><td style="font-weight:700">'+_finEsc(a.drv)+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right">฿'+_dashFmt(a.rev)+'</td><td style="text-align:right">฿'+_dashFmt(a.pay)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">฿'+_dashFmt(a.trips>0?(a.rev/a.trips):0)+'</td></tr>'; }).join('')+
-    '</tbody></table>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลคนขับในช่วงนี้</div>';
+    '<div style="max-height:420px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>คนขับ</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">เบิก (ค่าแรง)</th><th style="text-align:right">รายได้ <small style="color:var(--text-3);font-weight:400">(รอ import ราคา)</small></th><th style="text-align:right">รายได้/เที่ยว</th></tr></thead><tbody>'+
+    byT.map(function(a){ return '<tr><td style="font-weight:700">'+_finEsc(a.drv)+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">'+_gy(a.pay)+'</td><td style="text-align:right;color:var(--text-3)">'+_gy(a.rev)+'</td><td style="text-align:right;color:var(--text-3)">'+(a.rev>0?'฿'+_dashFmt(a.rev/a.trips):'<span style="color:var(--text-3)">—</span>')+'</td></tr>'; }).join('')+
+    '</tbody></table></div><div style="font-size:11px;color:var(--text-3);margin-top:6px">แสดงครบทุกคน '+byT.length+' คน · "รายได้" รอ import ราคา (priceAmt ยังว่าง) · "เบิก" = ค่าแรงจาก guide</div>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลคนขับในช่วงนี้</div>';
 }
 
 // ค่าทางด่วน M-Flow รถส่วนตัวกรรมการ (ตารางแยก gyt_personal_tolls — แสดงอย่างเดียว ไม่นับต้นทุนบริษัท)
