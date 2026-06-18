@@ -1708,6 +1708,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
       </div>
 
+      <!-- 🆕 ราคาบิลจริงเส้นนี้ (ดึงจาก ค่าขนส่งต่อตู้/เที่ยว) — ไว้เทียบตอนเสนอราคา -->
+      <div id="gc-billref" style="display:none;margin-top:14px;background:#ECFDF5;border:1px solid #6EE7B7;border-radius:10px;padding:12px 14px"></div>
+
       <!-- Result section (populated by gytCalcPrice) -->
       <div id="gc-result" style="display:none;margin-top:14px"></div>
     </div>
@@ -24460,8 +24463,35 @@ function gytCalcPrice(){
     saveBtn.title = canSave ? 'บันทึกใบเสนอราคา' : 'เฉพาะ Admin/Supervisor';
   }
 
+  // 🆕 ราคาบิลจริงเส้นนี้ (ดึงจาก ค่าขนส่งต่อตู้/เที่ยว) ไว้เทียบตอนเสนอราคา
+  try { gcBillRef(); } catch(e){}
   // Scroll to result
   try { el.scrollIntoView({behavior:'smooth', block:'start'}); } catch(e){}
+}
+// 🆕 ราคาบิลจริงเส้นนี้ — ดึงจาก gyt_customer_rates (ทุกลูกค้า) แยก 20'/40' · กดชิปเพื่อใส่ช่องเทียบ+คำนวณใหม่
+function gcBillRef(){
+  var box=document.getElementById('gc-billref'); if(!box) return;
+  if(typeof hasPerm==='function' && !hasPerm('view_price')){ box.style.display='none'; return; }
+  if(typeof _rateRefSimilar!=='function' || typeof _rateLoad!=='function'){ box.style.display='none'; return; }
+  var g=function(id){ var el=document.getElementById(id); return el?(el.value||'').trim():''; };
+  var origin=g('gc-origin'), stop=g('gc-stop'), dest=g('gc-dest');
+  if(!stop && !dest){ box.style.display='none'; return; }
+  if(!_rateDB){ box.style.display='block'; box.innerHTML='<div style="font-size:11px;color:var(--text-3)">⏳ กำลังโหลดราคาบิลจริง...</div>'; _rateLoad().then(function(){ gcBillRef(); }); return; }
+  var sizes=[{lbl:"20'",ct:"20'GP",fill:'gc-rc-20'},{lbl:"40'",ct:"40'GP",fill:'gc-rc-40'}];
+  var rowsHtml='';
+  sizes.forEach(function(s){
+    var refs=_rateRefSimilar(origin, stop, dest, s.ct, '', '');   // เปิด/บรรจุ=stop, ปลายทาง=dest · ไม่ตัดลูกค้าใด
+    if(!refs.length) return;
+    var chips=refs.slice(0,4).map(function(r){
+      var ag=String(r.agent||r.shipper||''); var agS=ag.length>16?ag.slice(0,16)+'…':ag;
+      var rt=(r.route_text||((r.origin||'')+'→'+(r.dest||''))); if(rt.length>26) rt=rt.slice(0,26)+'…';
+      return '<button type="button" onclick="var i=document.getElementById(\''+s.fill+'\');if(i){i.value='+Math.round(r.price)+';gytCalcPrice();}" title="กดเพื่อใส่ช่องเทียบ '+s.lbl+' + คำนวณใหม่ — '+_gcEsc(ag)+' '+_gcEsc(r.as_of||'')+(r.trips?(' · '+r.trips+' เที่ยว'):'')+'" style="margin:2px 4px 2px 0;padding:3px 9px;border-radius:12px;border:1px solid #10B981;background:#fff;color:#065F46;font-size:11.5px;font-weight:700;cursor:pointer">'+Number(r.price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#047857">'+_gcEsc(rt)+' · '+_gcEsc(agS)+'</span></button>';
+    }).join('');
+    rowsHtml+='<div style="margin-bottom:5px;line-height:1.9"><span style="display:inline-block;width:34px;font-weight:800;color:#92400E">'+s.lbl+'</span>'+chips+'</div>';
+  });
+  box.style.display='block';
+  if(!rowsHtml){ box.innerHTML='<div style="font-size:12px;color:var(--text-3)">🧾 ราคาบิลจริง — ไม่พบเส้นทางนี้ในระบบ (ลองกรอก "จุดเปิด/บรรจุ" ให้ตรงชื่อสถานที่)</div>'; return; }
+  box.innerHTML='<div style="font-size:12px;font-weight:800;color:#065F46;margin-bottom:7px">🧾 ราคาบิลจริงเส้นนี้ (ทุกลูกค้า) — เทียบตอนเสนอราคา <span style="font-weight:400;color:var(--text-3)">· กดชิปเพื่อใส่ช่องเทียบ + คำนวณใหม่</span></div>'+rowsHtml;
 }
 
 // ══════════════════════════════════════════════════════
@@ -25042,7 +25072,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.188';
+const APP_VERSION = '2026.04.29.189';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
