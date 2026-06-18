@@ -19398,6 +19398,8 @@ async function renderPersonalTolls(){
    ════════════════════════════════════════════════ */
 var _ecList = [];
 function _ecFmt(n){ return Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+// 🆕 ยอดเงิน → แสดง 2 ทศนิยมตอนพิมพ์เสร็จ (800 → 800.00, 921.1 → 921.10)
+function _ecFmtAmt(el){ var v=parseFloat(String(el.value).replace(/,/g,'')); el.value=isNaN(v)?'':v.toFixed(2); ecCalc(); }
 function _ecEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function _ecPayerName(){ if(!currentUser) return '—'; return ((currentUser.fname||'')+' '+(currentUser.lname||'')).trim() || currentUser.username || '—'; }
 function ecInit(){
@@ -19428,13 +19430,15 @@ function _ecSaveType(v){
 function ecAddRow(d){
   d=d||{};
   if(!document.getElementById('ec-type-list')){ _ecBuildTypeList(); }
+  // 🆕 วันที่ — แถวใหม่ที่ไม่ระบุวัน ให้ดึงวันจากแถวล่าสุด (ไล่ต่อกันลงมา)
+  if(!d.date){ var _er=document.querySelectorAll('#ec-tb tr'); if(_er.length){ var _ld=_er[_er.length-1].querySelector('.ec-date'); if(_ld) d.date=_ld.value||''; } }
   var tr=document.createElement('tr');
   tr.innerHTML='<td class="ec-idx"></td>'+
     '<td><input class="ec-date" type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป" value="'+_ecEsc(d.date)+'"></td>'+
-    '<td><input class="ec-type" list="ec-type-list" placeholder="เลือก/พิมพ์ประเภท" value="'+_ecEsc(d.type)+'" onchange="_ecSaveType(this.value)" style="width:100%;border:1px solid transparent;background:transparent;padding:7px 6px;font-family:inherit;font-size:13px;border-radius:5px"></td>'+
-    '<td><input class="ec-cont" type="text" placeholder="OTPU1004871" value="'+_ecEsc(d.container)+'"></td>'+
-    '<td><input class="ec-desc" placeholder="เช่น รับตู้ ลาดกระบัง" value="'+_ecEsc(d.desc)+'"></td>'+
-    '<td class="amt"><input type="number" step="any" min="0" placeholder="0.00" value="'+(d.amount!=null?d.amount:'')+'" oninput="ecCalc()"></td>'+
+    '<td><input class="ec-type" list="ec-type-list" value="'+_ecEsc(d.type)+'" onchange="_ecSaveType(this.value)" style="width:100%;border:1px solid transparent;background:transparent;padding:7px 6px;font-family:inherit;font-size:13px;border-radius:5px"></td>'+
+    '<td><input class="ec-cont" type="text" value="'+_ecEsc(d.container)+'"></td>'+
+    '<td><input class="ec-desc" value="'+_ecEsc(d.desc)+'"></td>'+
+    '<td class="amt"><input type="text" inputmode="decimal" placeholder="0.00" value="'+(d.amount!=null?Number(d.amount).toFixed(2):'')+'" oninput="ecCalc()" onblur="_ecFmtAmt(this)"></td>'+
     '<td style="text-align:center"><button class="ec-del" onclick="this.closest(\'tr\').remove();ecCalc()">✕</button></td>';
   document.getElementById('ec-tb').appendChild(tr);
   ecCalc();
@@ -25072,7 +25076,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.189';
+const APP_VERSION = '2026.04.29.190';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
