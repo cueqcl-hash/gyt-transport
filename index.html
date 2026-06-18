@@ -19399,17 +19399,36 @@ function _ecEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/<
 function _ecPayerName(){ if(!currentUser) return '—'; return ((currentUser.fname||'')+' '+(currentUser.lname||'')).trim() || currentUser.username || '—'; }
 function ecInit(){
   var el=document.getElementById('ec-payer'); if(el) el.textContent=_ecPayerName();
+  _ecBuildTypeList();
   if(!document.querySelectorAll('#ec-tb tr').length){ ecAddRow(); ecAddRow(); }
   ecLoadList();
 }
-var _ecTypes=['รับตู้','คืนตู้','ค่าเที่ยว','ทางด่วน','ค่าซ่อม','อื่นๆ'];
+var _ecTypes=['รับตู้','คืนตู้','ค่าเที่ยว','ทางด่วน','ค่าซ่อม','อื่นๆ'];  // ค่าเริ่มต้น
+// 🆕 ประเภท = combobox (พิมพ์เองได้ + จำค่าที่เคยกรอกผ่าน localStorage)
+function _ecAllTypes(){
+  var saved=[]; try{ saved=JSON.parse(localStorage.getItem('gyt_ec_types')||'[]'); }catch(e){}
+  var seen={}, out=[]; _ecTypes.concat(saved).forEach(function(t){ t=(t||'').trim(); if(t && !seen[t]){ seen[t]=1; out.push(t); } });
+  return out;
+}
+function _ecBuildTypeList(){
+  var dl=document.getElementById('ec-type-list');
+  if(!dl){ dl=document.createElement('datalist'); dl.id='ec-type-list'; document.body.appendChild(dl); }
+  dl.innerHTML=_ecAllTypes().map(function(t){ return '<option value="'+_ecEsc(t)+'">'; }).join('');
+}
+function _ecSaveType(v){
+  v=(v||'').trim(); if(!v) return;
+  if(_ecAllTypes().indexOf(v)>=0){ return; }            // มีอยู่แล้ว ไม่ต้องบันทึกซ้ำ
+  var saved=[]; try{ saved=JSON.parse(localStorage.getItem('gyt_ec_types')||'[]'); }catch(e){}
+  saved.push(v); localStorage.setItem('gyt_ec_types', JSON.stringify(saved));
+  _ecBuildTypeList();                                    // อัปเดต dropdown ให้ทุกแถวเห็นค่าใหม่ทันที
+}
 function ecAddRow(d){
   d=d||{};
-  var opts=_ecTypes.map(function(t){return '<option'+(d.type===t?' selected':'')+'>'+t+'</option>';}).join('');
+  if(!document.getElementById('ec-type-list')){ _ecBuildTypeList(); }
   var tr=document.createElement('tr');
   tr.innerHTML='<td class="ec-idx"></td>'+
     '<td><input class="ec-date" type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป" value="'+_ecEsc(d.date)+'"></td>'+
-    '<td><select class="ec-type" style="width:100%;border:1px solid transparent;background:transparent;padding:7px 4px;font-family:inherit;font-size:13px;border-radius:5px">'+opts+'</select></td>'+
+    '<td><input class="ec-type" list="ec-type-list" placeholder="เลือก/พิมพ์ประเภท" value="'+_ecEsc(d.type)+'" onchange="_ecSaveType(this.value)" style="width:100%;border:1px solid transparent;background:transparent;padding:7px 6px;font-family:inherit;font-size:13px;border-radius:5px"></td>'+
     '<td><input class="ec-cont" type="text" placeholder="OTPU1004871" value="'+_ecEsc(d.container)+'"></td>'+
     '<td><input class="ec-desc" placeholder="เช่น รับตู้ ลาดกระบัง" value="'+_ecEsc(d.desc)+'"></td>'+
     '<td class="amt"><input type="number" step="any" min="0" placeholder="0.00" value="'+(d.amount!=null?d.amount:'')+'" oninput="ecCalc()"></td>'+
@@ -25023,7 +25042,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.187';
+const APP_VERSION = '2026.04.29.188';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
