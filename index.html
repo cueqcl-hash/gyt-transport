@@ -972,6 +972,40 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
       <!-- JOBS -->
       <div id="pg-jobs" class="screen">
+        <style>
+          #jm-root{display:none}
+          @media(max-width:640px){
+            #pg-jobs > *:not(#jm-root){display:none!important}
+            #jm-root{display:block}
+          }
+          #jm-root .jm-wrap{padding:2px}
+          #jm-root .jm-h{font-size:16px;font-weight:800;color:var(--green-d);margin:6px 2px 10px}
+          #jm-root .jm-h .jm-sub{font-size:11px;font-weight:400;color:var(--text-3);margin-left:6px}
+          #jm-root .jm-bar{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:800;color:var(--green-d);margin:4px 2px 6px}
+          #jm-root .jm-back{border:none;background:#ECFDF5;color:var(--green-d);font-size:18px;font-weight:800;width:36px;height:36px;border-radius:10px;cursor:pointer}
+          #jm-root .jm-bc{font-size:11.5px;color:var(--text-3);margin:0 2px 10px;font-weight:600}
+          #jm-root .jm-alert{background:#FEE2E2;color:#B91C1C;font-weight:700;font-size:13px;padding:12px 13px;border-radius:11px;margin-bottom:10px;cursor:pointer}
+          #jm-root .jm-card{display:flex;align-items:center;background:#fff;border:1px solid var(--border);border-radius:12px;padding:15px 14px;margin-bottom:10px;cursor:pointer}
+          #jm-root .jm-card .jm-cl{font-size:14px;font-weight:700;color:#0f172a}
+          #jm-root .jm-card .jm-cl small{font-size:10px;color:var(--text-3);font-weight:500}
+          #jm-root .jm-card .jm-cn{margin-left:auto;font-size:24px;font-weight:800;color:var(--green-d)}
+          #jm-root .jm-card .jm-cn small{font-size:11px;color:var(--text-3);font-weight:600}
+          #jm-root .jm-card .jm-go{margin-left:10px;color:var(--text-3);font-size:18px;font-weight:800}
+          #jm-root .jm-day{border-left:4px solid #E74C3C}
+          #jm-root .jm-morn{border-left:4px solid #2980B9}
+          #jm-root .jm-tot .jm-cn{color:#334155}
+          #jm-root .jm-job{background:#fff;border:1px solid var(--border);border-radius:12px;padding:13px 14px;margin-bottom:11px;cursor:pointer}
+          #jm-root .jm-ship{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:8px;border-bottom:1px solid #f0f0f0;padding-bottom:7px}
+          #jm-root .jm-loc{font-size:12.5px;color:#334155;margin:4px 0;display:flex;gap:7px}
+          #jm-root .jm-loc .jm-lk{color:var(--text-3);font-weight:700;min-width:80px;flex-shrink:0}
+          #jm-root .jm-foot{display:flex;align-items:center;margin-top:10px}
+          #jm-root .jm-st{font-size:12px;font-weight:800;padding:4px 11px;border-radius:20px}
+          #jm-root .jm-ok{background:#DCFCE7;color:#166534}
+          #jm-root .jm-no{background:#FEE2E2;color:#B91C1C}
+          #jm-root .jm-jid{margin-left:auto;font-size:10px;color:#94a3b8;font-weight:700;font-family:var(--mono,monospace)}
+          #jm-root .jm-empty{color:var(--text-3);font-size:13px;padding:24px;text-align:center}
+        </style>
+        <div id="jm-root"></div>
         <div class="note-bar info" id="jobs-note" style="display:none"></div>
         <div class="stats-grid">
           <!-- Card 1: ทั้งหมด -->
@@ -5646,7 +5680,7 @@ function goPage(id, opts){
   if(id==='jobs'){badge.style.display='block';badge.textContent='Green Yello Transport';}
   else badge.style.display='none';
   if(id==='dashboard')renderDashboard();
-  if(id==='jobs')renderJobs();
+  if(id==='jobs'){ if(typeof _jmState!=='undefined')_jmState.level=1; renderJobs(); }  // 🆕 เปิดหน้างาน → วิวมือถือเริ่มชั้น 1
   if(id==='users')renderUsers();
   if(id==='receipts' && typeof rcptInit==='function') rcptInit();  // 🆕 v083
   if(id==='billing'  && typeof billingInit==='function') billingInit();  // 🆕 v114
@@ -19677,6 +19711,69 @@ function renderDashboard(){
 // ============================
 // JOBS
 // ============================
+/* ════════════════════════════════════════════════
+   🆕 วิวมือถือ ตารางงาน — ไล่กด 3 ชั้น (สรุป → ประเภทรถ → รายการงาน)
+   โชว์เฉพาะจอ ≤640px (CSS) · ใช้ getFiltered() + global jobs ร่วมกับ desktop
+   ════════════════════════════════════════════════ */
+var _jmState={level:1, day:'day', veh:'truck'};
+var _JM_TRUCK10=new Set(["20'GP","20'HC","20'DG","20'FL","20'OT","20'RF","ขนส่งสิบล้อ"]);
+function _jmEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _jmIsTruck(j){ return _JM_TRUCK10.has((j.type||'').replace(/'\s+/g,"'").trim()); }
+function _jmIsDay(j){ return j.delivery_type==='จัดส่งสินค้าภายในวัน' || !j.delivery_type; }
+function _jmHasPlate(j){ return !!((j.plate||'').trim()); }
+function _jmData(){ try{ return getFiltered(); }catch(e){ return (typeof jobs!=='undefined'&&jobs)?jobs:[]; } }
+function jmGo(level,day,veh){ if(day!==undefined)_jmState.day=day; if(veh!==undefined)_jmState.veh=veh; _jmState.level=level; jmRender(); }
+function jmRender(){
+  var root=document.getElementById('jm-root'); if(!root) return;
+  var all=_jmData(), L=_jmState.level;
+  root.innerHTML = (L===1)?_jmL1(all) : (L===2)?_jmL2(all) : (L==='unassigned')?_jmUnassigned(all) : _jmL3(all);
+}
+function _jmBucket(all,day){ return all.filter(function(j){ return day==='morning'? !_jmIsDay(j) : _jmIsDay(j); }); }
+function _jmL1(all){
+  var dayN=all.filter(_jmIsDay).length, mornN=all.length-dayN;
+  var noTruck=all.filter(function(j){ return !_jmHasPlate(j); }).length;
+  var h='<div class="jm-wrap"><div class="jm-h">🚛 ตารางงาน<span class="jm-sub">แตะการ์ดเพื่อดูต่อ</span></div>';
+  if(noTruck>0) h+='<div class="jm-alert" onclick="jmGo(\'unassigned\')">🔴 ยังไม่จัดรถ <b>'+noTruck+'</b> งาน — แตะดู ▸</div>';
+  h+='<div class="jm-card jm-tot"><span class="jm-cl">📋 งานทั้งหมด</span><span class="jm-cn">'+all.length+'</span></div>'+
+     '<div class="jm-card jm-day" onclick="jmGo(2,\'day\')"><span class="jm-cl">🔴 ภายในวัน</span><span class="jm-cn">'+dayN+'</span><span class="jm-go">▸</span></div>'+
+     '<div class="jm-card jm-morn" onclick="jmGo(2,\'morning\')"><span class="jm-cl">🔵 ช่วงเช้า</span><span class="jm-cn">'+mornN+'</span><span class="jm-go">▸</span></div></div>';
+  return h;
+}
+function _jmL2(all){
+  var inB=_jmBucket(all,_jmState.day), truck=inB.filter(_jmIsTruck).length, trailer=inB.length-truck;
+  var dl=_jmState.day==='morning'?'ช่วงเช้า':'ภายในวัน';
+  return '<div class="jm-wrap"><div class="jm-bar"><button class="jm-back" onclick="jmGo(1)">←</button>'+dl+'</div>'+
+    '<div class="jm-bc">'+dl+' › เลือกประเภทรถ</div>'+
+    '<div class="jm-card jm-veh" onclick="jmGo(3,_jmState.day,\'truck\')"><span class="jm-cl">🚛 สิบล้อ <small>ตู้ 20 ฟุต</small></span><span class="jm-cn">'+truck+'<small> คัน</small></span><span class="jm-go">▸</span></div>'+
+    '<div class="jm-card jm-veh" onclick="jmGo(3,_jmState.day,\'trailer\')"><span class="jm-cl">🚚 หัวลาก/เทรลเลอร์ <small>ตู้ 40 ฟุต</small></span><span class="jm-cn">'+trailer+'<small> คัน</small></span><span class="jm-go">▸</span></div></div>';
+}
+function _jmL3(all){
+  var list=_jmBucket(all,_jmState.day).filter(function(j){ return _jmState.veh==='truck'?_jmIsTruck(j):!_jmIsTruck(j); });
+  var dl=_jmState.day==='morning'?'ช่วงเช้า':'ภายในวัน', vl=_jmState.veh==='truck'?'สิบล้อ':'หัวลาก/เทรลเลอร์';
+  return '<div class="jm-wrap"><div class="jm-bar"><button class="jm-back" onclick="jmGo(2,_jmState.day)">←</button>'+vl+'</div>'+
+    '<div class="jm-bc">'+dl+' › '+vl+' · '+list.length+' งาน</div>'+_jmCards(list)+'</div>';
+}
+function _jmUnassigned(all){
+  var list=all.filter(function(j){ return !_jmHasPlate(j); });
+  return '<div class="jm-wrap"><div class="jm-bar"><button class="jm-back" onclick="jmGo(1)">←</button>ยังไม่จัดรถ</div>'+
+    '<div class="jm-bc">งานที่ยังไม่ใส่ทะเบียน · '+list.length+' งาน</div>'+_jmCards(list)+'</div>';
+}
+function _jmCards(list){
+  if(!list.length) return '<div class="jm-empty">ไม่มีงานในกลุ่มนี้</div>';
+  return list.map(function(j){
+    var hp=_jmHasPlate(j);
+    var mid=/(เข้า|เปิด)/.test(j.job_type||'') ? {ic:'📂',lb:'เปิดตู้'} : {ic:'📦',lb:'บรรจุ'};
+    var st=hp?'<span class="jm-st jm-ok">🟢 จัดรถเสร็จแล้ว</span>':'<span class="jm-st jm-no">🔴 ยังไม่มีรถใส่</span>';
+    var foot='JOB-'+_jmEsc(String(j.id))+(hp?' · 🚛'+_jmEsc(j.plate):'');
+    return '<div class="jm-job" onclick="openDetail(\''+_jmEsc(String(j.id))+'\')">'+
+      '<div class="jm-ship">'+_jmEsc(j.shipper||j.customer||'(ไม่ระบุ shipper)')+'</div>'+
+      '<div class="jm-loc"><span class="jm-lk">🟢 ต้นทาง</span>'+_jmEsc(j.origin||'-')+'</div>'+
+      '<div class="jm-loc"><span class="jm-lk">'+mid.ic+' '+mid.lb+'</span>'+_jmEsc(j.dest||'-')+'</div>'+
+      '<div class="jm-loc"><span class="jm-lk">🏁 ปลายทาง</span>'+_jmEsc(j.returnyard||'-')+'</div>'+
+      '<div class="jm-foot">'+st+'<span class="jm-jid">'+foot+'</span></div></div>';
+  }).join('');
+}
+
 function getFiltered(){
   const q=document.getElementById('j-search').value.toLowerCase();
   const st=document.getElementById('j-fstatus').value;
@@ -19843,6 +19940,7 @@ function renderJobs(){
     if(el('j-morn-truck'))el('j-morn-truck').textContent=mornTruck;
     if(el('j-morn-trailer'))el('j-morn-trailer').textContent=mornTrailer;
   })();
+  if(typeof jmRender==='function') jmRender();  // 🆕 sync วิวมือถือ
   const total=data.length,pages=Math.max(1,Math.ceil(total/PAGE_SZ));
   if(jPage>pages)jPage=pages;
   const slice=data.slice((jPage-1)*PAGE_SZ,jPage*PAGE_SZ);
