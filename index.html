@@ -19235,6 +19235,7 @@ async function renderFinanceDashboard(){
   try{ _dashRenderCustomers(pr); }catch(e){ console.warn('cust dash', e); }
   // ===== เฟส 4: คนขับ =====
   try{ _dashRenderDrivers(pr); }catch(e){ console.warn('driver dash', e); }
+  try{ renderDriverSafety(); }catch(e){ console.warn('driver safety', e); }
   // ===== ค่าทางด่วนรถส่วนตัวกรรมการ (ตารางแยก ไม่นับต้นทุน) =====
   try{ renderPersonalTolls(); }catch(e){ console.warn('personal tolls', e); }
 }
@@ -19363,7 +19364,7 @@ function _dashRenderDrivers(pr){
   var byTrips=arr.slice().sort(function(a,b){return b.trips-a.trips;}).slice(0,8);
   _dashMkChart('dashDrvChart',{type:'bar',data:{labels:byTrips.map(function(a){return a.drv;}),datasets:[{label:'จำนวนเที่ยว',data:byTrips.map(function(a){return a.trips;}),backgroundColor:'#2563EB'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#f0f0f0'},ticks:{font:{family:'Sarabun'}}},y:{grid:{display:false},ticks:{font:{family:'Sarabun',size:11}}}}}});
 
-  document.getElementById('ddrv-safety').innerHTML='<div style="color:var(--text-3);font-size:12.5px;line-height:1.8;padding:6px 0">ข้อมูลพฤติกรรมการขับ (เบรกแรง · ออกตัวแรง · เลี้ยวแรง · ความเร็วเกิน) อยู่ในระบบ <b>Cartrack</b> ซึ่งยังไม่ได้นำเข้า Supabase<br><span style="color:#92400E;font-weight:600">→ เฟสถัดไป: import Cartrack เพื่อโชว์คะแนนความปลอดภัยรายคน</span></div>';
+  document.getElementById('ddrv-safety').innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลดข้อมูลความปลอดภัย…</div>';
 
   var byT=arr.slice().sort(function(a,b){return (b.pay-a.pay)||(b.trips-a.trips);});  // เรียงตามเบิก(ที่มีข้อมูล) แล้วค่อยเที่ยว · โชว์ทุกคน
   var _gy=function(v){ return v>0?'฿'+_dashFmt(v):'<span style="color:var(--text-3)">—</span>'; };
@@ -19388,6 +19389,49 @@ async function renderPersonalTolls(){
       + Object.keys(byCar).map(function(k){ var c=byCar[k]; return '<div class="dfin-li"><span class="nm">'+_finEsc(c.plate)+' <span style="color:var(--text-3);font-weight:400">('+_finEsc(c.brand)+')</span></span><span class="age" style="color:var(--text-3)">'+c.n+' ครั้ง</span><span class="amt">฿'+_dashFmt(c.amt)+'</span></div>'; }).join('')
       + '<div class="dfin-li" style="font-weight:700;border-top:1.5px solid var(--border)"><span class="nm">รวม '+rows.length+' รายการ</span><span class="amt">฿'+_dashFmt(total)+'</span></div></div>';
   }catch(e){ console.warn('personal tolls', e.message); el.innerHTML=''; }
+}
+
+// เฟส 4 — ความปลอดภัยรายคัน (Cartrack) จากตาราง gyt_vehicle_safety · เรียงเสี่ยงมากบนสุด (รายคัน ไม่อิงชื่อคนขับ)
+async function renderDriverSafety(){
+  var el=document.getElementById('ddrv-safety');
+  if(!el) return;
+  try{
+    var rows=await sbFetchAll('gyt_vehicle_safety','?order=period.desc');
+    if(!rows || !rows.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลความปลอดภัย (รอรัน gyt_vehicle_safety_setup.sql)</div>'; return; }
+    var period=rows.reduce(function(m,r){ return (r.period>m)?r.period:m; }, rows[0].period);
+    var data=rows.filter(function(r){ return r.period===period; });
+    // คะแนนเสี่ยง 0-100 (สูง=อันตราย): วิ่งเกิน90/100กม + ขับกระชาก/100กม + ความเร็วสูงสุด
+    function score(r){
+      var km=Number(r.km)||0;
+      var sp=Number(r.spd_per100)||0;
+      var hp=km>0?(Number(r.harsh)||0)/km*100:0;
+      var ms=Number(r.max_speed)||0;
+      var sScore=Math.min(sp*3.2, 48);
+      var hScore=Math.min(hp*11, 34);
+      var mScore=ms>=105?18:(ms>=100?13:(ms>=90?7:0));
+      return { risk:Math.min(Math.round(sScore+hScore+mScore),100), hp:hp };
+    }
+    var arr=data.map(function(r){ var s=score(r); return { plate:r.plate, km:Number(r.km)||0, ms:Number(r.max_speed)||0, sp:Number(r.spd_per100)||0, hp:s.hp, risk:s.risk }; });
+    arr.sort(function(a,b){ return b.risk-a.risk; });
+    function band(v){ return v>=55?{c:'#DC2626',bg:'#FEE2E2',t:'เสี่ยงสูง',ic:'🔴'}:(v>=35?{c:'#D97706',bg:'#FEF3C7',t:'เฝ้าระวัง',ic:'🟡'}:{c:'#16A34A',bg:'#DCFCE7',t:'ดี',ic:'🟢'}); }
+    var nRed=arr.filter(function(a){return a.risk>=55;}).length;
+    var thMon={'01':'ม.ค.','02':'ก.พ.','03':'มี.ค.','04':'เม.ย.','05':'พ.ค.','06':'มิ.ย.','07':'ก.ค.','08':'ส.ค.','09':'ก.ย.','10':'ต.ค.','11':'พ.ย.','12':'ธ.ค.'};
+    var pp=period.split('-'); var plabel=(thMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543);
+    var html='<div style="font-size:11.5px;color:var(--text-3);margin-bottom:8px">ข้อมูล Cartrack '+plabel+' · เรียงเสี่ยงมากบนสุด · '+(nRed?('<span style="color:#DC2626;font-weight:700">'+nRed+' คันเสี่ยงสูง ⚠️</span>'):'ไม่มีคันเสี่ยงสูง 🎉')+'</div>';
+    html+='<div style="max-height:420px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th style="text-align:center">ระดับ</th><th style="text-align:right">คะแนนเสี่ยง</th><th style="text-align:right">เกิน90 <small style="font-weight:400;color:var(--text-3)">/100กม</small></th><th style="text-align:right">กระชาก <small style="font-weight:400;color:var(--text-3)">/100กม</small></th><th style="text-align:right">เร็วสุด</th><th style="text-align:right">ระยะ(กม.)</th></tr></thead><tbody>';
+    html+=arr.map(function(a){ var b=band(a.risk);
+      return '<tr><td style="font-weight:700">'+_finEsc(a.plate)+'</td>'
+        +'<td style="text-align:center"><span style="background:'+b.bg+';color:'+b.c+';font-weight:700;font-size:11px;padding:2px 7px;border-radius:10px;white-space:nowrap">'+b.ic+' '+b.t+'</span></td>'
+        +'<td style="text-align:right;font-weight:800;color:'+b.c+'">'+a.risk+'</td>'
+        +'<td style="text-align:right">'+a.sp.toFixed(1)+'</td>'
+        +'<td style="text-align:right">'+a.hp.toFixed(1)+'</td>'
+        +'<td style="text-align:right;color:'+(a.ms>=100?'#DC2626':(a.ms>90?'#D97706':'var(--text-2)'))+';font-weight:'+(a.ms>90?'700':'400')+'">'+a.ms+'</td>'
+        +'<td style="text-align:right;color:var(--text-3)">'+_dashFmt(a.km)+'</td></tr>';
+    }).join('');
+    html+='</tbody></table></div>';
+    html+='<div style="font-size:11px;color:var(--text-3);margin-top:6px">คะแนนเสี่ยง = วิ่งเกิน90 + ขับกระชาก(เบรก/ออกตัว/เลี้ยวแรง) + ความเร็วสูงสุด · รถบรรทุกตามกฎหมายห้ามเกิน 90 กม/ชม.</div>';
+    el.innerHTML=html;
+  }catch(e){ console.warn('driver safety', e.message); el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">โหลดข้อมูลความปลอดภัยไม่สำเร็จ</div>'; }
 }
 
 /* ════════════════════════════════════════════════
@@ -25023,7 +25067,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.187';
+const APP_VERSION = '2026.04.29.188';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
