@@ -974,7 +974,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div id="pg-jobs" class="screen">
         <style>
           #jm-root{display:none}
-          @media(max-width:640px){
+          @media(max-width:880px){
             #pg-jobs > *:not(#jm-root){display:none!important}
             #jm-root{display:block}
           }
@@ -19940,7 +19940,7 @@ function renderJobs(){
     if(el('j-morn-truck'))el('j-morn-truck').textContent=mornTruck;
     if(el('j-morn-trailer'))el('j-morn-trailer').textContent=mornTrailer;
   })();
-  if(typeof jmRender==='function') jmRender();  // 🆕 sync วิวมือถือ
+  try{ if(typeof jmRender==='function') jmRender(); }catch(_jme){ console.warn('[jm] render', _jme); }  // 🆕 sync วิวมือถือ
   const total=data.length,pages=Math.max(1,Math.ceil(total/PAGE_SZ));
   if(jPage>pages)jPage=pages;
   const slice=data.slice((jPage-1)*PAGE_SZ,jPage*PAGE_SZ);
