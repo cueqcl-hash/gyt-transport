@@ -20364,6 +20364,8 @@ function rateHintRefresh(prefix){
   var shipper = (typeof sdGetValue==='function') ? sdGetValue(prefix+'-shipper') : g(prefix+'-shipper');
   var customer = (typeof sdGetValue==='function') ? sdGetValue(prefix+'-customer') : g(prefix+'-customer');
   var ctype = g(prefix+'-type');
+  // 🆕 ฟอร์มหลายตู้ (mc) — ขนาดตู้อยู่ต่อแถว (mc-r1-type) ไม่ใช่ระดับฟอร์ม → ใช้ตู้แรกเป็นตัวแทน ให้กรองขนาดได้เหมือน fj
+  if(!ctype && prefix==='mc'){ ctype = g('mc-r1-type') || g('mc-r1-type-input') || ''; }
   var suggs = _rateSuggest(shipper, customer, g(prefix+'-origin'), g(prefix+'-dest'), g(prefix+'-return'), ctype);
   if(!suggs.length){
     _rateLastTop[prefix] = null;
@@ -25076,7 +25078,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.190';
+const APP_VERSION = '2026.04.29.191';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
