@@ -19813,6 +19813,7 @@ function _jmCards(list){
       '<div class="jm-loc"><span class="jm-lk">🟢 ต้นทาง</span>'+_jmEsc(j.origin||'-')+'</div>'+
       '<div class="jm-loc"><span class="jm-lk">'+mid.ic+' '+mid.lb+'</span>'+_jmEsc(j.dest||'-')+'</div>'+
       '<div class="jm-loc"><span class="jm-lk">🏁 ปลายทาง</span>'+_jmEsc(j.returnyard||'-')+'</div>'+
+      '<div class="jm-loc"><span class="jm-lk">👤 ลูกค้า(ตัวแทน)</span>'+_jmEsc(j.customer||'-')+'</div>'+
       metaHtml+
       '<div class="jm-foot">'+st+'<span class="jm-jid">'+foot+'</span></div></div>';
   }).join('');
@@ -25264,7 +25265,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.201';
+const APP_VERSION = '2026.04.29.202';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -31993,4 +31994,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v201 PROD — มือถือ: โชว์วันที่ในชั้น 2/3 + ภายในวัน(แดงหนา)/ช่วงเช้า(น้ำเงินหนา) + icon เบอร์ตู้เป็น 📦 -->
+<!-- deploy v202 PROD — มือถือ: เพิ่ม ลูกค้า(ตัวแทน) ใต้ปลายทางในการ์ดงาน -->
