@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>นามบัตรดิจิทัล — Green Yellow Transport</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Saira:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  /* ============================================================
+     EDIT YOUR DETAILS IN THE <script> CONFIG AT THE BOTTOM ↓↓↓
+     ============================================================ */
+  :root{
+    --steel-900:#14171A; --steel-850:#181C20; --steel-800:#1E2328;
+    --steel-700:#2A3036;  --line:#343C43;
+    --gy-yellow:#FFD400;  --gy-green:#13B65A;
+    --concrete:#8A949C;   --paper:#EEF1ED;
+    --latin:'Saira',sans-serif;
+    --cond:'Saira Condensed','IBM Plex Sans Thai',sans-serif;
+    --thai:'IBM Plex Sans Thai',sans-serif;
+    --mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:#0C0E10}
+  body{
+    font-family:var(--thai);color:var(--paper);
+    min-height:100dvh;display:flex;justify-content:center;
+    padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));
+  }
+  .card{
+    width:100%;max-width:430px;background:var(--steel-900);
+    border:1px solid var(--line);border-radius:18px;overflow:hidden;
+    box-shadow:0 24px 60px rgba(0,0,0,.55);
+    display:flex;flex-direction:column;
+  }
+
+  /* hazard stripe */
+  .hazard{height:10px;flex:none;
+    background:repeating-linear-gradient(135deg,var(--gy-yellow) 0 16px,#0C0E10 16px 32px)}
+  .hazard.thin{height:6px}
+
+  /* top plate — container marking */
+  .plate{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 18px;background:var(--steel-850);
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--concrete);
+  }
+  .plate .dot{width:7px;height:7px;border-radius:50%;background:var(--gy-green);
+    box-shadow:0 0 0 3px rgba(19,182,90,.18);display:inline-block;margin-right:7px;vertical-align:middle}
+  .plate b{color:var(--paper);font-weight:500}
+
+  /* brand */
+  .brand{padding:22px 22px 6px;display:flex;align-items:center;gap:13px}
+  .logo{width:46px;height:46px;border-radius:9px;flex:none;position:relative;
+    background:linear-gradient(150deg,var(--gy-green),#0E8C44);
+    display:grid;place-items:center;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+  .logo span{font-family:var(--cond);font-weight:700;font-size:22px;color:#06210F;letter-spacing:-.02em}
+  .logo::after{content:"";position:absolute;right:-3px;bottom:-3px;width:16px;height:16px;
+    border-radius:4px;background:var(--gy-yellow);box-shadow:0 0 0 3px var(--steel-900)}
+  .brand-name{font-family:var(--cond);text-transform:uppercase;line-height:.96}
+  .brand-name .g{color:var(--gy-green)}
+  .brand-name .y{color:var(--gy-yellow)}
+  .brand-name .l1{font-size:21px;font-weight:700;letter-spacing:.01em}
+  .brand-name .l2{font-size:21px;font-weight:700;color:var(--paper);letter-spacing:.06em}
+  .brand-sub{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--concrete);margin-top:3px}
+
+  /* identity */
+  .id{padding:20px 22px 22px}
+  .name-th{font-family:var(--thai);font-weight:700;font-size:30px;line-height:1.08;letter-spacing:-.01em}
+  .name-en{font-family:var(--cond);text-transform:uppercase;font-weight:600;
+    font-size:14px;letter-spacing:.16em;color:var(--concrete);margin-top:5px}
+  .title-row{display:flex;align-items:baseline;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .title-th{font-family:var(--thai);font-weight:600;font-size:16px;color:var(--paper)}
+  .title-en{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--gy-yellow)}
+
+  /* actions */
+  .actions{padding:6px 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .act{
+    display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--paper);
+    background:var(--steel-800);border:1px solid var(--line);border-radius:12px;
+    padding:14px;transition:transform .12s ease,border-color .12s ease,background .12s ease;
+    cursor:pointer;font-family:var(--thai)}
+  .act:hover{border-color:var(--gy-green);background:var(--steel-700)}
+  .act:active{transform:scale(.97)}
+  .act:focus-visible{outline:2px solid var(--gy-yellow);outline-offset:2px}
+  .act.wide{grid-column:1 / -1}
+  .act.wide .v{white-space:normal;overflow:visible}
+  .act .ico{width:36px;height:36px;border-radius:9px;flex:none;display:grid;place-items:center;
+    background:#0E1316;border:1px solid var(--line)}
+  .act .ico svg{width:19px;height:19px;stroke:var(--gy-green);fill:none;stroke-width:1.7}
+  .act .tx{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+  .act .tx .k{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--concrete)}
+  .act .tx .v{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .act.save{grid-column:1 / -1;background:var(--gy-green);border-color:var(--gy-green);color:#06210F}
+  .act.save .ico{background:rgba(0,0,0,.14);border-color:rgba(0,0,0,.18)}
+  .act.save .ico svg{stroke:#06210F}
+  .act.save .tx .k{color:#0a4a23}
+  .act.save .v{font-weight:700;white-space:normal}
+  .act.save:hover{background:#16c863;border-color:#16c863}
+  .act.qrbtn{grid-column:1 / -1;background:transparent;border-style:dashed;justify-content:center;color:var(--concrete)}
+  .act.qrbtn .v{font-family:var(--mono);font-size:11px;letter-spacing:.14em}
+  .act.qrbtn:hover{color:var(--gy-yellow);border-color:var(--gy-yellow)}
+
+  /* footer plate */
+  .foot{padding:16px 22px 20px;background:var(--steel-850);margin-top:auto}
+  .foot .co{font-family:var(--thai);font-size:12px;color:var(--concrete);line-height:1.5}
+  .foot .co b{color:var(--paper);font-weight:600}
+  .foot .unit{display:flex;align-items:center;gap:8px;margin-top:12px;
+    font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--concrete)}
+  .foot .unit .code{color:var(--steel-900);background:var(--gy-yellow);
+    padding:3px 8px;border-radius:4px;font-weight:700;letter-spacing:.1em}
+
+  /* QR modal */
+  .modal{position:fixed;inset:0;background:rgba(5,7,8,.78);backdrop-filter:blur(4px);
+    display:none;align-items:center;justify-content:center;padding:24px;z-index:50}
+  .modal.on{display:flex}
+  .qrbox{background:var(--steel-800);border:1px solid var(--line);border-radius:16px;
+    padding:24px;text-align:center;max-width:300px;width:100%}
+  .qrbox h3{font-family:var(--cond);text-transform:uppercase;letter-spacing:.14em;
+    font-size:15px;font-weight:700;margin-bottom:4px}
+  .qrbox p{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--concrete);margin-bottom:16px}
+  #qr{display:inline-block;padding:12px;background:#fff;border-radius:10px}
+  #qr img,#qr canvas{display:block}
+  .qrbox button{margin-top:18px;width:100%;padding:12px;border:none;border-radius:10px;
+    background:var(--gy-yellow);color:#0C0E10;font-family:var(--cond);font-weight:700;
+    text-transform:uppercase;letter-spacing:.1em;font-size:13px;cursor:pointer}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+  <main class="card" id="card">
+    <div class="plate">
+      <span><span class="dot"></span>FLEET UNIT · <b id="p-unit">OPS</b></span>
+      <span id="p-loc">LAEM CHABANG</span>
+    </div>
+    <div class="hazard"></div>
+
+    <header class="brand">
+      <div class="logo"><span>GY</span></div>
+      <div>
+        <div class="brand-name">
+          <div><span class="l1"><span class="g">GREEN</span> <span class="y">YELLOW</span></span></div>
+          <div class="l2">TRANSPORT</div>
+        </div>
+        <div class="brand-sub" id="b-sub">THAILAND CO., LTD.</div>
+      </div>
+    </header>
+
+    <section class="id">
+      <div class="name-th" id="i-nameth">[ ชื่อ–นามสกุล ]</div>
+      <div class="name-en" id="i-nameen">[ NAME SURNAME ]</div>
+      <div class="title-row">
+        <span class="title-th" id="i-titleth">ผู้จัดการฝ่ายปฏิบัติการ</span>
+        <span class="title-en" id="i-titleen">OPERATIONS MANAGER</span>
+      </div>
+    </section>
+
+    <nav class="actions" id="actions"></nav>
+
+    <footer class="foot">
+      <div class="co"><b id="f-coth">บริษัท กรีน เยลโล่ ทรานสปอร์ต (ไทยแลนด์) จำกัด</b><br>
+        <span id="f-addr">ท่าเรือแหลมฉบัง จ.ชลบุรี</span></div>
+      <div class="unit"><span class="code" id="f-code">GYT · OPS · LCB</span> <span>CARGO LOGISTICS</span></div>
+    </footer>
+  </main>
+
+  <div class="modal" id="modal">
+    <div class="qrbox">
+      <h3>Scan to connect</h3>
+      <p id="qr-url">—</p>
+      <div id="qr"></div>
+      <button id="qr-close">ปิด</button>
+    </div>
+  </div>
+
+<script>
+/* ============================================================
+   ✏️  แก้ข้อมูลทั้งหมดได้ที่นี่ที่เดียว  ✏️
+   เปลี่ยน [...] ให้เป็นข้อมูลจริงของพี่
+   ============================================================ */
+const CARD = {
+  nameTh:   "พิศลย์ โพนทองถิ่น",
+  nameEn:   "Pisoln Ponthongthin",
+  titleTh:  "ผู้จัดการฝ่ายปฏิบัติการ",
+  titleEn:  "OPERATIONS MANAGER",
+  companyTh:"บริษัท กรีน เยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด",
+  companyEn:"Green Yellow Transport (Thailand) Co., Ltd.",
+
+  phone:    "081-828-7991",             // เบอร์หลัก
+  phone2:   "086-412-5355",             // เบอร์รอง
+  email:    "greenyellowtransportthai@hotmail.com",
+  lineId:   "0864125355",               // id หรือ URL https://line.me/ti/p/~xxxx
+  mapsUrl:  "https://maps.google.com/?q=Bangkok+Port+Khlong+Toei",
+  addrTh:   "ท่าเรือกรุงเทพ เขตคลองเตย กรุงเทพฯ",
+
+  unitCode: "OPS",                      // โชว์บนป้ายบนสุด
+  fleetCode:"GYT · OPS · BKK",          // รหัสมุมล่าง
+  loc:      "BANGKOK PORT"
+};
+
+/* ---- icons ---- */
+const I = {
+  phone:'<path d="M5 4h3l1.5 4-2 1.5a11 11 0 005 5L19 12l4 1.5V18a2 2 0 01-2 2A16 16 0 014 5a2 2 0 011-1z"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/>',
+  line:'<rect x="3" y="4" width="18" height="14" rx="6"/><path d="M9 17l-2 3 5-3"/>',
+  map:'<path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/>',
+  save:'<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3"/><path d="M8 14h8"/>',
+};
+
+/* ---- apply text ---- */
+const $=s=>document.querySelector(s);
+$('#i-nameth').textContent=CARD.nameTh;
+$('#i-nameen').textContent=CARD.nameEn;
+$('#i-titleth').textContent=CARD.titleTh;
+$('#i-titleen').textContent=CARD.titleEn;
+$('#f-coth').textContent=CARD.companyTh;
+$('#f-addr').textContent=CARD.addrTh;
+$('#f-code').textContent=CARD.fleetCode;
+$('#p-unit').textContent=CARD.unitCode;
+$('#p-loc').textContent=CARD.loc;
+
+/* ---- build action buttons ---- */
+const tel=n=>'tel:'+n.replace(/[^+\d]/g,'');
+const lineHref=/^https?:/.test(CARD.lineId)?CARD.lineId:('https://line.me/ti/p/~'+CARD.lineId.replace(/[^\w.-]/g,''));
+const acts=[
+  {cls:'',href:tel(CARD.phone),ico:'phone',k:'CALL',v:CARD.phone},
+  {cls:'',href:tel(CARD.phone2),ico:'phone',k:'CALL',v:CARD.phone2},
+  {cls:'',href:lineHref,ico:'line',k:'LINE',v:CARD.lineId},
+  {cls:'',href:CARD.mapsUrl,ico:'map',k:'LOCATION',v:'ท่าเรือกรุงเทพ'},
+  {cls:'wide',href:'mailto:'+CARD.email,ico:'mail',k:'EMAIL',v:CARD.email},
+];
+const wrap=$('#actions');
+acts.forEach(a=>{
+  const el=document.createElement('a');
+  el.className='act '+a.cls;el.href=a.href;
+  if(a.ico==='map'||a.ico==='line')el.target='_blank';el.rel='noopener';
+  el.innerHTML=`<span class="ico"><svg viewBox="0 0 24 24">${I[a.ico]}</svg></span>
+    <span class="tx"><span class="k">${a.k}</span><span class="v">${a.v}</span></span>`;
+  wrap.appendChild(el);
+});
+/* save contact (vCard) */
+const save=document.createElement('a');
+save.className='act save';save.href='#';
+save.innerHTML=`<span class="ico"><svg viewBox="0 0 24 24">${I.save}</svg></span>
+  <span class="tx"><span class="k">VCARD</span><span class="v">บันทึกลงรายชื่อ · Save contact</span></span>`;
+save.addEventListener('click',e=>{e.preventDefault();downloadVCard();});
+wrap.appendChild(save);
+/* qr button */
+const qrb=document.createElement('a');
+qrb.className='act qrbtn';qrb.href='#';
+qrb.innerHTML='<span class="tx"><span class="v">▣ แสดง QR เพื่อแชร์</span></span>';
+qrb.addEventListener('click',e=>{e.preventDefault();openQR();});
+wrap.appendChild(qrb);
+
+/* ---- vCard ---- */
+function downloadVCard(){
+  const v=[
+    'BEGIN:VCARD','VERSION:3.0',
+    'N:;'+CARD.nameEn+';;;','FN:'+CARD.nameEn,
+    'ORG:'+CARD.companyEn,'TITLE:'+CARD.titleEn,
+    'TEL;TYPE=CELL:'+CARD.phone,'TEL;TYPE=CELL:'+CARD.phone2,'EMAIL:'+CARD.email,
+    'ADR;TYPE=WORK:;;'+CARD.addrTh+';;;;',
+    'URL:'+location.href,
+    'NOTE:LINE '+CARD.lineId,
+    'END:VCARD'
+  ].join('\r\n');
+  const blob=new Blob([v],{type:'text/vcard'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=(CARD.nameEn.replace(/[^\w]+/g,'_')||'contact')+'.vcf';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+/* ---- QR ---- */
+let qrMade=false;
+function openQR(){
+  const m=$('#modal');m.classList.add('on');
+  $('#qr-url').textContent=location.href;
+  if(!qrMade){
+    try{new QRCode(document.getElementById('qr'),{text:location.href,width:200,height:200,
+      colorDark:'#14171A',colorLight:'#ffffff'});qrMade=true;}
+    catch(e){$('#qr').textContent='เปิดหน้านี้บนเว็บจริงเพื่อสร้าง QR';}
+  }
+}
+$('#qr-close').addEventListener('click',()=>$('#modal').classList.remove('on'));
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')$('#modal').classList.remove('on');});
+</script>
+</body>
+</html>
