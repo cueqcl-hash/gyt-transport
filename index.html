@@ -19753,6 +19753,7 @@ function _jmEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/<
 function _jmIsTruck(j){ return _JM_TRUCK10.has((j.type||'').replace(/'\s+/g,"'").trim()); }
 function _jmIsDay(j){ return j.delivery_type==='จัดส่งสินค้าภายในวัน' || !j.delivery_type; }
 function _jmHasPlate(j){ return !!((j.plate||'').trim()); }
+function _jmDayLabel(day){ return day==='morning' ? '<b style="color:#2563EB">ช่วงเช้า</b>' : '<b style="color:#DC2626">ภายในวัน</b>'; }
 function _jmToday(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function _jmThaiDate(iso){ if(!iso) return ''; var p=iso.split('-'); if(p.length<3) return iso; var dow=['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.']; var dt=new Date(+p[0],+p[1]-1,+p[2]); return dow[dt.getDay()]+' '+(+p[2])+'/'+(+p[1])+'/'+((+p[0])+543); }
 function _jmData(){ if(!_jmState.date)_jmState.date=_jmToday(); var src=(typeof jobs!=='undefined'&&jobs)?jobs:[], d=_jmState.date; return src.filter(function(j){ return j.status!=='ยกเลิก' && (j.startdate||'').slice(0,10)===d; }); }
@@ -19771,28 +19772,28 @@ function _jmL1(all){
     '<div class="jm-datebar">📅 <input type="date" class="jm-date" value="'+_jmEsc(_jmState.date)+'" onchange="jmSetDate(this.value)"><button class="jm-today" onclick="jmSetDate(\'\')">วันนี้</button></div>';
   if(noTruck>0) h+='<div class="jm-alert" onclick="jmGo(\'unassigned\')">🔴 ยังไม่จัดรถ <b>'+noTruck+'</b> งาน — แตะดู ▸</div>';
   h+='<div class="jm-card jm-tot"><span class="jm-cl">📋 งานทั้งหมด</span><span class="jm-cn">'+all.length+'</span></div>'+
-     '<div class="jm-card jm-day" onclick="jmGo(2,\'day\')"><span class="jm-cl">🔴 ภายในวัน</span><span class="jm-cn">'+dayN+'</span><span class="jm-go">▸</span></div>'+
-     '<div class="jm-card jm-morn" onclick="jmGo(2,\'morning\')"><span class="jm-cl">🔵 ช่วงเช้า</span><span class="jm-cn">'+mornN+'</span><span class="jm-go">▸</span></div></div>';
+     '<div class="jm-card jm-day" onclick="jmGo(2,\'day\')"><span class="jm-cl">🔴 <b style="color:#DC2626">ภายในวัน</b></span><span class="jm-cn">'+dayN+'</span><span class="jm-go">▸</span></div>'+
+     '<div class="jm-card jm-morn" onclick="jmGo(2,\'morning\')"><span class="jm-cl">🔵 <b style="color:#2563EB">ช่วงเช้า</b></span><span class="jm-cn">'+mornN+'</span><span class="jm-go">▸</span></div></div>';
   return h;
 }
 function _jmL2(all){
   var inB=_jmBucket(all,_jmState.day), truck=inB.filter(_jmIsTruck).length, trailer=inB.length-truck;
-  var dl=_jmState.day==='morning'?'ช่วงเช้า':'ภายในวัน';
+  var dl=_jmDayLabel(_jmState.day);
   return '<div class="jm-wrap"><div class="jm-bar"><button class="jm-back" onclick="jmGo(1)">←</button>'+dl+'</div>'+
-    '<div class="jm-bc">'+dl+' › เลือกประเภทรถ</div>'+
+    '<div class="jm-bc">📅 '+_jmThaiDate(_jmState.date)+' · '+dl+' › เลือกประเภทรถ</div>'+
     '<div class="jm-card jm-veh" onclick="jmGo(3,_jmState.day,\'truck\')"><span class="jm-cl">🚛 สิบล้อ <small>ตู้ 20 ฟุต</small></span><span class="jm-cn">'+truck+'<small> คัน</small></span><span class="jm-go">▸</span></div>'+
     '<div class="jm-card jm-veh" onclick="jmGo(3,_jmState.day,\'trailer\')"><span class="jm-cl">🚚 หัวลาก/เทรลเลอร์ <small>ตู้ 40 ฟุต</small></span><span class="jm-cn">'+trailer+'<small> คัน</small></span><span class="jm-go">▸</span></div></div>';
 }
 function _jmL3(all){
   var list=_jmBucket(all,_jmState.day).filter(function(j){ return _jmState.veh==='truck'?_jmIsTruck(j):!_jmIsTruck(j); });
-  var dl=_jmState.day==='morning'?'ช่วงเช้า':'ภายในวัน', vl=_jmState.veh==='truck'?'สิบล้อ':'หัวลาก/เทรลเลอร์';
-  return '<div class="jm-wrap"><div class="jm-bar"><button class="jm-back" onclick="jmGo(2,_jmState.day)">←</button>'+vl+'</div>'+
-    '<div class="jm-bc">'+dl+' › '+vl+' · '+list.length+' งาน</div>'+_jmCards(list)+'</div>';
+  var dl=_jmDayLabel(_jmState.day), vl=_jmState.veh==='truck'?'สิบล้อ':'หัวลาก/เทรลเลอร์';
+  return '<div class="jm-wrap"><div class="jm-bar"><button class="jm-back" onclick="jmGo(2,_jmState.day)">←</button>'+dl+' › '+vl+'</div>'+
+    '<div class="jm-bc">📅 '+_jmThaiDate(_jmState.date)+' · '+dl+' › '+vl+' · '+list.length+' งาน</div>'+_jmCards(list)+'</div>';
 }
 function _jmUnassigned(all){
   var list=all.filter(function(j){ return !_jmHasPlate(j); });
   return '<div class="jm-wrap"><div class="jm-bar"><button class="jm-back" onclick="jmGo(1)">←</button>ยังไม่จัดรถ</div>'+
-    '<div class="jm-bc">งานที่ยังไม่ใส่ทะเบียน · '+list.length+' งาน</div>'+_jmCards(list)+'</div>';
+    '<div class="jm-bc">📅 '+_jmThaiDate(_jmState.date)+' · งานที่ยังไม่ใส่ทะเบียน · '+list.length+' งาน</div>'+_jmCards(list)+'</div>';
 }
 function _jmCards(list){
   if(!list.length) return '<div class="jm-empty">ไม่มีงานในกลุ่มนี้</div>';
@@ -19802,9 +19803,9 @@ function _jmCards(list){
     var st=hp?'<span class="jm-st jm-ok">🟢 จัดรถเสร็จแล้ว</span>':'<span class="jm-st jm-no">🔴 ยังไม่มีรถใส่</span>';
     var foot='JOB-'+_jmEsc(String(j.id))+(hp?' · 🚛'+_jmEsc(j.plate):'');
     var parts=[];
-    if(j.type) parts.push('📦 ตู้ '+_jmEsc(j.type));
+    if(j.type) parts.push('ตู้ '+_jmEsc(j.type));
     if(j.job_type) parts.push(_jmEsc(j.job_type));
-    if(j.container) parts.push('🔢 '+_jmEsc(j.container));
+    if(j.container) parts.push('📦 '+_jmEsc(j.container));
     if(j.weight) parts.push('⚖️ '+_jmEsc(String(j.weight))+' กก.');
     var metaHtml=parts.length?'<div class="jm-meta">'+parts.join(' · ')+'</div>':'';
     return '<div class="jm-job" onclick="openDetail(\''+_jmEsc(String(j.id))+'\')">'+
@@ -25263,7 +25264,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.200';
+const APP_VERSION = '2026.04.29.201';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -31992,4 +31993,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v200 PROD — มือถือ: ไม่ reset วันที่เป็นวันนี้ตอนเปิดหน้างาน (คงหน้า/วันที่เดิมที่ดูค้างไว้) -->
+<!-- deploy v201 PROD — มือถือ: โชว์วันที่ในชั้น 2/3 + ภายในวัน(แดงหนา)/ช่วงเช้า(น้ำเงินหนา) + icon เบอร์ตู้เป็น 📦 -->
