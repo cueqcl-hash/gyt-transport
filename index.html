@@ -734,8 +734,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   .sidebar-wrap{ order: 2; width:100%!important; height:auto!important; flex-shrink:0; }
   .sidebar{ display:flex!important; flex-direction:row!important; width:100%!important; height:auto!important;
             box-shadow:0 -2px 12px rgba(0,0,0,.18); padding-bottom: env(safe-area-inset-bottom, 0px); }
-  .sb-logo, .sb-user, .sb-bottom, .sb-toggle, .nav-sep{ display:none!important; }
-  .sb-nav{ flex-direction:row!important; flex:1; overflow-x:auto; overflow-y:hidden; padding:4px!important; gap:2px; -webkit-overflow-scrolling:touch; }
+  .sb-logo, #sb-version-badge, .sb-user, .sb-bottom, .sb-toggle, .nav-sep{ display:none!important; }
+  .sb-nav{ display:flex!important; flex-direction:row!important; align-items:center; flex:1; overflow-x:auto; overflow-y:hidden!important; padding:4px!important; gap:2px; -webkit-overflow-scrolling:touch; }
   .nav-item{ flex-direction:column!important; align-items:center!important; justify-content:center!important;
              gap:2px!important; min-width:62px; padding:7px 6px!important; border-radius:9px; white-space:nowrap; }
   .nav-item span:first-child{ font-size:18px!important; }
@@ -25248,7 +25248,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.197';
+const APP_VERSION = '2026.04.29.198';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -31977,4 +31977,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v197 PROD — mobile: เว้น status bar โทรศัพท์ (safe-area) + sidebar เป็นแถบล่างตอนแนวตั้ง (แนวนอน/คอมคงเดิม) -->
+<!-- deploy v198 PROD — fix sidebar bottom bar: sb-nav ต้อง display:flex (เดิม block ทำให้ nav เรียงตั้งสูงเต็มจอ) -->
