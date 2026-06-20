@@ -5712,7 +5712,7 @@ function goPage(id, opts){
   if(id==='jobs'){badge.style.display='block';badge.textContent='Green Yello Transport';}
   else badge.style.display='none';
   if(id==='dashboard')renderDashboard();
-  if(id==='jobs'){ if(typeof _jmState!=='undefined'){_jmState.level=1; _jmState.date=(typeof _jmToday==='function'?_jmToday():null);} renderJobs(); }  // 🆕 เปิดหน้างาน → วิวมือถือเริ่มชั้น 1 + วันที่=วันนี้
+  if(id==='jobs') renderJobs();  // 🆕 วิวมือถือคงหน้า/วันที่เดิมที่ดูค้างไว้ (ไม่ reset เป็นวันนี้) · ครั้งแรกสุด default=วันนี้เอง
   if(id==='users')renderUsers();
   if(id==='receipts' && typeof rcptInit==='function') rcptInit();  // 🆕 v083
   if(id==='billing'  && typeof billingInit==='function') billingInit();  // 🆕 v114
@@ -25263,7 +25263,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.199';
+const APP_VERSION = '2026.04.29.200';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -31992,4 +31992,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v199 PROD — มือถือ: date picker (default วันนี้ทุกครั้งที่เปิด) + การ์ดงานเพิ่ม ประเภทตู้/ประเภทงาน/เบอร์ตู้/น้ำหนัก -->
+<!-- deploy v200 PROD — มือถือ: ไม่ reset วันที่เป็นวันนี้ตอนเปิดหน้างาน (คงหน้า/วันที่เดิมที่ดูค้างไว้) -->
