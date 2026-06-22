@@ -54,10 +54,9 @@
   /* brand */
   .brand{padding:22px 22px 6px;display:flex;align-items:center;gap:13px}
   .logo{width:46px;height:46px;border-radius:9px;flex:none;position:relative;
-    background:linear-gradient(150deg,var(--gy-green),#0E8C44);
-    display:grid;place-items:center;
+    background:#fff;display:grid;place-items:center;padding:4px;
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
-  .logo span{font-family:var(--cond);font-weight:700;font-size:22px;color:#06210F;letter-spacing:-.02em}
+  .logo img{width:100%;height:100%;object-fit:contain;display:block}
   .logo::after{content:"";position:absolute;right:-3px;bottom:-3px;width:16px;height:16px;
     border-radius:4px;background:var(--gy-yellow);box-shadow:0 0 0 3px var(--steel-900)}
   .brand-name{font-family:var(--cond);text-transform:uppercase;line-height:.96}
@@ -140,7 +139,7 @@
     <div class="hazard"></div>
 
     <header class="brand">
-      <div class="logo"><span>GY</span></div>
+      <div class="logo"><img src="logo.png" alt="โลโก้ Green Yellow Transport"></div>
       <div>
         <div class="brand-name">
           <div><span class="l1"><span class="g">GREEN</span> <span class="y">YELLOW</span></span></div>

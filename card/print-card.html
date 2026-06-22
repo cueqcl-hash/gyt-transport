@@ -40,9 +40,10 @@
   /* ---------- FRONT ---------- */
   .f-brand{flex:none;display:flex;align-items:center;gap:3mm;padding:4.5mm 6mm 2.5mm}
   .logo{width:9mm;height:9mm;border-radius:1.8mm;flex:none;position:relative;
-    background:linear-gradient(150deg,var(--gy-green),#0E8C44);display:grid;place-items:center;
+    background:#fff;display:grid;place-items:center;padding:.6mm;
     box-shadow:inset 0 0 0 .4px rgba(255,255,255,.25)}
-  .logo span{font-family:var(--cond);font-weight:700;font-size:4.4mm;color:#06210F;line-height:1}
+  .logo img{width:100%;height:100%;object-fit:contain;display:block;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
   .logo::after{content:"";position:absolute;right:-1mm;bottom:-1mm;width:3mm;height:3mm;
     border-radius:.8mm;background:var(--gy-yellow);box-shadow:0 0 0 .8mm var(--steel-900)}
   .wordmark{font-family:var(--cond);text-transform:uppercase;line-height:1.02}
@@ -103,7 +104,7 @@
   <div class="label">FRONT · ด้านหน้า</div>
   <div class="card front">
     <div class="f-brand">
-      <div class="logo"><span>GY</span></div>
+      <div class="logo"><img src="logo.png" alt="โลโก้ Green Yellow Transport"></div>
       <div class="wordmark">
         <div class="r1"><span class="g">GREEN</span> <span class="y">YELLOW</span></div>
         <div class="r2">TRANSPORT</div>
