@@ -53,8 +53,8 @@
 
   /* brand */
   .brand{padding:24px 22px 8px;display:flex;align-items:center;gap:15px}
-  .logo{width:92px;height:66px;border-radius:50%;flex:none;
-    background:#fff;display:grid;place-items:center;padding:3px;
+  .logo{width:96px;height:71px;border-radius:15px;flex:none;
+    background:#fff;display:grid;place-items:center;padding:6px;
     box-shadow:0 0 0 1px var(--line),0 6px 16px rgba(0,0,0,.35)}
   .logo img{width:100%;height:100%;object-fit:contain;display:block}
   .brand-name{font-family:var(--cond);text-transform:uppercase;line-height:.96}
@@ -91,6 +91,7 @@
   .act .tx{display:flex;flex-direction:column;line-height:1.15;min-width:0}
   .act .tx .k{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--concrete)}
   .act .tx .v{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .act .tx .note{font-family:var(--thai);font-size:10.5px;font-weight:500;color:var(--gy-yellow);margin-top:3px;white-space:normal;line-height:1.25}
   .act.save{grid-column:1 / -1;background:var(--gy-green);border-color:var(--gy-green);color:#06210F}
   .act.save .ico{background:rgba(0,0,0,.14);border-color:rgba(0,0,0,.18)}
   .act.save .ico svg{stroke:#06210F}
@@ -245,7 +246,7 @@ const lineHref=/^https?:/.test(CARD.lineId)?CARD.lineId:('https://line.me/ti/p/~
 const acts=[
   {cls:'',href:tel(CARD.phone),ico:'phone',k:'CALL',v:CARD.phone},
   {cls:'',href:tel(CARD.phone2),ico:'phone',k:'CALL',v:CARD.phone2},
-  {cls:'',href:lineHref,ico:'line',k:'LINE',v:CARD.lineId},
+  {cls:'',href:lineHref,ico:'line',k:'LINE',v:'086-412-5355',note:'แอดเพื่อนด้วย “หมายเลขโทรศัพท์” (ไม่ใช่ ID)'},
   {cls:'',href:CARD.mapsUrl,ico:'map',k:'LOCATION',v:'ยานนาวา กรุงเทพฯ'},
   {cls:'wide',href:'mailto:'+CARD.email,ico:'mail',k:'EMAIL',v:CARD.email},
 ];
@@ -255,7 +256,7 @@ acts.forEach(a=>{
   el.className='act '+a.cls;el.href=a.href;
   if(a.ico==='map'||a.ico==='line')el.target='_blank';el.rel='noopener';
   el.innerHTML=`<span class="ico"><svg viewBox="0 0 24 24">${I[a.ico]}</svg></span>
-    <span class="tx"><span class="k">${a.k}</span><span class="v">${a.v}</span></span>`;
+    <span class="tx"><span class="k">${a.k}</span><span class="v">${a.v}</span>${a.note?`<span class="note">${a.note}</span>`:''}</span>`;
   wrap.appendChild(el);
 });
 /* save contact (vCard) */
