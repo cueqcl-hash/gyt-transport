@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>นามบัตรกระดาษ — Green Yellow Transport (90×55mm)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Saira:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --steel-900:#14171A; --steel-850:#181C20; --steel-800:#1E2328;
+    --line:#343C43; --gy-yellow:#FFD400; --gy-green:#13B65A;
+    --concrete:#8A949C; --paper:#EEF1ED;
+    --cond:'Saira Condensed','IBM Plex Sans Thai',sans-serif;
+    --thai:'IBM Plex Sans Thai',sans-serif;
+    --mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0C0E10;color:var(--paper);font-family:var(--thai);
+    padding:30px 16px 90px;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .hint{max-width:360px;text-align:center;color:var(--concrete);font-size:12.5px;line-height:1.6;margin-bottom:8px}
+  .hint b{color:var(--gy-yellow);font-weight:600}
+  .label{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--concrete)}
+  .print-btn{position:fixed;right:16px;bottom:16px;z-index:20;border:none;cursor:pointer;
+    background:var(--gy-green);color:#06210F;font-family:var(--cond);font-weight:700;
+    text-transform:uppercase;letter-spacing:.08em;font-size:13px;padding:13px 20px;border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,.4)}
+
+  /* ---------- CARD SHELL ---------- */
+  .card{
+    width:90mm;height:55mm;background:var(--steel-900);overflow:hidden;
+    box-shadow:0 18px 44px rgba(0,0,0,.55);border-radius:2.5mm;color:var(--paper);
+    display:flex;flex-direction:column;
+  }
+  .hazard{height:3mm;flex:none;
+    background:repeating-linear-gradient(135deg,var(--gy-yellow) 0 4mm,#0C0E10 4mm 8mm)}
+
+  /* ---------- FRONT ---------- */
+  .f-brand{flex:none;display:flex;align-items:center;gap:3mm;padding:4.5mm 6mm 2.5mm}
+  .logo{width:16mm;height:12mm;border-radius:2.2mm;flex:none;
+    background:#fff;display:grid;place-items:center;padding:1mm;
+    box-shadow:0 0 0 .3mm var(--line)}
+  .logo img{width:100%;height:100%;object-fit:contain;display:block;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .wordmark{font-family:var(--cond);text-transform:uppercase;line-height:1.02}
+  .wordmark .r1{font-size:4mm;font-weight:700;letter-spacing:.02em}
+  .wordmark .r1 .g{color:var(--gy-green)} .wordmark .r1 .y{color:var(--gy-yellow)}
+  .wordmark .r2{font-size:4mm;font-weight:700;letter-spacing:.12em;color:var(--paper)}
+  .wordmark .sub{font-family:var(--mono);font-size:1.9mm;letter-spacing:.2em;color:var(--concrete);margin-top:.8mm}
+
+  .f-id{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;padding:2.5mm 6mm 1.5mm}
+  .f-id .nth{font-family:var(--thai);font-weight:700;font-size:5.7mm;line-height:1.06}
+  .f-id .nen{font-family:var(--cond);text-transform:uppercase;font-weight:600;
+    font-size:2.7mm;letter-spacing:.18em;color:var(--concrete);margin-top:1mm}
+  .f-id .tth{font-family:var(--thai);font-weight:600;font-size:3.2mm;margin-top:2.2mm;line-height:1.2}
+  .f-id .ten{font-family:var(--mono);font-size:2.1mm;letter-spacing:.1em;color:var(--gy-yellow);margin-top:.7mm}
+
+  .f-foot{flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 6mm 3.5mm}
+  .f-code{display:flex;align-items:center;gap:1.8mm;
+    font-family:var(--mono);font-size:2.1mm;letter-spacing:.12em;color:var(--concrete)}
+  .f-code .chip{background:var(--gy-yellow);color:#0C0E10;font-weight:700;padding:.6mm 1.6mm;border-radius:.8mm;letter-spacing:.06em}
+  .f-addr{font-family:'Saira',sans-serif;font-size:1.95mm;line-height:1.3;color:var(--concrete)}
+  .f-addr .tax{display:block;font-family:var(--mono);font-size:1.8mm;letter-spacing:.02em;color:var(--gy-yellow);margin-top:.5mm;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* ---------- BACK ---------- */
+  .back{background:var(--steel-850)}
+  .b-main{flex:1;display:flex;gap:4.5mm;padding:4mm 6mm 2.5mm;align-items:center;min-height:0}
+  .b-contact{flex:1;display:flex;flex-direction:column;justify-content:center;gap:2.4mm;min-width:0}
+  .row{display:flex;align-items:center;gap:2.2mm;min-width:0}
+  .row .ic{width:5mm;height:5mm;flex:none;border-radius:1mm;background:#0E1316;border:.3mm solid var(--line);
+    display:grid;place-items:center}
+  .row .ic svg{width:2.7mm;height:2.7mm;stroke:var(--gy-green);fill:none;stroke-width:1.8}
+  .row .tx{min-width:0;display:flex;flex-direction:column}
+  .row .k{font-family:var(--mono);font-size:1.6mm;letter-spacing:.12em;color:var(--concrete);line-height:1}
+  .row .v{font-family:var(--thai);font-size:2.8mm;font-weight:500;line-height:1.18;margin-top:.3mm;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .v.wrap{white-space:normal;overflow:visible;text-overflow:clip;font-size:2.4mm;line-height:1.12;word-break:break-all}
+  .b-qr{width:23mm;flex:none;display:flex;flex-direction:column;align-items:center;gap:1.4mm}
+  .b-qr .frame{width:22mm;height:22mm;background:#fff;border-radius:1.6mm;padding:1.3mm;display:grid;place-items:center}
+  .b-qr .frame img,.b-qr .frame canvas{width:100%!important;height:100%!important;display:block}
+  .b-qr .cap{font-family:var(--mono);font-size:1.7mm;letter-spacing:.14em;color:var(--gy-yellow);text-align:center}
+  .b-foot{flex:none;padding:2mm 6mm 4mm;margin:0 6mm;border-top:.3mm solid var(--line);
+    padding-left:0;padding-right:0;font-family:var(--thai);font-size:2mm;color:var(--concrete);line-height:1.45}
+  .b-foot b{color:var(--paper);font-weight:600}
+  .b-foot .tax{display:block;font-family:var(--mono);font-size:1.7mm;letter-spacing:.02em;color:var(--gy-yellow);margin-top:.4mm;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  @media print{
+    @page{size:90mm 55mm;margin:0}
+    body{background:#fff;padding:0;gap:0;display:block}
+    .hint,.label,.print-btn{display:none!important}
+    .card{box-shadow:none;border-radius:0;page-break-after:always;margin:0}
+    .card:last-of-type{page-break-after:auto}
+  }
+</style>
+</head>
+<body>
+  <p class="hint">นามบัตรกระดาษ <b>90×55 มม.</b> (มาตรฐานไทย) — หน้า/หลังตามจริง<br>
+  กด <b>“พิมพ์ / Save PDF”</b> มุมขวาล่างเพื่อออกไฟล์ส่งร้านพิมพ์ · ตั้งระยะขอบ 0 และเปิด “Background graphics”</p>
+
+  <div class="label">FRONT · ด้านหน้า</div>
+  <div class="card front">
+    <div class="f-brand">
+      <div class="logo"><img src="logo.png" alt="โลโก้ Green Yellow Transport"></div>
+      <div class="wordmark">
+        <div class="r1"><span class="g">GREEN</span> <span class="y">YELLOW</span></div>
+        <div class="r2">TRANSPORT</div>
+        <div class="sub">THAILAND CO., LTD.</div>
+      </div>
+    </div>
+    <div class="hazard"></div>
+    <div class="f-id">
+      <div class="nth" id="nth">[ ชื่อ–นามสกุล ]</div>
+      <div class="nen" id="nen">[ NAME SURNAME ]</div>
+      <div class="tth" id="tth">ผู้จัดการฝ่ายปฏิบัติการ</div>
+      <div class="ten" id="ten">OPERATIONS MANAGER</div>
+    </div>
+    <div class="f-foot">
+      <div class="f-addr"><span id="faddr"></span><span class="tax" id="ftax"></span></div>
+    </div>
+  </div>
+
+  <div class="label">BACK · ด้านหลัง</div>
+  <div class="card back">
+    <div class="hazard"></div>
+    <div class="b-main">
+      <div class="b-contact" id="contact"></div>
+      <div class="b-qr">
+        <div class="frame" id="qr"></div>
+        <div class="cap">SCAN → ดิจิทัล</div>
+      </div>
+    </div>
+    <div class="b-foot"><b id="coth"></b><br>
+      <span id="coaddr"></span><span class="tax" id="cotax"></span></div>
+  </div>
+
+  <button class="print-btn" onclick="window.print()">⎙ พิมพ์ / Save PDF</button>
+
+<script>
+/* ============================================================
+   ✏️  แก้ข้อมูลที่นี่ที่เดียว — ใส่ของพี่แทน [...]
+   qrUrl = ลิงก์นามบัตรดิจิทัลหลัง deploy (เช่น Vercel)
+   ============================================================ */
+const CARD={
+  nameTh:"พิศลย์ โพนทองถิ่น (คิว)", nameEn:"Pisoln Ponthongthin (CUE)",
+  titleTh:"ผู้จัดการฝ่ายปฏิบัติการ", titleEn:"OPERATIONS MANAGER",
+  phone:"081-828-7991", phone2:"086-412-5355",
+  email:"greenyellowtransportthai@hotmail.com", lineId:"cueqcl",
+  coTh:"บริษัท กรีนเยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด",
+  coEn:"GREEN YELLOW TRANSPORT (THAILAND) CO.,LTD.",
+  coAddrTh:"เลขที่ 31/1 ซอยเชื้อเพลิง(อมร) ถนนเชื้อเพลิง แขวงช่องนนทรี เขตยานนาวา กรุงเทพมหานคร 10120",
+  coAddrEn:"31/1 Soi Chuaploeng (Amorn), Chongnonsee, Yannawa, Bangkok 10120",
+  taxId:"0115544003652",
+  chip:"GYT", fcode:"OPS · BANGKOK PORT",
+  qrUrl:"https://gyt-card.vercel.app"   // ← ลิงก์นามบัตรดิจิทัล (production)
+};
+
+const $=s=>document.querySelector(s);
+$('#nth').textContent=CARD.nameTh; $('#nen').textContent=CARD.nameEn;
+$('#tth').textContent=CARD.titleTh; $('#ten').textContent=CARD.titleEn;
+$('#faddr').textContent=CARD.coAddrEn;
+$('#ftax').textContent='TAX ID '+CARD.taxId+' (HEAD OFFICE)';
+$('#coth').textContent=CARD.coTh;
+$('#coaddr').textContent=CARD.coAddrTh;
+$('#cotax').textContent='เลขประจำตัวผู้เสียภาษี '+CARD.taxId+' (สำนักงานใหญ่)';
+
+const I={
+  phone:'<path d="M5 4h3l1.5 4-2 1.5a11 11 0 005 5L19 12l4 1.5V18a2 2 0 01-2 2A16 16 0 014 5a2 2 0 011-1z"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/>',
+  line:'<rect x="3" y="4" width="18" height="14" rx="6"/><path d="M9 17l-2 3 5-3"/>'
+};
+const rows=[
+  {ic:'phone',k:'MOBILE',v:CARD.phone},
+  {ic:'phone',k:'MOBILE',v:CARD.phone2},
+  {ic:'line',k:'LINE',v:CARD.lineId},
+  {ic:'mail',k:'EMAIL',v:CARD.email,wrap:true},
+];
+const c=$('#contact');
+rows.forEach(r=>{
+  const d=document.createElement('div');d.className='row';
+  d.innerHTML=`<span class="ic"><svg viewBox="0 0 24 24">${I[r.ic]}</svg></span>
+    <span class="tx"><span class="k">${r.k}</span><span class="v${r.wrap?' wrap':''}">${r.v}</span></span>`;
+  c.appendChild(d);
+});
+try{new QRCode(document.getElementById('qr'),{text:CARD.qrUrl,width:120,height:120,
+  colorDark:'#14171A',colorLight:'#ffffff'});}
+catch(e){$('#qr').innerHTML='<span style="font-family:monospace;font-size:2mm;color:#888">QR</span>';}
+</script>
+</body>
+</html>
