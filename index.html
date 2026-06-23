@@ -886,7 +886,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           </div>
           <div class="dfin-row">
             <div class="dfin-card"><div class="dfin-ct">Top คนขับตามจำนวนเที่ยว</div><div class="dfin-chart"><canvas id="dashDrvChart"></canvas></div></div>
-            <div class="dfin-card"><div class="dfin-ct">🛡️ ความปลอดภัย (Cartrack)</div><div id="ddrv-safety"></div></div>
+            <div class="dfin-card"><div class="dfin-ct">🛡️ ความปลอดภัย (Cartrack)</div><div style="color:var(--text-3);font-size:12.5px;line-height:1.7;padding:8px 0">ดูรายงานความปลอดภัยรายคันแบบเต็ม + รายงาน GPS อื่นๆ ที่เมนู <b style="color:var(--green-d)">🛰️ Dashboard Cartrack</b> (แยกออกมาแล้ว)</div></div>
           </div>
           <div class="dfin-card" style="margin-bottom:18px"><div class="dfin-ct">💼 ผลงานรายคนขับ <span class="dfin-perlabel">(ช่วงที่เลือก)</span></div><div id="ddrv-table" style="overflow-x:auto"></div></div>
 
@@ -900,6 +900,36 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <div style="font-size:13px;margin-top:6px">เฉพาะกรรมการ / PISOLN / DONUT — ข้อมูลของคุณดูได้ที่เมนูอื่น (ตารางงาน · ใบวางบิล · ค่าน้ำมัน)</div>
         </div>
 </div>
+
+      <!-- 🆕 v193 — Dashboard Cartrack (แยกจากการเงิน · ข้อมูล GPS Cartrack) -->
+      <div id="pg-cartrack" class="screen">
+        <div id="ctk-wrap" style="display:none">
+          <div class="dfin-bar">
+            <div>
+              <div class="dfin-title">🛰️ Dashboard Cartrack</div>
+              <div class="dfin-sub">ข้อมูลจาก GPS Cartrack — ความปลอดภัย · น้ำมัน · น้ำมันหาย/เซ็นเซอร์ (แยกจากการเงิน)</div>
+            </div>
+            <div id="ctk-updated" style="font-size:11.5px;color:var(--text-3);text-align:right"></div>
+          </div>
+
+          <!-- ความปลอดภัยรายคัน -->
+          <div class="dfin-bar" style="margin-top:6px"><div><div class="dfin-title">🛡️ ความปลอดภัยรายคัน</div><div class="dfin-sub">คะแนนเสี่ยงจากพฤติกรรมขับ (วิ่งเกิน90 · ขับกระชาก · ความเร็วสูงสุด) เรียงเสี่ยงมากบนสุด · รายคัน ไม่อิงชื่อคนขับ</div></div></div>
+          <div class="dfin-card" style="margin-bottom:18px"><div id="ctk-safety"><div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลด…</div></div></div>
+
+          <!-- น้ำมัน & ความสิ้นเปลือง -->
+          <div class="dfin-bar" style="margin-top:6px"><div><div class="dfin-title">⛽ ความสิ้นเปลืองน้ำมัน (กม./ลิตร)</div><div class="dfin-sub">รายคัน เรียงเปลืองสุดบนสุด</div></div></div>
+          <div class="dfin-card" style="margin-bottom:18px"><div id="ctk-fuel"><div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลด…</div></div></div>
+
+          <!-- น้ำมันหาย / เซ็นเซอร์ -->
+          <div class="dfin-bar" style="margin-top:6px"><div><div class="dfin-title">⚠️ น้ำมันหาย / เซ็นเซอร์ผิดปกติ</div><div class="dfin-sub">ธงเตือนน้ำมันหายตอนจอด + เซ็นเซอร์สัญญาณหาย (จุดเสี่ยงขโมยน้ำมัน)</div></div></div>
+          <div class="dfin-card" style="margin-bottom:18px"><div id="ctk-theft"><div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลด…</div></div></div>
+        </div>
+        <div id="ctk-noaccess" style="display:none;text-align:center;padding:64px 20px;color:var(--text-3)">
+          <div style="font-size:40px;margin-bottom:10px">🛰️</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-2)">Dashboard Cartrack</div>
+          <div style="font-size:13px;margin-top:6px">เฉพาะผู้บริหาร — รายงาน GPS รถ</div>
+        </div>
+      </div>
 
       <!-- 🆕 ปิดรอบค่าใช้จ่าย (คนโอน) -->
       <div id="pg-closing" class="screen">
@@ -5634,6 +5664,7 @@ function initApp(){
     {id:'inspection',icon:'✅',label:'ตรวจสภาพรถ',          perm:'view_inspection'},   // Phase 1A
     {id:'subcontractors',icon:'🚚',label:'รถร่วม',        perm:'manage_billing'}, // 🆕 v181 — รถร่วม (น้าปุ้ม)
     {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
+    {id:'cartrack', icon:'🛰️',label:'Dashboard Cartrack', perm:'dashboard'}, // 🆕 v193 — รายงาน GPS Cartrack แยกจากการเงิน (ความปลอดภัย/น้ำมัน/น้ำมันหาย)
   ];
   const visibleNav = ALL_NAV.filter(function(n){
     if(n.stagingOnly && _onMain) return false;  // ซ่อนบน production
@@ -5706,7 +5737,7 @@ function goPage(id, opts){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('pg-'+id)?.classList.add('active');
   document.getElementById('nav-'+id)?.classList.add('active');
-  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ',receipts:'บันทึกใบเสร็จเข้าออฟฟิศ',finance:'การเงิน',billing:'ใบวางบิล (น้าปุ้ม)',payouts:'ค่าใช้จ่ายคนรถ',closing:'ปิดรอบค่าใช้จ่าย',reconcile:'รวมค่าใช้จ่าย (ปิดบัญชี)',subcontractors:'รถร่วม (น้าปุ้ม)'};
+  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ',receipts:'บันทึกใบเสร็จเข้าออฟฟิศ',finance:'การเงิน',billing:'ใบวางบิล (น้าปุ้ม)',payouts:'ค่าใช้จ่ายคนรถ',closing:'ปิดรอบค่าใช้จ่าย',reconcile:'รวมค่าใช้จ่าย (ปิดบัญชี)',subcontractors:'รถร่วม (น้าปุ้ม)',cartrack:'Dashboard Cartrack'};
   document.getElementById('topbar-title').textContent=titles[id]||'';
   const badge=document.getElementById('topbar-badge');
   if(id==='jobs'){badge.style.display='block';badge.textContent='Green Yello Transport';}
@@ -5720,6 +5751,7 @@ function goPage(id, opts){
   if(id==='closing'  && typeof ecInit==='function') ecInit();  // 🆕 ปิดรอบค่าใช้จ่าย
   if(id==='reconcile'&& typeof rcInit==='function') rcInit();  // 🆕 รวม+กระทบยอดค่าใช้จ่าย
   if(id==='subcontractors' && typeof rrInit==='function') rrInit();  // 🆕 v181 — รถร่วม
+  if(id==='cartrack' && typeof renderCartrackDash==='function') renderCartrackDash();  // 🆕 v193 — Dashboard Cartrack
   // อัปเดตการซ่อน/แสดงปุ่มตาม perms (สำหรับหน้าใหม่ที่เพิ่งเปิด)
   if(typeof applyPermsToUI === 'function') setTimeout(applyPermsToUI, 0);
   // อัปเดต URL ให้ตรงกับหน้าปัจจุบัน → refresh จะอยู่หน้าเดิม + share link ได้
@@ -19314,7 +19346,6 @@ async function renderFinanceDashboard(){
   try{ _dashRenderCustomers(pr); }catch(e){ console.warn('cust dash', e); }
   // ===== เฟส 4: คนขับ =====
   try{ _dashRenderDrivers(pr); }catch(e){ console.warn('driver dash', e); }
-  try{ renderDriverSafety(); }catch(e){ console.warn('driver safety', e); }
   // ===== ค่าทางด่วนรถส่วนตัวกรรมการ (ตารางแยก ไม่นับต้นทุน) =====
   try{ renderPersonalTolls(); }catch(e){ console.warn('personal tolls', e); }
 }
@@ -19443,8 +19474,6 @@ function _dashRenderDrivers(pr){
   var byTrips=arr.slice().sort(function(a,b){return b.trips-a.trips;}).slice(0,8);
   _dashMkChart('dashDrvChart',{type:'bar',data:{labels:byTrips.map(function(a){return a.drv;}),datasets:[{label:'จำนวนเที่ยว',data:byTrips.map(function(a){return a.trips;}),backgroundColor:'#2563EB'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#f0f0f0'},ticks:{font:{family:'Sarabun'}}},y:{grid:{display:false},ticks:{font:{family:'Sarabun',size:11}}}}}});
 
-  document.getElementById('ddrv-safety').innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลดข้อมูลความปลอดภัย…</div>';
-
   var byT=arr.slice().sort(function(a,b){return (b.pay-a.pay)||(b.trips-a.trips);});  // เรียงตามเบิก(ที่มีข้อมูล) แล้วค่อยเที่ยว · โชว์ทุกคน
   var _gy=function(v){ return v>0?'฿'+_dashFmt(v):'<span style="color:var(--text-3)">—</span>'; };
   document.getElementById('ddrv-table').innerHTML = byT.length?
@@ -19470,9 +19499,28 @@ async function renderPersonalTolls(){
   }catch(e){ console.warn('personal tolls', e.message); el.innerHTML=''; }
 }
 
-// เฟส 4 — ความปลอดภัยรายคัน (Cartrack) จากตาราง gyt_vehicle_safety · เรียงเสี่ยงมากบนสุด (รายคัน ไม่อิงชื่อคนขับ)
-async function renderDriverSafety(){
-  var el=document.getElementById('ddrv-safety');
+// 🆕 v193 — Dashboard Cartrack (แยกจากการเงิน) · orchestrator + การ์ดย่อย
+async function renderCartrackDash(){
+  var wrap=document.getElementById('ctk-wrap'), no=document.getElementById('ctk-noaccess');
+  if(!wrap) return;
+  if(typeof hasPerm==='function' && !hasPerm('dashboard')){ wrap.style.display='none'; if(no) no.style.display='block'; return; }
+  if(no) no.style.display='none'; wrap.style.display='block';
+  try{ renderVehicleSafety(); }catch(e){ console.warn('ctk safety', e); }
+  try{ renderCtkFuel(); }catch(e){ console.warn('ctk fuel', e); }
+  try{ renderCtkTheft(); }catch(e){ console.warn('ctk theft', e); }
+}
+async function renderCtkFuel(){
+  var el=document.getElementById('ctk-fuel'); if(!el) return;
+  el.innerHTML='<div style="color:var(--text-3);font-size:12.5px;line-height:1.7;padding:8px 0">⏳ กำลังต่อข้อมูลความสิ้นเปลือง (กม./ลิตร) จากรอบ Cartrack อัตโนมัติ — จะแสดงที่นี่หลังเชื่อมข้อมูลเสร็จ</div>';
+}
+async function renderCtkTheft(){
+  var el=document.getElementById('ctk-theft'); if(!el) return;
+  el.innerHTML='<div style="color:var(--text-3);font-size:12.5px;line-height:1.7;padding:8px 0">⏳ กำลังต่อธงเตือนน้ำมันหาย/เซ็นเซอร์ผิดปกติ จากรอบ Cartrack อัตโนมัติ — จะแสดงที่นี่หลังเชื่อมข้อมูลเสร็จ</div>';
+}
+
+// ความปลอดภัยรายคัน (Cartrack) จากตาราง gyt_vehicle_safety · เรียงเสี่ยงมากบนสุด (รายคัน ไม่อิงชื่อคนขับ)
+async function renderVehicleSafety(){
+  var el=document.getElementById('ctk-safety');
   if(!el) return;
   try{
     var rows=await sbFetchAll('gyt_vehicle_safety','?order=period.desc');
@@ -19496,7 +19544,8 @@ async function renderDriverSafety(){
     var nRed=arr.filter(function(a){return a.risk>=70;}).length;
     var thMon={'01':'ม.ค.','02':'ก.พ.','03':'มี.ค.','04':'เม.ย.','05':'พ.ค.','06':'มิ.ย.','07':'ก.ค.','08':'ส.ค.','09':'ก.ย.','10':'ต.ค.','11':'พ.ย.','12':'ธ.ค.'};
     var pp=period.split('-'); var plabel=(thMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543);
-    var html='<div style="font-size:11.5px;color:var(--text-3);margin-bottom:8px">ข้อมูล Cartrack '+plabel+' · เรียงเสี่ยงมากบนสุด · '+(nRed?('<span style="color:#DC2626;font-weight:700">'+nRed+' คันเสี่ยงสูง ⚠️</span>'):'ไม่มีคันเสี่ยงสูง 🎉')+'</div>';
+    var _up=document.getElementById('ctk-updated'); if(_up) _up.innerHTML='ข้อมูลล่าสุด: '+plabel;
+    var html='<div style="font-size:11.5px;color:var(--text-3);margin-bottom:8px">'+plabel+' · เรียงเสี่ยงมากบนสุด · '+(nRed?('<span style="color:#DC2626;font-weight:700">'+nRed+' คันเสี่ยงสูง ⚠️</span>'):'ไม่มีคันเสี่ยงสูง 🎉')+'</div>';
     html+='<div style="max-height:420px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th style="text-align:center">ระดับ</th><th style="text-align:right">คะแนนเสี่ยง</th><th style="text-align:right">เกิน90 <small style="font-weight:400;color:var(--text-3)">/100กม</small></th><th style="text-align:right">กระชาก <small style="font-weight:400;color:var(--text-3)">/100กม</small></th><th style="text-align:right">เร็วสุด</th><th style="text-align:right">ระยะ(กม.)</th></tr></thead><tbody>';
     html+=arr.map(function(a){ var b=band(a.risk);
       return '<tr><td style="font-weight:700">'+_finEsc(a.plate)+'</td>'
@@ -25275,7 +25324,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.203';
+const APP_VERSION = '2026.04.29.204';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
