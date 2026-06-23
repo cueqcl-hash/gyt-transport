@@ -17422,11 +17422,21 @@ function openEditMaster(type,id){
   document.getElementById('mm-addr').value=m.addr||'';
   document.getElementById('modal-master').classList.add('open');
 }
-function saveMaster(){
+async function saveMaster(){
   const name=document.getElementById('mm-name').value.trim();
   if(!name){showToast('กรุณากรอกชื่อบริษัท');return;}
+  const list=masterType==='customer'?customers:shippers;
+  const table=masterType==='customer'?'gyt_customers':'gyt_shippers';
+  // 🆕 กัน id ชนของเก่า: เดิม nextMID มาจาก preload/cache (อาจต่ำกว่า max จริงใน DB) → upsert ทับแถวเดิม → ข้อมูล "หาย"
+  var newId=editMID;
+  if(!newId){
+    newId=(list.length?Math.max.apply(null,list.map(function(x){return Number(x.id)||0;})):0)+1;
+    if(typeof _onlineMode!=='undefined' && _onlineMode){
+      try{ var dbMax=await sbFetch(table,'GET',null,'?select=id&order=id.desc&limit=1'); if(dbMax&&dbMax[0]&&(Number(dbMax[0].id)||0)>=newId) newId=(Number(dbMax[0].id)||0)+1; }catch(e){ console.warn('saveMaster maxId', e); }
+    }
+  }
   const obj={
-    id:editMID||(masterType==='customer'?nextMID_c++:nextMID_s++),
+    id:newId,
     name,addr:document.getElementById('mm-addr').value.trim(),
     phone:document.getElementById('mm-phone').value.trim(),
     taxid:document.getElementById('mm-taxid').value.trim(),
@@ -17434,15 +17444,15 @@ function saveMaster(){
     email:document.getElementById('mm-email').value.trim(),
     note:document.getElementById('mm-note').value.trim(),
   };
-  const list=masterType==='customer'?customers:shippers;
-  if(editMID){const i=list.findIndex(x=>x.id===editMID);list[i]=obj;}
-  else list.push(obj);
+  if(editMID){const i=list.findIndex(x=>x.id===editMID); if(i>=0)list[i]=obj; else list.push(obj);}
+  else { list.push(obj); if(masterType==='customer')nextMID_c=newId+1; else nextMID_s=newId+1; }
   saveMasterDB();
+  var ok=true;
   if(typeof _onlineMode!=='undefined' && _onlineMode){
-    try{ syncMasterUpsert(masterType==='customer'?'gyt_customers':'gyt_shippers', obj); }catch(e){ console.warn('saveMaster sync error:', e); }
+    try{ var r=await sbFetch(table,'POST',[obj],'?on_conflict=id'); ok=(r!==null); }catch(e){ ok=false; console.warn('saveMaster sync error:', e); }
   }
   closeModal('modal-master');renderMasterTable(masterType==='customer'?'cust':'ship');populateMasterDropdowns();
-  showToast((editMID?'อัปเดต':'เพิ่ม')+(masterType==='customer'?' ลูกค้า ':' Shipper ')+'เรียบร้อย');
+  showToast(ok ? ((editMID?'อัปเดต':'เพิ่ม')+(masterType==='customer'?' ลูกค้า ':' Shipper ')+'เรียบร้อย') : '⚠️ บันทึกขึ้น server ไม่สำเร็จ — ลองใหม่อีกครั้ง', ok?2500:6000);
 }
 function deleteMaster(type,id){
   if(!hasPerm('view_settings')){showToast('⚠ ไม่มีสิทธิ์ลบ');return;}
@@ -25265,7 +25275,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.202';
+const APP_VERSION = '2026.04.29.203';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -31994,4 +32004,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v202 PROD — มือถือ: เพิ่ม ลูกค้า(ตัวแทน) ใต้ปลายทางในการ์ดงาน -->
+<!-- deploy v203 PROD — fix Shipper/ลูกค้า หาย: saveMaster ใช้ id ปลอดภัย (ดึง max จริงจาก DB กัน upsert ทับ) + เตือนถ้า save server ไม่สำเร็จ (เลิกพังเงียบ) -->
