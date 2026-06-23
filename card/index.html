@@ -204,7 +204,7 @@ const CARD = {
   phone:    "081-828-7991",             // เบอร์หลัก
   phone2:   "086-412-5355",             // เบอร์รอง
   email:    "greenyellowtransportthai@hotmail.com",
-  lineId:   "0864125355",               // id หรือ URL https://line.me/ti/p/~xxxx
+  lineId:   "cueqcl",                   // id หรือ URL https://line.me/ti/p/~xxxx
   mapsUrl:  "https://maps.app.goo.gl/NAYnDg7UhBcZgL7R8",
   addrTh:   "เลขที่ 31/1 ซอยเชื้อเพลิง(อมร) ถนนเชื้อเพลิง แขวงช่องนนทรี เขตยานนาวา กรุงเทพมหานคร 10120",
   addrEn:   "31/1 Soi Chuaploeng (Amorn), Chongnonsee, Yannawa, Bangkok 10120",
@@ -246,7 +246,7 @@ const lineHref=/^https?:/.test(CARD.lineId)?CARD.lineId:('https://line.me/ti/p/~
 const acts=[
   {cls:'',href:tel(CARD.phone),ico:'phone',k:'CALL',v:CARD.phone},
   {cls:'',href:tel(CARD.phone2),ico:'phone',k:'CALL',v:CARD.phone2},
-  {cls:'',href:lineHref,ico:'line',k:'LINE',v:'086-412-5355',note:'แอดเพื่อนด้วย “หมายเลขโทรศัพท์” (ไม่ใช่ ID)'},
+  {cls:'',href:lineHref,ico:'line',k:'LINE',v:CARD.lineId},
   {cls:'',href:CARD.mapsUrl,ico:'map',k:'LOCATION',v:'ยานนาวา กรุงเทพฯ'},
   {cls:'wide',href:'mailto:'+CARD.email,ico:'mail',k:'EMAIL',v:CARD.email},
 ];
