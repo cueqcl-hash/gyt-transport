@@ -923,6 +923,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <!-- น้ำมันหาย / เซ็นเซอร์ -->
           <div class="dfin-bar" style="margin-top:6px"><div><div class="dfin-title">⚠️ น้ำมันหาย / เซ็นเซอร์ผิดปกติ</div><div class="dfin-sub">ธงเตือนน้ำมันหายตอนจอด + เซ็นเซอร์สัญญาณหาย (จุดเสี่ยงขโมยน้ำมัน)</div></div></div>
           <div class="dfin-card" style="margin-bottom:18px"><div id="ctk-theft"><div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลด…</div></div></div>
+
+          <!-- จอดติดเครื่อง (idle) -->
+          <div class="dfin-bar" style="margin-top:6px"><div><div class="dfin-title">🅿️ จอดติดเครื่องเปลืองน้ำมัน</div><div class="dfin-sub">เครื่องติดแต่รถไม่วิ่ง = เผาน้ำมันฟรี · เรียง idle% มากสุดบนสุด</div></div></div>
+          <div class="dfin-card" style="margin-bottom:18px"><div id="ctk-idle"><div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลด…</div></div></div>
+
+          <!-- ไม่รูดบัตร (no-card-tap) -->
+          <div class="dfin-bar" style="margin-top:6px"><div><div class="dfin-title">🪪 คนขับไม่รูดบัตร</div><div class="dfin-sub">เที่ยวที่ไม่แตะบัตรประจำตัว = ระบบไม่รู้ว่าใครขับ (โยงพฤติกรรม/น้ำมันหายไม่ได้) · เรียงมากสุดบนสุด</div></div></div>
+          <div class="dfin-card" style="margin-bottom:18px"><div id="ctk-tag"><div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลด…</div></div></div>
         </div>
         <div id="ctk-noaccess" style="display:none;text-align:center;padding:64px 20px;color:var(--text-3)">
           <div style="font-size:40px;margin-bottom:10px">🛰️</div>
@@ -19508,6 +19516,8 @@ async function renderCartrackDash(){
   try{ renderVehicleSafety(); }catch(e){ console.warn('ctk safety', e); }
   try{ renderCtkFuel(); }catch(e){ console.warn('ctk fuel', e); }
   try{ renderCtkTheft(); }catch(e){ console.warn('ctk theft', e); }
+  try{ renderCtkIdle(); }catch(e){ console.warn('ctk idle', e); }
+  try{ renderCtkTag(); }catch(e){ console.warn('ctk tag', e); }
 }
 // ⛽ ความสิ้นเปลืองน้ำมัน (กม./ลิตร) จาก gyt_fuel_summary · เรียงเปลืองสุดบนสุด + ธง critical <2.5
 async function renderCtkFuel(){
@@ -19556,6 +19566,51 @@ async function renderCtkTheft(){
     html+='<div style="font-size:11px;color:var(--text-3);margin-top:4px">ระบบตรวจเซ็นเซอร์ทุกรอบ — เจอเซ็นเซอร์ดับผิดปกติจะเพิ่มรายการ + แจ้งเตือน</div>';
     el.innerHTML=html;
   }catch(e){ console.warn('ctk theft', e.message); el.innerHTML=banner+'<div style="color:var(--text-3);font-size:12px;padding:10px 0">โหลดข้อมูลเฝ้าระวังไม่สำเร็จ</div>'; }
+}
+// 🅿️ จอดติดเครื่อง (idle) จาก gyt_vehicle_safety · เรียง idle% มากสุดบนสุด
+async function renderCtkIdle(){
+  var el=document.getElementById('ctk-idle'); if(!el) return;
+  try{
+    var rows=await sbFetchAll('gyt_vehicle_safety','?order=period.desc');
+    if(!rows || !rows.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูล (รอรัน gyt_cartrack_idle_notag.sql)</div>'; return; }
+    var period=rows.reduce(function(m,r){ return (r.period>m)?r.period:m; }, rows[0].period);
+    var data=rows.filter(function(r){ return r.period===period && r.idle_pct!=null; }).map(function(r){ return { plate:r.plate, engHr:Number(r.eng_hr)||0, idleHr:Number(r.idle_hr)||0, idlePct:Number(r.idle_pct)||0 }; });
+    if(!data.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูล idle (รอรัน gyt_cartrack_idle_notag.sql)</div>'; return; }
+    data.sort(function(a,b){ return b.idlePct-a.idlePct; });
+    var totIdle=data.reduce(function(s,d){return s+d.idleHr;},0);
+    function c(v){ return v>=50?'#DC2626':(v>=35?'#D97706':'#16A34A'); }
+    var html='<div style="font-size:11.5px;color:var(--text-3);margin-bottom:8px">จอดติดเครื่องรวม '+_dashFmt(Math.round(totIdle))+' ชม. · idle% = สัดส่วนเวลาเครื่องติดที่จอดเฉยๆ (ยิ่งสูงยิ่งเปลือง)</div>';
+    html+='<div style="max-height:460px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th style="text-align:right">idle %</th><th style="text-align:right">จอดติดเครื่อง(ชม.)</th><th style="text-align:right">เครื่องติดรวม(ชม.)</th></tr></thead><tbody>';
+    html+=data.map(function(d){ return '<tr><td style="font-weight:700">'+_finEsc(d.plate)+'</td>'
+      +'<td style="text-align:right;font-weight:800;color:'+c(d.idlePct)+'">'+Math.round(d.idlePct)+'%</td>'
+      +'<td style="text-align:right">'+_dashFmt(Math.round(d.idleHr))+'</td>'
+      +'<td style="text-align:right;color:var(--text-3)">'+_dashFmt(Math.round(d.engHr))+'</td></tr>'; }).join('');
+    html+='</tbody></table></div><div style="font-size:11px;color:var(--text-3);margin-top:6px">🔴 idle ≥50% · 🟡 35–50% · 🟢 ต่ำกว่า 35% · ลดได้ด้วยการดับเครื่องตอนจอด</div>';
+    el.innerHTML=html;
+  }catch(e){ console.warn('ctk idle', e.message); el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">โหลดข้อมูล idle ไม่สำเร็จ</div>'; }
+}
+// 🪪 ไม่รูดบัตร (no-card-tap) จาก gyt_vehicle_safety · เรียงมากสุดบนสุด
+async function renderCtkTag(){
+  var el=document.getElementById('ctk-tag'); if(!el) return;
+  try{
+    var rows=await sbFetchAll('gyt_vehicle_safety','?order=period.desc');
+    if(!rows || !rows.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูล (รอรัน gyt_cartrack_idle_notag.sql)</div>'; return; }
+    var period=rows.reduce(function(m,r){ return (r.period>m)?r.period:m; }, rows[0].period);
+    var data=rows.filter(function(r){ return r.period===period && r.no_tag!=null; }).map(function(r){ var tr=Number(r.trips)||0, nt=Number(r.no_tag)||0; return { plate:r.plate, noTag:nt, trips:tr, pct:tr>0?(nt/tr*100):0 }; });
+    if(!data.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลการรูดบัตร (รอรัน gyt_cartrack_idle_notag.sql)</div>'; return; }
+    data.sort(function(a,b){ return b.noTag-a.noTag; });
+    var totNT=data.reduce(function(s,d){return s+d.noTag;},0), totTr=data.reduce(function(s,d){return s+d.trips;},0);
+    var fleetPct=totTr>0?Math.round(totNT/totTr*100):0;
+    function c(v){ return v>=80?'#DC2626':(v>=40?'#D97706':'#16A34A'); }
+    var html='<div style="font-size:11.5px;color:var(--text-3);margin-bottom:8px">ทั้งฟลีตไม่รูดบัตร '+_dashFmt(totNT)+' จาก '+_dashFmt(totTr)+' เที่ยว (<span style="color:'+c(fleetPct)+';font-weight:700">'+fleetPct+'%</span>)</div>';
+    html+='<div style="max-height:460px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th style="text-align:right">% ไม่รูด</th><th style="text-align:right">ไม่รูด(เที่ยว)</th><th style="text-align:right">เที่ยวทั้งหมด</th></tr></thead><tbody>';
+    html+=data.map(function(d){ return '<tr><td style="font-weight:700">'+_finEsc(d.plate)+'</td>'
+      +'<td style="text-align:right;font-weight:800;color:'+c(d.pct)+'">'+Math.round(d.pct)+'%</td>'
+      +'<td style="text-align:right">'+_dashFmt(d.noTag)+'</td>'
+      +'<td style="text-align:right;color:var(--text-3)">'+_dashFmt(d.trips)+'</td></tr>'; }).join('');
+    html+='</tbody></table></div><div style="font-size:11px;color:var(--text-3);margin-top:6px">🔴 ไม่รูด ≥80% · 🟡 40–80% · 🟢 ต่ำกว่า 40% · รูดบัตรช่วยโยงพฤติกรรม/น้ำมันหายไปที่คนขับได้</div>';
+    el.innerHTML=html;
+  }catch(e){ console.warn('ctk tag', e.message); el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">โหลดข้อมูลการรูดบัตรไม่สำเร็จ</div>'; }
 }
 
 // ความปลอดภัยรายคัน (Cartrack) จากตาราง gyt_vehicle_safety · เรียงเสี่ยงมากบนสุด (รายคัน ไม่อิงชื่อคนขับ)
@@ -25364,7 +25419,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.205';
+const APP_VERSION = '2026.04.29.206';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -32093,4 +32148,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v203 PROD — fix Shipper/ลูกค้า หาย: saveMaster ใช้ id ปลอดภัย (ดึง max จริงจาก DB กัน upsert ทับ) + เตือนถ้า save server ไม่สำเร็จ (เลิกพังเงียบ) -->
+<!-- deploy v206 PROD — promote Dashboard Cartrack (เมนู GPS + การ์ดน้ำมัน/น้ำมันหาย/เซ็นเซอร์/ความปลอดภัย) จาก staging -->
