@@ -7,11 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Saira:wght@400;500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root{
     --card:#FFFFFF; --ink:#171A1E; --ink-soft:#39414A;
-    --muted:#6A727A; --hair:#E4E8E4; --soft:#F4F6F4;
+    --muted:#6A727A; --hair:#E4E8E4;
     --green:#0E9B4A; --green-deep:#0A7B3A; --yellow:#FFCE00; --gold:#8F6606;
     --cond:'Saira Condensed','IBM Plex Sans Thai',sans-serif;
     --sans:'Saira',sans-serif;
@@ -30,7 +29,7 @@
     text-transform:uppercase;letter-spacing:.08em;font-size:13px;padding:13px 20px;border-radius:10px;
     box-shadow:0 8px 24px rgba(0,0,0,.4)}
 
-  /* ---------- CARD SHELL ---------- */
+  /* ---------- CARD ---------- */
   .card{
     position:relative;width:90mm;height:55mm;background:var(--card);overflow:hidden;
     box-shadow:0 18px 44px rgba(0,0,0,.45);border-radius:2.5mm;color:var(--ink);
@@ -40,49 +39,43 @@
   .bar{position:absolute;left:0;top:0;bottom:0;width:2.4mm;
     background:linear-gradient(180deg,var(--green) 0%,var(--green) 45%,var(--yellow) 100%);
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .divider{height:.25mm;background:var(--hair);margin:2.6mm 0;
+  .inner{width:100%;padding:0 6mm 0 9mm}
+
+  /* header: logo + company */
+  .head{display:flex;align-items:center;gap:3.2mm}
+  .head .logo{width:14mm;height:10mm;flex:none;display:grid;place-items:center}
+  .head .logo img{width:100%;height:100%;object-fit:contain;display:block;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cnm{font-family:var(--cond);text-transform:uppercase;line-height:1.05}
+  .card.th .cnm{font-family:var(--thai);text-transform:none}
+  .cnm .l1{font-size:3.7mm;font-weight:700;letter-spacing:.02em;color:var(--ink)}
+  .card.th .cnm .l1{font-size:3.3mm}
+  .cnm .l1 .g{color:var(--green-deep)} .cnm .l1 .y{color:var(--gold)}
+  .cnm .l2{font-size:2.45mm;font-weight:600;letter-spacing:.12em;color:var(--muted);margin-top:.5mm}
+  .card.th .cnm .l2{letter-spacing:0}
+
+  .divider{height:.25mm;background:var(--hair);margin:1.5mm 0;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
 
-  /* ========== PAGE 1 · COMPANY (left-aligned letterhead) ========== */
-  .front .inner{padding:0 6.5mm 0 9.5mm;width:100%}
-  .lockup{display:flex;align-items:center;gap:3.4mm}
-  .lockup .logo{width:20mm;height:14mm;flex:none;display:grid;place-items:center}
-  .lockup .logo img{width:100%;height:100%;object-fit:contain;display:block;
+  /* identity + contacts (single column, full width) */
+  .nm{font-family:var(--sans);font-weight:700;font-size:4.8mm;line-height:1.02;color:var(--ink);letter-spacing:-.01em}
+  .card.th .nm{font-family:var(--thai)}
+  .ti{display:flex;align-items:center;gap:2mm;margin-top:.8mm}
+  .ti .rule{width:5mm;height:.8mm;background:var(--green);border-radius:1mm;flex:none;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .wm{font-family:var(--cond);text-transform:uppercase;line-height:1.05}
-  .wm .en{font-size:3.9mm;font-weight:700;letter-spacing:.02em;color:var(--ink)}
-  .wm .en .g{color:var(--green-deep)} .wm .en .y{color:var(--gold)}
-  .wm .sub{font-size:2.5mm;font-weight:600;letter-spacing:.14em;color:var(--muted);margin-top:.6mm}
-  .c-th{font-family:var(--thai);font-weight:700;font-size:3mm;color:var(--ink);margin-top:2.4mm;line-height:1.2}
-  .c-addr{font-family:var(--thai);font-size:2.5mm;line-height:1.4;color:var(--ink-soft)}
-  .c-addr .en{font-family:var(--sans);font-size:2.35mm;color:var(--muted);margin-top:.6mm;display:block}
-  .c-tax{font-family:var(--mono);font-size:2.4mm;color:var(--ink);font-weight:700;margin-top:1.6mm}
+  .ti .t{font-family:var(--sans);font-weight:700;font-size:3mm;color:var(--green-deep);letter-spacing:.02em}
+  .card.th .ti .t{font-family:var(--thai)}
 
-  /* ========== PAGE 2 · PERSON (left-aligned) ========== */
-  .back{justify-content:flex-start}
-  .p-head{flex:none;padding:4.2mm 6.5mm 0 9.5mm}
-  .p-nth{font-family:var(--thai);font-weight:700;font-size:5.6mm;line-height:1.04;color:var(--ink);letter-spacing:-.01em}
-  .p-nen{font-family:var(--cond);text-transform:uppercase;font-weight:600;
-    font-size:2.7mm;letter-spacing:.16em;color:var(--muted);margin-top:.9mm}
-  .p-title{margin-top:2mm;display:flex;align-items:baseline;flex-wrap:wrap;gap:.6mm 2.4mm}
-  .p-title .rule{width:5.5mm;height:.8mm;background:var(--green);border-radius:1mm;flex:none;align-self:center;
-    -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .p-title .tth{font-family:var(--thai);font-weight:700;font-size:3.2mm;color:var(--ink)}
-  .p-title .ten{font-family:var(--mono);font-size:2mm;letter-spacing:.08em;color:var(--green);font-weight:700}
-  .p-main{flex:1;display:flex;gap:4.5mm;padding:2.4mm 6.5mm 4mm 9.5mm;align-items:center;min-height:0}
-  .p-contact{flex:1;display:flex;flex-direction:column;justify-content:center;gap:2.1mm;min-width:0}
-  .row{display:flex;align-items:center;gap:2.6mm;min-width:0}
-  .row .ic{width:5mm;height:5mm;flex:none;display:grid;place-items:center}
-  .row .ic svg{width:4.4mm;height:4.4mm;stroke:var(--green);fill:none;stroke-width:1.8}
-  .row .tx{min-width:0;display:flex;flex-direction:column;line-height:1.08}
-  .row .k{font-family:var(--mono);font-size:1.65mm;letter-spacing:.14em;color:var(--muted)}
-  .row .v{font-family:var(--thai);font-size:3.2mm;font-weight:700;color:var(--ink);margin-top:.35mm;
+  .clist{margin-top:1.7mm;display:flex;flex-direction:column;gap:1.2mm}
+  .c{display:flex;align-items:flex-start;gap:2.3mm;min-width:0}
+  .c .ic{width:4.3mm;height:4.3mm;flex:none;display:grid;place-items:center;margin-top:.2mm}
+  .c .ic svg{width:4mm;height:4mm;stroke:var(--green);fill:none;stroke-width:1.8}
+  .c .v{font-family:var(--thai);font-size:3mm;font-weight:600;color:var(--ink);line-height:1.2;min-width:0;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .v.wrap{white-space:normal;overflow:visible;text-overflow:clip;font-size:2.6mm;line-height:1.16;word-break:normal;overflow-wrap:break-word}
-  .p-qr{flex:none;display:flex;flex-direction:column;align-items:center;gap:1.2mm}
-  .p-qr .frame{width:21.5mm;height:21.5mm;background:#fff;border:.25mm solid var(--hair);border-radius:1.4mm;padding:1mm;display:grid;place-items:center}
-  .p-qr .frame img,.p-qr .frame canvas{width:100%!important;height:100%!important;display:block}
-  .p-qr .cap{font-family:var(--mono);font-size:1.7mm;letter-spacing:.12em;color:var(--green);text-align:center;font-weight:700}
+  .c.addr .v{font-family:var(--sans);font-weight:500;font-size:2.35mm;color:var(--ink-soft);line-height:1.25;
+    white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word}
+  .card.th .c.addr .v{font-family:var(--thai)}
+  .tax{font-family:var(--mono);font-size:2.2mm;font-weight:700;color:var(--ink);margin-top:1.1mm;line-height:1.2}
 
   @media print{
     @page{size:90mm 55mm;margin:0}
@@ -94,92 +87,68 @@
 </style>
 </head>
 <body>
-  <p class="hint">นามบัตรกระดาษ <b>พื้นขาว</b> · <b>90×55 มม.</b> — หน้า 1 = บริษัท · หน้า 2 = ส่วนตัว<br>
+  <p class="hint">นามบัตรกระดาษ <b>พื้นขาว · 2 ภาษา</b> · <b>90×55 มม.</b> — หน้า 1 = อังกฤษ · หน้า 2 = ไทย<br>
   กด <b>“พิมพ์ / Save PDF”</b> มุมขวาล่าง · ตั้งระยะขอบ 0 และเปิด “Background graphics”<br>
   อยากได้ <a href="print-card">เวอร์ชันพื้นดำ →</a></p>
 
-  <div class="label">หน้า 1 · บริษัท (FRONT)</div>
-  <div class="card front">
-    <span class="bar"></span>
-    <div class="inner">
-      <div class="lockup">
-        <div class="logo"><img src="logo.png" alt="โลโก้ Green Yellow Transport"></div>
-        <div class="wm">
-          <div class="en"><span class="g">GREEN</span> <span class="y">YELLOW</span> TRANSPORT</div>
-          <div class="sub">THAILAND CO., LTD.</div>
-        </div>
-      </div>
-      <div class="c-th" id="coth"></div>
-      <div class="divider"></div>
-      <div class="c-addr"><span id="caddrth"></span><span class="en" id="caddren"></span></div>
-      <div class="c-tax" id="ctax"></div>
-    </div>
-  </div>
-
-  <div class="label">หน้า 2 · ส่วนตัว (BACK)</div>
-  <div class="card back">
-    <span class="bar"></span>
-    <div class="p-head">
-      <div class="p-nth" id="nth"></div>
-      <div class="p-nen" id="nen"></div>
-      <div class="p-title"><span class="rule"></span><span class="tth" id="tth"></span><span class="ten" id="ten"></span></div>
-    </div>
-    <div class="p-main">
-      <div class="p-contact" id="contact"></div>
-      <div class="p-qr">
-        <div class="frame" id="qr"></div>
-        <div class="cap">SCAN → ดิจิทัล</div>
-      </div>
-    </div>
-  </div>
+  <div id="cards"></div>
 
   <button class="print-btn" onclick="window.print()">⎙ พิมพ์ / Save PDF</button>
 
 <script>
 /* ============================================================
-   ✏️  แก้ข้อมูลที่นี่ที่เดียว — พื้นขาว (หน้า1 บริษัท · หน้า2 ส่วนตัว)
+   ✏️  แก้ข้อมูลที่นี่ที่เดียว — พื้นขาว 2 ภาษา (หน้า1 อังกฤษ · หน้า2 ไทย)
    ============================================================ */
-const CARD={
-  nameTh:"พิศลย์ โพนทองถิ่น (คิว)", nameEn:"Pisoln Ponthongthin (CUE)",
-  titleTh:"ผู้จัดการฝ่ายปฏิบัติการ", titleEn:"OPERATIONS MANAGER",
+const D={
   phone:"081-828-7991", phone2:"086-412-5355",
   email:"greenyellowtransportthai@hotmail.com", lineId:"cueqcl",
-  coTh:"บริษัท กรีนเยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด",
-  coAddrTh:"เลขที่ 31/1 ซอยเชื้อเพลิง(อมร) ถนนเชื้อเพลิง แขวงช่องนนทรี เขตยานนาวา กรุงเทพมหานคร 10120",
-  coAddrEn:"31/1 Soi Chuaploeng (Amorn), Chongnonsee, Yannawa, Bangkok 10120",
   taxId:"0115544003652",
+  addrEn:"31/1 Soi Chuaploeng (Amorn), Chongnonsee, Yannawa, Bangkok 10120",
+  addrTh:"เลขที่ 31/1 ซอยเชื้อเพลิง(อมร) ถนนเชื้อเพลิง แขวงช่องนนทรี เขตยานนาวา กรุงเทพมหานคร 10120",
   qrUrl:"https://gyt-card.vercel.app"
 };
-
-const $=s=>document.querySelector(s);
-$('#coth').textContent=CARD.coTh;
-$('#caddrth').textContent=CARD.coAddrTh;
-$('#caddren').textContent=CARD.coAddrEn;
-$('#ctax').textContent='เลขประจำตัวผู้เสียภาษี '+CARD.taxId+' (สำนักงานใหญ่)';
-$('#nth').textContent=CARD.nameTh; $('#nen').textContent=CARD.nameEn;
-$('#tth').textContent=CARD.titleTh; $('#ten').textContent=CARD.titleEn;
-
+const phones=D.phone+"  ·  "+D.phone2;
+const emailBrk=D.email.replace('@','​@');
+const SIDES=[
+  { cls:'en', label:'หน้า 1 · ENGLISH (อังกฤษ)',
+    co1:'<span class="g">GREEN</span> <span class="y">YELLOW</span> TRANSPORT', co2:'THAILAND CO., LTD.',
+    name:'Pisoln Ponthongthin (CUE)', title:'Operations Manager',
+    line:'LINE: '+D.lineId, addr:D.addrEn, tax:'TAX ID '+D.taxId+' (HEAD OFFICE)' },
+  { cls:'th', label:'หน้า 2 · ภาษาไทย',
+    co1:'บริษัท <span class="g">กรีนเยลโล่</span> ทรานสปอร์ต', co2:'(ประเทศไทย) จำกัด',
+    name:'พิศลย์ โพนทองถิ่น (คิว)', title:'ผู้จัดการฝ่ายปฏิบัติการ',
+    line:'LINE: '+D.lineId, addr:D.addrTh, tax:'เลขประจำตัวผู้เสียภาษี '+D.taxId+' (สำนักงานใหญ่)' }
+];
 const I={
   phone:'<path d="M5 4h3l1.5 4-2 1.5a11 11 0 005 5L19 12l4 1.5V18a2 2 0 01-2 2A16 16 0 014 5a2 2 0 011-1z"/>',
   mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/>',
-  line:'<rect x="3" y="4" width="18" height="14" rx="6"/><path d="M9 17l-2 3 5-3"/>'
+  line:'<rect x="3" y="4" width="18" height="14" rx="6"/><path d="M9 17l-2 3 5-3"/>',
+  map:'<path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/>'
 };
-const rows=[
-  {ic:'phone',k:'MOBILE',v:CARD.phone},
-  {ic:'phone',k:'MOBILE',v:CARD.phone2},
-  {ic:'line',k:'LINE',v:CARD.lineId},
-  {ic:'mail',k:'EMAIL',v:CARD.email.replace('@','​@'),wrap:true},
-];
-const c=$('#contact');
-rows.forEach(r=>{
-  const d=document.createElement('div');d.className='row';
-  d.innerHTML=`<span class="ic"><svg viewBox="0 0 24 24">${I[r.ic]}</svg></span>
-    <span class="tx"><span class="k">${r.k}</span><span class="v${r.wrap?' wrap':''}">${r.v}</span></span>`;
-  c.appendChild(d);
+const ic=p=>`<span class="ic"><svg viewBox="0 0 24 24">${p}</svg></span>`;
+const host=document.getElementById('cards');
+SIDES.forEach(s=>{
+  const lab=document.createElement('div');lab.className='label';lab.textContent=s.label;host.appendChild(lab);
+  const card=document.createElement('div');card.className='card '+s.cls;
+  card.innerHTML=`
+    <span class="bar"></span>
+    <div class="inner">
+      <div class="head">
+        <div class="logo"><img src="logo.png" alt="Green Yellow Transport"></div>
+        <div class="cnm"><div class="l1">${s.co1}</div><div class="l2">${s.co2}</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="nm">${s.name}</div>
+      <div class="ti"><span class="rule"></span><span class="t">${s.title}</span></div>
+      <div class="clist">
+        <div class="c">${ic(I.phone)}<span class="v">${phones}</span></div>
+        <div class="c">${ic(I.line)}<span class="v">${s.line}</span></div>
+        <div class="c">${ic(I.mail)}<span class="v">${emailBrk}</span></div>
+        <div class="c addr">${ic(I.map)}<span class="v">${s.addr}</span></div>
+      </div>
+    </div>`;
+  host.appendChild(card);
 });
-try{new QRCode(document.getElementById('qr'),{text:CARD.qrUrl,width:130,height:130,
-  colorDark:'#171A1E',colorLight:'#ffffff'});}
-catch(e){$('#qr').innerHTML='<span style="font-family:monospace;font-size:2mm;color:#888">QR</span>';}
 </script>
 </body>
 </html>
