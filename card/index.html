@@ -105,6 +105,11 @@
   .foot{padding:16px 22px 20px;background:var(--steel-850);margin-top:auto}
   .foot .co{font-family:var(--thai);font-size:12px;color:var(--concrete);line-height:1.5}
   .foot .co b{color:var(--paper);font-weight:600}
+  .foot .co.en{font-family:var(--latin);font-size:11px;letter-spacing:.01em;
+    margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+  .foot .co.en b{text-transform:uppercase;letter-spacing:.02em;font-size:11.5px}
+  .foot .co .tax{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.02em;
+    color:var(--gy-yellow);margin-top:3px}
   .foot .unit{display:flex;align-items:center;gap:8px;margin-top:12px;
     font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--concrete)}
   .foot .unit .code{color:var(--steel-900);background:var(--gy-yellow);
@@ -159,9 +164,17 @@
     <nav class="actions" id="actions"></nav>
 
     <footer class="foot">
-      <div class="co"><b id="f-coth">บริษัท กรีน เยลโล่ ทรานสปอร์ต (ไทยแลนด์) จำกัด</b><br>
-        <span id="f-addr">ท่าเรือแหลมฉบัง จ.ชลบุรี</span></div>
-      <div class="unit"><span class="code" id="f-code">GYT · OPS · LCB</span> <span>CARGO LOGISTICS</span></div>
+      <div class="co">
+        <b id="f-coth"></b><br>
+        <span id="f-addr"></span>
+        <span class="tax" id="f-tax"></span>
+      </div>
+      <div class="co en">
+        <b id="f-coen"></b><br>
+        <span id="f-addren"></span>
+        <span class="tax" id="f-taxen"></span>
+      </div>
+      <div class="unit"><span class="code" id="f-code">GYT · OPS · BKK</span> <span>CARGO LOGISTICS</span></div>
     </footer>
   </main>
 
@@ -184,15 +197,17 @@ const CARD = {
   nameEn:   "Pisoln Ponthongthin",
   titleTh:  "ผู้จัดการฝ่ายปฏิบัติการ",
   titleEn:  "OPERATIONS MANAGER",
-  companyTh:"บริษัท กรีน เยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด",
-  companyEn:"Green Yellow Transport (Thailand) Co., Ltd.",
+  companyTh:"บริษัท กรีนเยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด",
+  companyEn:"GREEN YELLOW TRANSPORT (THAILAND) CO.,LTD.",
 
   phone:    "081-828-7991",             // เบอร์หลัก
   phone2:   "086-412-5355",             // เบอร์รอง
   email:    "greenyellowtransportthai@hotmail.com",
   lineId:   "0864125355",               // id หรือ URL https://line.me/ti/p/~xxxx
-  mapsUrl:  "https://maps.google.com/?q=Bangkok+Port+Khlong+Toei",
-  addrTh:   "ท่าเรือกรุงเทพ เขตคลองเตย กรุงเทพฯ",
+  mapsUrl:  "https://maps.google.com/?q=31%2F1+Soi+Chuaploeng+Amorn+Chongnonsee+Yannawa+Bangkok+10120",
+  addrTh:   "เลขที่ 31/1 ซอยเชื้อเพลิง(อมร) ถนนเชื้อเพลิง แขวงช่องนนทรี เขตยานนาวา กรุงเทพมหานคร 10120",
+  addrEn:   "31/1 Soi Chuaploeng (Amorn), Chongnonsee, Yannawa, Bangkok 10120",
+  taxId:    "0115544003652",            // เลขประจำตัวผู้เสียภาษี (สำนักงานใหญ่)
 
   unitCode: "OPS",                      // โชว์บนป้ายบนสุด
   fleetCode:"GYT · OPS · BKK",          // รหัสมุมล่าง
@@ -216,6 +231,10 @@ $('#i-titleth').textContent=CARD.titleTh;
 $('#i-titleen').textContent=CARD.titleEn;
 $('#f-coth').textContent=CARD.companyTh;
 $('#f-addr').textContent=CARD.addrTh;
+$('#f-tax').textContent='เลขประจำตัวผู้เสียภาษี '+CARD.taxId+' (สำนักงานใหญ่)';
+$('#f-coen').textContent=CARD.companyEn;
+$('#f-addren').textContent=CARD.addrEn;
+$('#f-taxen').textContent='TAX ID '+CARD.taxId+' (HEAD OFFICE)';
 $('#f-code').textContent=CARD.fleetCode;
 $('#p-unit').textContent=CARD.unitCode;
 $('#p-loc').textContent=CARD.loc;
@@ -227,7 +246,7 @@ const acts=[
   {cls:'',href:tel(CARD.phone),ico:'phone',k:'CALL',v:CARD.phone},
   {cls:'',href:tel(CARD.phone2),ico:'phone',k:'CALL',v:CARD.phone2},
   {cls:'',href:lineHref,ico:'line',k:'LINE',v:CARD.lineId},
-  {cls:'',href:CARD.mapsUrl,ico:'map',k:'LOCATION',v:'ท่าเรือกรุงเทพ'},
+  {cls:'',href:CARD.mapsUrl,ico:'map',k:'LOCATION',v:'ยานนาวา กรุงเทพฯ'},
   {cls:'wide',href:'mailto:'+CARD.email,ico:'mail',k:'EMAIL',v:CARD.email},
 ];
 const wrap=$('#actions');
@@ -260,9 +279,9 @@ function downloadVCard(){
     'N:;'+CARD.nameEn+';;;','FN:'+CARD.nameEn,
     'ORG:'+CARD.companyEn,'TITLE:'+CARD.titleEn,
     'TEL;TYPE=CELL:'+CARD.phone,'TEL;TYPE=CELL:'+CARD.phone2,'EMAIL:'+CARD.email,
-    'ADR;TYPE=WORK:;;'+CARD.addrTh+';;;;',
+    'ADR;TYPE=WORK:;;'+CARD.addrEn+';;;;',
     'URL:'+location.href,
-    'NOTE:LINE '+CARD.lineId,
+    'NOTE:LINE '+CARD.lineId+' · TAX ID '+CARD.taxId+' (HEAD OFFICE) · '+CARD.addrTh,
     'END:VCARD'
   ].join('\r\n');
   const blob=new Blob([v],{type:'text/vcard'});

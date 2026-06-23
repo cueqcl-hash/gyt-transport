@@ -61,6 +61,9 @@
   .f-code{display:flex;align-items:center;gap:1.8mm;
     font-family:var(--mono);font-size:2.1mm;letter-spacing:.12em;color:var(--concrete)}
   .f-code .chip{background:var(--gy-yellow);color:#0C0E10;font-weight:700;padding:.6mm 1.6mm;border-radius:.8mm;letter-spacing:.06em}
+  .f-addr{font-family:'Saira',sans-serif;font-size:1.95mm;line-height:1.3;color:var(--concrete)}
+  .f-addr .tax{display:block;font-family:var(--mono);font-size:1.8mm;letter-spacing:.02em;color:var(--gy-yellow);margin-top:.5mm;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
 
   /* ---------- BACK ---------- */
   .back{background:var(--steel-850)}
@@ -82,6 +85,8 @@
   .b-foot{flex:none;padding:2mm 6mm 4mm;margin:0 6mm;border-top:.3mm solid var(--line);
     padding-left:0;padding-right:0;font-family:var(--thai);font-size:2mm;color:var(--concrete);line-height:1.45}
   .b-foot b{color:var(--paper);font-weight:600}
+  .b-foot .tax{display:block;font-family:var(--mono);font-size:1.7mm;letter-spacing:.02em;color:var(--gy-yellow);margin-top:.4mm;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
 
   @media print{
     @page{size:90mm 55mm;margin:0}
@@ -114,7 +119,7 @@
       <div class="ten" id="ten">OPERATIONS MANAGER</div>
     </div>
     <div class="f-foot">
-      <div class="f-code"><span class="chip" id="chip">GYT</span> <span id="fcode">OPS · BANGKOK PORT</span></div>
+      <div class="f-addr"><span id="faddr"></span><span class="tax" id="ftax"></span></div>
     </div>
   </div>
 
@@ -128,8 +133,8 @@
         <div class="cap">SCAN → ดิจิทัล</div>
       </div>
     </div>
-    <div class="b-foot"><b id="coen">Green Yellow Transport (Thailand) Co., Ltd.</b><br>
-      <span id="coaddr">ท่าเรือกรุงเทพ เขตคลองเตย กรุงเทพฯ</span></div>
+    <div class="b-foot"><b id="coth"></b><br>
+      <span id="coaddr"></span><span class="tax" id="cotax"></span></div>
   </div>
 
   <button class="print-btn" onclick="window.print()">⎙ พิมพ์ / Save PDF</button>
@@ -144,8 +149,11 @@ const CARD={
   titleTh:"ผู้จัดการฝ่ายปฏิบัติการ", titleEn:"OPERATIONS MANAGER",
   phone:"081-828-7991", phone2:"086-412-5355",
   email:"greenyellowtransportthai@hotmail.com", lineId:"0864125355",
-  coEn:"Green Yellow Transport (Thailand) Co., Ltd.",
-  coAddr:"ท่าเรือกรุงเทพ เขตคลองเตย กรุงเทพฯ",
+  coTh:"บริษัท กรีนเยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด",
+  coEn:"GREEN YELLOW TRANSPORT (THAILAND) CO.,LTD.",
+  coAddrTh:"เลขที่ 31/1 ซอยเชื้อเพลิง(อมร) ถนนเชื้อเพลิง แขวงช่องนนทรี เขตยานนาวา กรุงเทพมหานคร 10120",
+  coAddrEn:"31/1 Soi Chuaploeng (Amorn), Chongnonsee, Yannawa, Bangkok 10120",
+  taxId:"0115544003652",
   chip:"GYT", fcode:"OPS · BANGKOK PORT",
   qrUrl:"https://gyt-card.vercel.app"   // ← ลิงก์นามบัตรดิจิทัล (production)
 };
@@ -153,8 +161,11 @@ const CARD={
 const $=s=>document.querySelector(s);
 $('#nth').textContent=CARD.nameTh; $('#nen').textContent=CARD.nameEn;
 $('#tth').textContent=CARD.titleTh; $('#ten').textContent=CARD.titleEn;
-$('#chip').textContent=CARD.chip; $('#fcode').textContent=CARD.fcode;
-$('#coen').textContent=CARD.coEn; $('#coaddr').textContent=CARD.coAddr;
+$('#faddr').textContent=CARD.coAddrEn;
+$('#ftax').textContent='TAX ID '+CARD.taxId+' (HEAD OFFICE)';
+$('#coth').textContent=CARD.coTh;
+$('#coaddr').textContent=CARD.coAddrTh;
+$('#cotax').textContent='เลขประจำตัวผู้เสียภาษี '+CARD.taxId+' (สำนักงานใหญ่)';
 
 const I={
   phone:'<path d="M5 4h3l1.5 4-2 1.5a11 11 0 005 5L19 12l4 1.5V18a2 2 0 01-2 2A16 16 0 014 5a2 2 0 011-1z"/>',
