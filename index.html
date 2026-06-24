@@ -19543,11 +19543,11 @@ function ctkApplyCustom(){
   var cb=document.getElementById('ctk-mode-custom'); if(cb) cb.classList.add('active');
   renderCartrackDash();
 }
-function _ctkRangeLabel(){ if(!_ctkFrom||!_ctkTo) return ''; var a=_ctkFrom.split('-'), b=_ctkTo.split('-'); return a[2]+'/'+a[1]+'–'+b[2]+'/'+b[1]+'/'+(Number(b[0])+543); }
+function _ctkRangeLabel(){ if(!_ctkFrom||!_ctkTo) return ''; var a=_ctkFrom.split('-'), b=_ctkTo.split('-'); return Number(a[2])+' '+(_ctkThMon[a[1]]||a[1])+' – '+Number(b[2])+' '+(_ctkThMon[b[1]]||b[1])+' '+(Number(b[0])+543); }
 var _ctkThMon={'01':'ม.ค.','02':'ก.พ.','03':'มี.ค.','04':'เม.ย.','05':'พ.ค.','06':'มิ.ย.','07':'ก.ค.','08':'ส.ค.','09':'ก.ย.','10':'ต.ค.','11':'พ.ย.','12':'ธ.ค.'};
 function _ctkLabel(p){ if(!p) return ''; var pp=String(p).split('-');
-  if(_ctkGrain==='day') return pp[2]+'/'+pp[1]+'/'+(Number(pp[0])+543);
-  if(_ctkGrain==='week'){ var s=new Date(Number(pp[0]),Number(pp[1])-1,Number(pp[2])); var e=new Date(s.getTime()+6*86400000); return 'สัปดาห์ '+s.getDate()+'/'+(s.getMonth()+1)+'–'+e.getDate()+'/'+(e.getMonth()+1)+'/'+(e.getFullYear()+543); }
+  if(_ctkGrain==='day') return Number(pp[2])+' '+(_ctkThMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543);
+  if(_ctkGrain==='week'){ var s=new Date(Number(pp[0]),Number(pp[1])-1,Number(pp[2])); var e=new Date(s.getTime()+6*86400000); var sm=_ctkThMon[String(s.getMonth()+1).padStart(2,'0')], em=_ctkThMon[String(e.getMonth()+1).padStart(2,'0')]; return 'สัปดาห์ '+s.getDate()+' '+sm+' – '+e.getDate()+' '+em+' '+(e.getFullYear()+543); }
   return (_ctkThMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543); }
 // ดึงงวดล่าสุดตามโหมด: เดือน=monthTable/period · วัน=gyt_cartrack_daily/day
 async function _ctkLatest(monthTable){
