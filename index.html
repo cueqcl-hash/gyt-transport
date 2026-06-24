@@ -909,7 +909,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <div class="dfin-title">🛰️ Dashboard Cartrack</div>
               <div class="dfin-sub">ข้อมูลจาก GPS Cartrack — ความปลอดภัย · น้ำมัน · น้ำมันหาย/เซ็นเซอร์ (แยกจากการเงิน)</div>
             </div>
-            <div id="ctk-updated" style="font-size:11.5px;color:var(--text-3);text-align:right"></div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <div class="dfin-modes">
+                <button class="dfin-mbtn active" id="ctk-mode-month" onclick="ctkSetGrain('month')">📅 รายเดือน</button>
+                <button class="dfin-mbtn" id="ctk-mode-day" onclick="ctkSetGrain('day')">📆 รายวัน</button>
+              </div>
+              <div id="ctk-updated" style="font-size:11.5px;color:var(--text-3);text-align:right"></div>
+            </div>
           </div>
 
           <!-- ความปลอดภัยรายคัน -->
@@ -19508,6 +19514,27 @@ async function renderPersonalTolls(){
 }
 
 // 🆕 v193 — Dashboard Cartrack (แยกจากการเงิน) · orchestrator + การ์ดย่อย
+// 🆕 v208 — toggle รายวัน/รายเดือน
+var _ctkGrain='month';
+function ctkSetGrain(g){
+  _ctkGrain=g;
+  var mb=document.getElementById('ctk-mode-month'), db=document.getElementById('ctk-mode-day');
+  if(mb) mb.classList.toggle('active', g==='month');
+  if(db) db.classList.toggle('active', g==='day');
+  renderCartrackDash();
+}
+var _ctkThMon={'01':'ม.ค.','02':'ก.พ.','03':'มี.ค.','04':'เม.ย.','05':'พ.ค.','06':'มิ.ย.','07':'ก.ค.','08':'ส.ค.','09':'ก.ย.','10':'ต.ค.','11':'พ.ย.','12':'ธ.ค.'};
+function _ctkLabel(p){ if(!p) return ''; var pp=String(p).split('-'); return (_ctkGrain==='day') ? (pp[2]+'/'+pp[1]+'/'+(Number(pp[0])+543)) : ((_ctkThMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543)); }
+// ดึงงวดล่าสุดตามโหมด: เดือน=monthTable/period · วัน=gyt_cartrack_daily/day
+async function _ctkLatest(monthTable){
+  var pcol=(_ctkGrain==='day')?'day':'period';
+  var table=(_ctkGrain==='day')?'gyt_cartrack_daily':monthTable;
+  var rows=await sbFetchAll(table,'?order='+pcol+'.desc');
+  if(!rows || !rows.length) return {data:[], latest:null, label:''};
+  var latest=rows.reduce(function(m,r){ return (r[pcol]>m)?r[pcol]:m; }, rows[0][pcol]);
+  return {data:rows.filter(function(r){ return r[pcol]===latest; }), latest:latest, label:_ctkLabel(latest)};
+}
+function _ctkSetUpdated(label){ var u=document.getElementById('ctk-updated'); if(u) u.innerHTML='ข้อมูลล่าสุด: '+label+' ('+(_ctkGrain==='day'?'รายวัน':'รายเดือน')+')'; }
 async function renderCartrackDash(){
   var wrap=document.getElementById('ctk-wrap'), no=document.getElementById('ctk-noaccess');
   if(!wrap) return;
@@ -19523,10 +19550,10 @@ async function renderCartrackDash(){
 async function renderCtkFuel(){
   var el=document.getElementById('ctk-fuel'); if(!el) return;
   try{
-    var rows=await sbFetchAll('gyt_fuel_summary','?order=period.desc');
-    if(!rows || !rows.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลน้ำมัน (รอรัน gyt_fuel_summary_setup.sql)</div>'; return; }
-    var period=rows.reduce(function(m,r){ return (r.period>m)?r.period:m; }, rows[0].period);
-    var data=rows.filter(function(r){ return r.period===period; }).map(function(r){ return { plate:r.plate, kmpl:Number(r.kmpl)||0, liters:Number(r.liters)||0, amount:Number(r.amount)||0, km:Number(r.km)||0 }; });
+    if(_ctkGrain==='day'){ el.innerHTML='<div style="color:var(--text-3);font-size:12.5px;line-height:1.7;padding:10px 0">⛽ ความสิ้นเปลือง (กม./ลิตร) ดูได้ใน<b>โหมดรายเดือน</b> — รายวันส่วนใหญ่ไม่มีการเติมน้ำมัน เลยคำนวณ กม./ลิตร ไม่ได้</div>'; return; }
+    var R=await _ctkLatest('gyt_fuel_summary');
+    if(!R.data.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลน้ำมัน (รอรัน gyt_fuel_summary_setup.sql)</div>'; return; }
+    var data=R.data.map(function(r){ return { plate:r.plate, kmpl:Number(r.kmpl)||0, liters:Number(r.liters)||0, amount:Number(r.amount)||0, km:Number(r.km)||0 }; });
     data.sort(function(a,b){ return a.kmpl-b.kmpl; });
     var nCrit=data.filter(function(d){ return d.kmpl>0 && d.kmpl<2.5; }).length;
     var totL=data.reduce(function(s,d){return s+d.liters;},0), totB=data.reduce(function(s,d){return s+d.amount;},0);
@@ -19571,10 +19598,9 @@ async function renderCtkTheft(){
 async function renderCtkIdle(){
   var el=document.getElementById('ctk-idle'); if(!el) return;
   try{
-    var rows=await sbFetchAll('gyt_vehicle_safety','?order=period.desc');
-    if(!rows || !rows.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูล (รอรัน gyt_cartrack_idle_notag.sql)</div>'; return; }
-    var period=rows.reduce(function(m,r){ return (r.period>m)?r.period:m; }, rows[0].period);
-    var data=rows.filter(function(r){ return r.period===period && r.idle_pct!=null; }).map(function(r){ return { plate:r.plate, engHr:Number(r.eng_hr)||0, idleHr:Number(r.idle_hr)||0, idlePct:Number(r.idle_pct)||0 }; });
+    var R=await _ctkLatest('gyt_vehicle_safety');
+    if(!R.data.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูล'+(_ctkGrain==='day'?' รายวัน':'')+'</div>'; return; }
+    var data=R.data.filter(function(r){ return r.idle_pct!=null; }).map(function(r){ return { plate:r.plate, engHr:Number(r.eng_hr)||0, idleHr:Number(r.idle_hr)||0, idlePct:Number(r.idle_pct)||0 }; });
     if(!data.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูล idle (รอรัน gyt_cartrack_idle_notag.sql)</div>'; return; }
     data.sort(function(a,b){ return b.idlePct-a.idlePct; });
     var totIdle=data.reduce(function(s,d){return s+d.idleHr;},0);
@@ -19593,10 +19619,9 @@ async function renderCtkIdle(){
 async function renderCtkTag(){
   var el=document.getElementById('ctk-tag'); if(!el) return;
   try{
-    var rows=await sbFetchAll('gyt_vehicle_safety','?order=period.desc');
-    if(!rows || !rows.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูล (รอรัน gyt_cartrack_idle_notag.sql)</div>'; return; }
-    var period=rows.reduce(function(m,r){ return (r.period>m)?r.period:m; }, rows[0].period);
-    var data=rows.filter(function(r){ return r.period===period && r.no_tag!=null; }).map(function(r){ var tr=Number(r.trips)||0, nt=Number(r.no_tag)||0; return { plate:r.plate, noTag:nt, trips:tr, pct:tr>0?(nt/tr*100):0 }; });
+    var R=await _ctkLatest('gyt_vehicle_safety');
+    if(!R.data.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูล'+(_ctkGrain==='day'?' รายวัน':'')+'</div>'; return; }
+    var data=R.data.filter(function(r){ return r.no_tag!=null; }).map(function(r){ var tr=Number(r.trips)||0, nt=Number(r.no_tag)||0; return { plate:r.plate, noTag:nt, trips:tr, pct:tr>0?(nt/tr*100):0 }; });
     if(!data.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลการรูดบัตร (รอรัน gyt_cartrack_idle_notag.sql)</div>'; return; }
     data.sort(function(a,b){ return b.noTag-a.noTag; });
     var totNT=data.reduce(function(s,d){return s+d.noTag;},0), totTr=data.reduce(function(s,d){return s+d.trips;},0);
@@ -19618,10 +19643,9 @@ async function renderVehicleSafety(){
   var el=document.getElementById('ctk-safety');
   if(!el) return;
   try{
-    var rows=await sbFetchAll('gyt_vehicle_safety','?order=period.desc');
-    if(!rows || !rows.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลความปลอดภัย (รอรัน gyt_vehicle_safety_setup.sql)</div>'; return; }
-    var period=rows.reduce(function(m,r){ return (r.period>m)?r.period:m; }, rows[0].period);
-    var data=rows.filter(function(r){ return r.period===period; });
+    var R=await _ctkLatest('gyt_vehicle_safety');
+    if(!R.data.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลความปลอดภัย'+(_ctkGrain==='day'?' รายวัน (รอรัน gyt_cartrack_daily_setup.sql)':'')+'</div>'; return; }
+    var data=R.data; _ctkSetUpdated(R.label);
     // คะแนนเสี่ยง 0-100 (สูง=อันตราย): วิ่งเกิน90/100กม + ขับกระชาก/100กม + ความเร็วสูงสุด
     function score(r){
       var km=Number(r.km)||0;
@@ -19637,10 +19661,7 @@ async function renderVehicleSafety(){
     arr.sort(function(a,b){ return b.risk-a.risk; });
     function band(v){ return v>=70?{c:'#DC2626',bg:'#FEE2E2',t:'เสี่ยงสูง',ic:'🔴'}:(v>=45?{c:'#D97706',bg:'#FEF3C7',t:'เฝ้าระวัง',ic:'🟡'}:{c:'#16A34A',bg:'#DCFCE7',t:'ดี',ic:'🟢'}); }
     var nRed=arr.filter(function(a){return a.risk>=70;}).length;
-    var thMon={'01':'ม.ค.','02':'ก.พ.','03':'มี.ค.','04':'เม.ย.','05':'พ.ค.','06':'มิ.ย.','07':'ก.ค.','08':'ส.ค.','09':'ก.ย.','10':'ต.ค.','11':'พ.ย.','12':'ธ.ค.'};
-    var pp=period.split('-'); var plabel=(thMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543);
-    var _up=document.getElementById('ctk-updated'); if(_up) _up.innerHTML='ข้อมูลล่าสุด: '+plabel;
-    var html='<div style="font-size:11.5px;color:var(--text-3);margin-bottom:8px">'+plabel+' · เรียงเสี่ยงมากบนสุด · '+(nRed?('<span style="color:#DC2626;font-weight:700">'+nRed+' คันเสี่ยงสูง ⚠️</span>'):'ไม่มีคันเสี่ยงสูง 🎉')+'</div>';
+    var html='<div style="font-size:11.5px;color:var(--text-3);margin-bottom:8px">'+R.label+' · เรียงเสี่ยงมากบนสุด · '+(nRed?('<span style="color:#DC2626;font-weight:700">'+nRed+' คันเสี่ยงสูง ⚠️</span>'):'ไม่มีคันเสี่ยงสูง 🎉')+'</div>';
     html+='<div style="max-height:420px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th style="text-align:center">ระดับ</th><th style="text-align:right">คะแนนเสี่ยง</th><th style="text-align:right">เกิน90 <small style="font-weight:400;color:var(--text-3)">/100กม</small></th><th style="text-align:right">กระชาก <small style="font-weight:400;color:var(--text-3)">/100กม</small></th><th style="text-align:right">เร็วสุด</th><th style="text-align:right">ระยะ(กม.)</th></tr></thead><tbody>';
     html+=arr.map(function(a){ var b=band(a.risk);
       return '<tr><td style="font-weight:700">'+_finEsc(a.plate)+'</td>'
@@ -25419,7 +25440,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.207';
+const APP_VERSION = '2026.04.29.208';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
