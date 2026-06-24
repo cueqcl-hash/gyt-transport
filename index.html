@@ -914,6 +914,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
                 <button class="dfin-mbtn active" id="ctk-mode-month" onclick="ctkSetGrain('month')">📅 รายเดือน</button>
                 <button class="dfin-mbtn" id="ctk-mode-week" onclick="ctkSetGrain('week')">🗓️ รายสัปดาห์</button>
                 <button class="dfin-mbtn" id="ctk-mode-day" onclick="ctkSetGrain('day')">📆 รายวัน</button>
+                <button class="dfin-mbtn" id="ctk-mode-custom" onclick="ctkShowCustom()">🔧 กำหนดเอง</button>
+              </div>
+              <div id="ctk-custom-row" style="display:none;align-items:center;gap:6px;font-size:12px">
+                <input type="date" id="ctk-from" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px">
+                <span style="color:var(--text-3)">ถึง</span>
+                <input type="date" id="ctk-to" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px">
+                <button class="dfin-mbtn" onclick="ctkApplyCustom()" style="background:var(--green-d);color:#fff">ดู</button>
               </div>
               <div id="ctk-updated" style="font-size:11.5px;color:var(--text-3);text-align:right"></div>
             </div>
@@ -19520,8 +19527,23 @@ var _ctkGrain='month';
 function ctkSetGrain(g){
   _ctkGrain=g;
   [['ctk-mode-month','month'],['ctk-mode-week','week'],['ctk-mode-day','day']].forEach(function(x){ var b=document.getElementById(x[0]); if(b) b.classList.toggle('active', g===x[1]); });
+  var cb=document.getElementById('ctk-mode-custom'); if(cb) cb.classList.remove('active');
+  var cr=document.getElementById('ctk-custom-row'); if(cr) cr.style.display='none';
   renderCartrackDash();
 }
+// 🆕 v210 — ตัวกรองช่วงวันที่ (รวมข้อมูลรายวันในช่วง จาก gyt_cartrack_daily)
+var _ctkFrom='', _ctkTo='';
+function ctkShowCustom(){ var r=document.getElementById('ctk-custom-row'); if(r) r.style.display=(r.style.display==='none'||!r.style.display)?'flex':'none'; }
+function ctkApplyCustom(){
+  var f=document.getElementById('ctk-from'), t=document.getElementById('ctk-to');
+  if(!f||!t||!f.value||!t.value){ if(typeof showToast==='function') showToast('⚠ เลือกวันที่ให้ครบ'); return; }
+  if(f.value>t.value){ if(typeof showToast==='function') showToast('⚠ วันเริ่มต้องไม่เกินวันสิ้นสุด'); return; }
+  _ctkFrom=f.value; _ctkTo=t.value; _ctkGrain='custom';
+  ['ctk-mode-month','ctk-mode-week','ctk-mode-day'].forEach(function(id){ var b=document.getElementById(id); if(b) b.classList.remove('active'); });
+  var cb=document.getElementById('ctk-mode-custom'); if(cb) cb.classList.add('active');
+  renderCartrackDash();
+}
+function _ctkRangeLabel(){ if(!_ctkFrom||!_ctkTo) return ''; var a=_ctkFrom.split('-'), b=_ctkTo.split('-'); return a[2]+'/'+a[1]+'–'+b[2]+'/'+b[1]+'/'+(Number(b[0])+543); }
 var _ctkThMon={'01':'ม.ค.','02':'ก.พ.','03':'มี.ค.','04':'เม.ย.','05':'พ.ค.','06':'มิ.ย.','07':'ก.ค.','08':'ส.ค.','09':'ก.ย.','10':'ต.ค.','11':'พ.ย.','12':'ธ.ค.'};
 function _ctkLabel(p){ if(!p) return ''; var pp=String(p).split('-');
   if(_ctkGrain==='day') return pp[2]+'/'+pp[1]+'/'+(Number(pp[0])+543);
@@ -19529,6 +19551,22 @@ function _ctkLabel(p){ if(!p) return ''; var pp=String(p).split('-');
   return (_ctkThMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543); }
 // ดึงงวดล่าสุดตามโหมด: เดือน=monthTable/period · วัน=gyt_cartrack_daily/day
 async function _ctkLatest(monthTable){
+  if(_ctkGrain==='custom'){
+    var crows=await sbFetchAll('gyt_cartrack_daily','?day=gte.'+_ctkFrom+'&day=lte.'+_ctkTo+'&order=day.desc&limit=5000');
+    if(!crows || !crows.length) return {data:[], latest:null, label:_ctkRangeLabel()};
+    var byp={};
+    crows.forEach(function(r){ var k=r.plate; if(!byp[k]) byp[k]={plate:r.plate,trips:0,km:0,max_speed:0,spd_evt:0,spd_min:0,harsh:0,eng_hr:0,idle_hr:0,no_tag:0,fills:0,liters:0,amount:0};
+      var b=byp[k];
+      b.trips+=Number(r.trips)||0; b.km+=Number(r.km)||0; b.max_speed=Math.max(b.max_speed,Number(r.max_speed)||0);
+      b.spd_evt+=Number(r.spd_evt)||0; b.spd_min+=Number(r.spd_min)||0; b.harsh+=Number(r.harsh)||0;
+      b.eng_hr+=Number(r.eng_hr)||0; b.idle_hr+=Number(r.idle_hr)||0; b.no_tag+=Number(r.no_tag)||0;
+      b.fills+=Number(r.fills)||0; b.liters+=Number(r.liters)||0; b.amount+=Number(r.amount)||0; });
+    var cdata=Object.keys(byp).map(function(k){ var b=byp[k];
+      b.spd_per100=b.km>0?Math.round(b.spd_evt/b.km*1000)/10:0;
+      b.idle_pct=b.eng_hr>0?Math.round(b.idle_hr/b.eng_hr*100):0;
+      b.kmpl=b.liters>0?Math.round(b.km/b.liters*100)/100:null; return b; });
+    return {data:cdata, latest:null, label:_ctkRangeLabel()};
+  }
   var pcol=(_ctkGrain==='month')?'period':(_ctkGrain==='week'?'week':'day');
   var table=(_ctkGrain==='month')?monthTable:(_ctkGrain==='week'?'gyt_cartrack_weekly':'gyt_cartrack_daily');
   var rows=await sbFetchAll(table,'?order='+pcol+'.desc');
@@ -19536,7 +19574,7 @@ async function _ctkLatest(monthTable){
   var latest=rows.reduce(function(m,r){ return (r[pcol]>m)?r[pcol]:m; }, rows[0][pcol]);
   return {data:rows.filter(function(r){ return r[pcol]===latest; }), latest:latest, label:_ctkLabel(latest)};
 }
-function _ctkSetUpdated(label){ var u=document.getElementById('ctk-updated'); if(u) u.innerHTML='ข้อมูลล่าสุด: '+label+' ('+(_ctkGrain==='day'?'รายวัน':'รายเดือน')+')'; }
+function _ctkSetUpdated(label){ var u=document.getElementById('ctk-updated'); if(!u) return; var g={month:'รายเดือน',week:'รายสัปดาห์',day:'รายวัน',custom:'ช่วงที่เลือก'}[_ctkGrain]||''; u.innerHTML='ข้อมูล: '+label+' ('+g+')'; }
 async function renderCartrackDash(){
   var wrap=document.getElementById('ctk-wrap'), no=document.getElementById('ctk-noaccess');
   if(!wrap) return;
@@ -25442,7 +25480,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.209';
+const APP_VERSION = '2026.04.29.210';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
