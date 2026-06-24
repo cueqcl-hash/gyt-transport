@@ -912,6 +912,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
               <div class="dfin-modes">
                 <button class="dfin-mbtn active" id="ctk-mode-month" onclick="ctkSetGrain('month')">📅 รายเดือน</button>
+                <button class="dfin-mbtn" id="ctk-mode-week" onclick="ctkSetGrain('week')">🗓️ รายสัปดาห์</button>
                 <button class="dfin-mbtn" id="ctk-mode-day" onclick="ctkSetGrain('day')">📆 รายวัน</button>
               </div>
               <div id="ctk-updated" style="font-size:11.5px;color:var(--text-3);text-align:right"></div>
@@ -19518,17 +19519,18 @@ async function renderPersonalTolls(){
 var _ctkGrain='month';
 function ctkSetGrain(g){
   _ctkGrain=g;
-  var mb=document.getElementById('ctk-mode-month'), db=document.getElementById('ctk-mode-day');
-  if(mb) mb.classList.toggle('active', g==='month');
-  if(db) db.classList.toggle('active', g==='day');
+  [['ctk-mode-month','month'],['ctk-mode-week','week'],['ctk-mode-day','day']].forEach(function(x){ var b=document.getElementById(x[0]); if(b) b.classList.toggle('active', g===x[1]); });
   renderCartrackDash();
 }
 var _ctkThMon={'01':'ม.ค.','02':'ก.พ.','03':'มี.ค.','04':'เม.ย.','05':'พ.ค.','06':'มิ.ย.','07':'ก.ค.','08':'ส.ค.','09':'ก.ย.','10':'ต.ค.','11':'พ.ย.','12':'ธ.ค.'};
-function _ctkLabel(p){ if(!p) return ''; var pp=String(p).split('-'); return (_ctkGrain==='day') ? (pp[2]+'/'+pp[1]+'/'+(Number(pp[0])+543)) : ((_ctkThMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543)); }
+function _ctkLabel(p){ if(!p) return ''; var pp=String(p).split('-');
+  if(_ctkGrain==='day') return pp[2]+'/'+pp[1]+'/'+(Number(pp[0])+543);
+  if(_ctkGrain==='week'){ var s=new Date(Number(pp[0]),Number(pp[1])-1,Number(pp[2])); var e=new Date(s.getTime()+6*86400000); return 'สัปดาห์ '+s.getDate()+'/'+(s.getMonth()+1)+'–'+e.getDate()+'/'+(e.getMonth()+1)+'/'+(e.getFullYear()+543); }
+  return (_ctkThMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543); }
 // ดึงงวดล่าสุดตามโหมด: เดือน=monthTable/period · วัน=gyt_cartrack_daily/day
 async function _ctkLatest(monthTable){
-  var pcol=(_ctkGrain==='day')?'day':'period';
-  var table=(_ctkGrain==='day')?'gyt_cartrack_daily':monthTable;
+  var pcol=(_ctkGrain==='month')?'period':(_ctkGrain==='week'?'week':'day');
+  var table=(_ctkGrain==='month')?monthTable:(_ctkGrain==='week'?'gyt_cartrack_weekly':'gyt_cartrack_daily');
   var rows=await sbFetchAll(table,'?order='+pcol+'.desc');
   if(!rows || !rows.length) return {data:[], latest:null, label:''};
   var latest=rows.reduce(function(m,r){ return (r[pcol]>m)?r[pcol]:m; }, rows[0][pcol]);
@@ -19550,7 +19552,7 @@ async function renderCartrackDash(){
 async function renderCtkFuel(){
   var el=document.getElementById('ctk-fuel'); if(!el) return;
   try{
-    if(_ctkGrain==='day'){ el.innerHTML='<div style="color:var(--text-3);font-size:12.5px;line-height:1.7;padding:10px 0">⛽ ความสิ้นเปลือง (กม./ลิตร) ดูได้ใน<b>โหมดรายเดือน</b> — รายวันส่วนใหญ่ไม่มีการเติมน้ำมัน เลยคำนวณ กม./ลิตร ไม่ได้</div>'; return; }
+    if(_ctkGrain!=='month'){ el.innerHTML='<div style="color:var(--text-3);font-size:12.5px;line-height:1.7;padding:10px 0">⛽ ความสิ้นเปลือง (กม./ลิตร) ดูได้ใน<b>โหมดรายเดือน</b> — รายวัน/รายสัปดาห์ส่วนใหญ่ยังไม่มีการเติมน้ำมัน (น้ำมันลงครบตอนปิดเดือน) เลยคำนวณ กม./ลิตร ไม่ได้</div>'; return; }
     var R=await _ctkLatest('gyt_fuel_summary');
     if(!R.data.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลน้ำมัน (รอรัน gyt_fuel_summary_setup.sql)</div>'; return; }
     var data=R.data.map(function(r){ return { plate:r.plate, kmpl:Number(r.kmpl)||0, liters:Number(r.liters)||0, amount:Number(r.amount)||0, km:Number(r.km)||0 }; });
@@ -25440,7 +25442,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.208';
+const APP_VERSION = '2026.04.29.209';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
