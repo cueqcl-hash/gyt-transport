@@ -36,13 +36,13 @@
     border:.25mm solid var(--hair);display:flex;flex-direction:column;justify-content:center;
     -webkit-print-color-adjust:exact;print-color-adjust:exact;
   }
-  .bar{position:absolute;left:0;top:0;bottom:0;width:4mm;
+  .bar{position:absolute;left:0;top:0;bottom:0;width:2.4mm;
     background:linear-gradient(180deg,var(--green) 0%,var(--green) 45%,var(--yellow) 100%);
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .inner{width:100%;padding:0 6mm 0 10mm}
+  .inner{width:100%;padding:0 6mm 0 9mm}
 
   /* header: logo + company */
-  .head{display:flex;align-items:center;gap:5.5mm}
+  .head{display:flex;align-items:center;gap:3mm}
   .head .logo{width:16mm;height:11.3mm;flex:none;display:grid;place-items:center}
   .head .logo img{width:100%;height:100%;object-fit:contain;display:block;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -149,6 +149,22 @@ SIDES.forEach(s=>{
     </div>`;
   host.appendChild(card);
 });
+
+/* stretch the sub-line (THAILAND CO.,LTD. / (ประเทศไทย) จำกัด) to match the company-name width above it */
+function fitSub(){
+  document.querySelectorAll('.card .cnm').forEach(cnm=>{
+    const l1=cnm.querySelector('.l1'), l2=cnm.querySelector('.l2');
+    if(!l1||!l2) return;
+    l2.style.letterSpacing='normal'; l2.style.display='inline-block';
+    const w1=l1.getBoundingClientRect().width, w2=l2.getBoundingClientRect().width;
+    const n=(l2.textContent||'').length||1;
+    l2.style.letterSpacing=(w1>w2?(w1-w2)/n:0)+'px';
+    l2.style.display='block';
+  });
+}
+if(document.fonts&&document.fonts.ready){document.fonts.ready.then(fitSub);}
+window.addEventListener('load',fitSub);
+fitSub();
 </script>
 </body>
 </html>
