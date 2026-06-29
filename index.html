@@ -3058,7 +3058,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       </div>
     </div>
     <div class="fg-row">
-      <div class="fg"><label class="fl">หมายเลขตู้</label><input class="fi" id="fj-container" placeholder="ABCU1234567"></div>
+      <div class="fg"><label class="fl">หมายเลขตู้</label><input class="fi" id="fj-container" placeholder="ABCU1234567" oninput="_contCheckSingle()"><div id="fj-container-warn" style="display:none;font-size:11.5px;margin-top:3px;line-height:1.35"></div></div>
       <div class="fg"><label class="fl">ประเภทตู้</label>
       <div class="sd-wrap">
         <input class="sd-input" id="fj-type-input" placeholder="พิมพ์เพื่อกรอง เช่น 20 หรือ 40..." autocomplete="off"
@@ -5874,7 +5874,7 @@ function buildContainerRows(){
     const fp = `mc-r${i}`;
     row.innerHTML=`
       <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--green);font-size:13px">${i}</td>
-      <td style="padding:4px 6px"><input class="fi" id="mc-r${i}-container" placeholder="ABCU${String(i).padStart(7,'0')}" style="height:32px;font-size:12px"></td>
+      <td style="padding:4px 6px"><input class="fi" id="mc-r${i}-container" placeholder="ABCU${String(i).padStart(7,'0')}" oninput="_contCheckMultiDebounced()" style="height:32px;font-size:12px"><div id="mc-r${i}-container-warn" style="display:none;font-size:10px;margin-top:2px;line-height:1.25"></div></td>
       <td style="padding:4px 6px">
         <div class="sd-wrap">
           <input class="sd-input" id="${fp}-type-input" placeholder="20'/40'/HC..." autocomplete="off"
@@ -6015,6 +6015,17 @@ async function saveMulti(){
       return;
     }
   }
+  // 🆕 เตือนเบอร์ตู้ซ้ำ (soft) — ทั้งซ้ำกันเองในใบนี้ + ซ้ำกับงานเดิม (ยังลงต่อได้)
+  var _dupLines=[], _seenC={};
+  for(let i=1;i<=n;i++){
+    var _cv=(document.getElementById('mc-r'+i+'-container')?.value||'').trim();
+    var _ck=_contNorm(_cv); if(!_ck) continue;
+    if(_seenC[_ck]){ _dupLines.push('ตู้ที่ '+i+' "'+_cv+'" ซ้ำกับตู้ที่ '+_seenC[_ck]+' ในใบนี้'); }
+    else _seenC[_ck]=i;
+    var _dj=_findContDups(_cv,null);
+    if(_dj.length) _dupLines.push('ตู้ที่ '+i+' "'+_cv+'" เคยลงแล้ว: '+_contDupText(_dj));
+  }
+  if(_dupLines.length){ if(!confirm('⚠️ พบเบอร์ตู้ซ้ำ:\n• '+_dupLines.join('\n• ')+'\n\nยืนยันบันทึกทั้งหมด?')) return; }
   const shared={
     customer,phone:document.getElementById('mc-phone').value.trim(),
     shipper,carrier:document.getElementById('mc-carrier').value.trim(),
@@ -20987,6 +20998,65 @@ function ratePriceCheck(prefix){
   } else { warn.style.display='none'; }
 }
 
+/* ───────────────────────────────────────────────
+   🆕 เตือนเบอร์ตู้ซ้ำ (soft) — เทียบทุกงานทุกเวลา + ในใบหลายตู้
+   normalize: พิมพ์ใหญ่ + ตัดอักขระที่ไม่ใช่ A-Z0-9 (เว้นวรรค/ขีด) · เตือนแต่ยังลงได้
+   ─────────────────────────────────────────────── */
+function _contNorm(s){ return String(s==null?'':s).toUpperCase().replace(/[^A-Z0-9]/g,''); }
+function _contEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _findContDups(container, excludeId){
+  var key=_contNorm(container); if(!key) return [];
+  if(typeof jobs==='undefined' || !jobs) return [];
+  return jobs.filter(function(j){ return j && _contNorm(j.container)===key && !(excludeId && j.id===excludeId); });
+}
+function _contDate(j){ var d=String(j.startdate||j.deliverdate||'').slice(0,10); if(!d) return ''; var p=d.split('-'); if(p.length<3) return d; return p[2]+'/'+p[1]+'/'+(parseInt(p[0],10)+543); }   // → DD/MM/พ.ศ.
+function _contDupList(dups, max){
+  max=max||3;
+  var arr=dups.slice().sort(function(a,b){ return String(b.startdate||b.createdAt||'').localeCompare(String(a.startdate||a.createdAt||'')); });
+  var out=arr.slice(0,max).map(function(j){ var dt=_contDate(j); return (j.id||'?')+(dt?(' · '+dt):'')+(j.customer?(' · '+j.customer):''); });
+  if(arr.length>max) out.push('…และอีก '+(arr.length-max)+' งาน');
+  return out;
+}
+function _contDupText(dups){ return _contDupList(dups,3).join('  |  '); }
+// ── ฟอร์มใบเดี่ยว: เตือนสดใต้ช่อง ──
+function _contCheckSingle(){
+  var inp=document.getElementById('fj-container'), warn=document.getElementById('fj-container-warn');
+  if(!inp||!warn) return;
+  if(!_contNorm(inp.value)){ warn.style.display='none'; warn.innerHTML=''; inp.style.borderColor=''; return; }
+  var dups=_findContDups(inp.value, editJID);
+  if(!dups.length){ warn.style.display='none'; warn.innerHTML=''; inp.style.borderColor=''; return; }
+  warn.style.display='block';
+  warn.innerHTML='<span style="color:#B45309">⚠️ เบอร์ตู้นี้เคยลงแล้ว '+dups.length+' งาน — '+_contEsc(_contDupText(dups))+' · ตรวจว่าไม่ซ้ำก่อนบันทึก</span>';
+  inp.style.borderColor='#F59E0B';
+}
+// ── ฟอร์มหลายตู้: เตือนสดทุกแถว (ในใบเดียวกัน=แดง · ซ้ำงานเดิม=เหลือง) ──
+var _contMultiTimer=null;
+function _contCheckMultiDebounced(){ if(_contMultiTimer) clearTimeout(_contMultiTimer); _contMultiTimer=setTimeout(_contCheckMultiAll, 250); }
+function _contCheckMultiAll(){
+  var n=parseInt((document.getElementById('mc-count')||{}).value)||1;
+  var map={};
+  for(var k=1;k<=n;k++){ var ip=document.getElementById('mc-r'+k+'-container'); if(!ip) continue; var ky=_contNorm(ip.value); if(!ky) continue; (map[ky]=map[ky]||[]).push(k); }
+  for(var i=1;i<=n;i++){
+    var inp=document.getElementById('mc-r'+i+'-container'), warn=document.getElementById('mc-r'+i+'-container-warn');
+    if(!inp||!warn) continue;
+    var key=_contNorm(inp.value);
+    if(!key){ warn.style.display='none'; warn.innerHTML=''; inp.style.borderColor=''; continue; }
+    var msgs=[], bad=false;
+    var sib=(map[key]||[]).filter(function(x){return x!==i;});
+    if(sib.length){ msgs.push('⛔️ ซ้ำกับตู้ที่ '+sib.join(', ')+' ในใบนี้'); bad=true; }
+    var dups=_findContDups(inp.value, null);
+    if(dups.length){ msgs.push('⚠️ เคยลงแล้ว '+dups.length+' งาน ('+_contDupText(dups)+')'); }
+    if(!msgs.length){ warn.style.display='none'; warn.innerHTML=''; inp.style.borderColor=''; continue; }
+    warn.style.display='block'; warn.style.color=bad?'#DC2626':'#B45309';
+    warn.innerHTML=_contEsc(msgs.join(' · '));
+    inp.style.borderColor=bad?'#DC2626':'#F59E0B';
+  }
+}
+// ── ตอนกดบันทึกใบเดี่ยว: คืน true ถ้าไม่ซ้ำ หรือผู้ใช้ยืนยันให้ลงต่อ ──
+function _contConfirmSingle(container, excludeId){
+  var dups=_findContDups(container, excludeId); if(!dups.length) return true;
+  return confirm('⚠️ เบอร์ตู้ "'+container+'" ซ้ำกับ '+dups.length+' งานที่เคยลง:\n• '+_contDupList(dups,5).join('\n• ')+'\n\nยืนยันบันทึกซ้ำ?');
+}
 function openAddJob(){
   if(!hasPerm('add_jobs')){showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน');return;}
   editJID=null;
@@ -21009,6 +21079,8 @@ function openAddJob(){
   // 🆕 v160 — prefetch ราคาฐาน + เคลียร์ hint
   var fjH=document.getElementById('fj-price-hint'); if(fjH) fjH.innerHTML='';
   var fjW=document.getElementById('fj-price-warn'); if(fjW) fjW.style.display='none';
+  var fcW=document.getElementById('fj-container-warn'); if(fcW){ fcW.style.display='none'; fcW.innerHTML=''; }   // 🆕 เคลียร์คำเตือนเบอร์ตู้ซ้ำ
+  var fcI=document.getElementById('fj-container'); if(fcI) fcI.style.borderColor='';
   if(hasPerm('view_price')) _rateLoad();
   const now=new Date();now.setMinutes(0,0,0);
   document.getElementById('fj-startdate').value=now.toISOString().slice(0,16);
@@ -21079,6 +21151,7 @@ function openEditJob(id){
   var fjW2=document.getElementById('fj-price-warn'); if(fjW2) fjW2.style.display='none';
   if(hasPerm('view_price')) _rateLoad();
   document.getElementById('modal-job').classList.add('open');
+  _contCheckSingle();   // 🆕 ถ้าเบอร์ตู้ที่แก้อยู่ซ้ำกับงานอื่น ขึ้นเตือนทันที (ยกเว้นตัวเอง)
   // init datetime picker (DD/MM/YYYY HH:MM 24h)
   setTimeout(function(){
     initDateTimePicker('fj-startdate');
@@ -21135,6 +21208,7 @@ async function saveJob(){
     status:document.getElementById('fj-status').value,
     note:document.getElementById('fj-note').value.trim(),
   };
+  if(!_contConfirmSingle(obj.container, editJID)) return;   // 🆕 เตือนเบอร์ตู้ซ้ำ (soft — ยกเลิกได้ ถ้ายืนยันลงต่อ)
   var __byName=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'ไม่ระบุ';
   var __nowISO=new Date().toISOString();
   if(editJID){
