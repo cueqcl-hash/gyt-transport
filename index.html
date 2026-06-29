@@ -981,6 +981,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="ec-wrap">
           <div class="ec-card">
             <div class="ec-head"><span>🧾 ปิดรอบค่าใช้จ่ายใหม่</span><span class="pn">ผู้โอน: <b id="ec-payer">—</b></span></div>
+            <div id="ec-draft-banner" style="display:none"></div>
+            <div id="ec-save-status" style="font-size:12px;color:var(--text-3);min-height:16px;margin-bottom:6px"></div>
             <table class="ec-tbl">
               <thead><tr><th class="ec-idx">#</th><th style="width:104px">วัน/เดือน/ปี</th><th style="width:118px">ประเภท</th><th style="width:128px">เบอร์ตู้</th><th>รายการ</th><th class="r" style="width:118px">ยอดเงิน (บาท)</th><th style="width:34px"></th></tr></thead>
               <tbody id="ec-tb"></tbody>
@@ -19727,11 +19729,152 @@ function _ecFmt(n){ return Number(n||0).toLocaleString('th-TH',{minimumFractionD
 function _ecFmtAmt(el){ var v=parseFloat(String(el.value).replace(/,/g,'')); el.value=isNaN(v)?'':v.toFixed(2); ecCalc(); }
 function _ecEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function _ecPayerName(){ if(!currentUser) return '—'; return ((currentUser.fname||'')+' '+(currentUser.lname||'')).trim() || currentUser.username || '—'; }
+/* ───────────────────────────────────────────────
+   🆕 auto-save "ร่าง" ปิดรอบ — กันคอมดับ (localStorage ในเครื่อง = ทันที)
+   + ทำต่อข้ามเครื่อง (cloud: gyt_users.prefs.ecDraft ผูกกับ login)
+   ─────────────────────────────────────────────── */
+var _ecDraftTimer=null, _ecReady=false, _ecRestoring=false, _ecLastDraftJson='', _ecPendingDraft=null, _ecVisHooked=false, _ecChecking=false;
+var _ecCloudChain=Promise.resolve();
+// คิวเขียน cloud แบบลำดับเดียว → save/clear ไม่แข่งกัน (clear ที่สั่งทีหลังจะชนะเสมอ → ร่างไม่ผุดกลับ)
+function _ecQueueCloud(fn){ _ecCloudChain=_ecCloudChain.then(fn).catch(function(e){ console.warn('ec cloud', e&&e.message); }); return _ecCloudChain; }
+// ฟอร์มมีตัวอักษรในช่องใดช่องหนึ่งมั้ย (ไว้เตือนก่อนเขียนทับตอนกู้คืน)
+function _ecFormHasAny(){ var any=false; document.querySelectorAll('#ec-tb tr').forEach(function(tr){ ['.ec-date','.ec-type','.ec-cont','.ec-desc'].forEach(function(s){ var el=tr.querySelector(s); if(el && String(el.value||'').trim()) any=true; }); var a=tr.querySelector('.amt input'); if(a && String(a.value||'').trim()) any=true; }); return any; }
+function _ecDraftKey(){ return 'gyt_ec_draft_u'+((currentUser&&currentUser.id)||'0'); }
+function _ecDeviceName(){
+  try{ var ua=navigator.userAgent;
+    if(/iPad/i.test(ua)) return 'iPad';
+    if(/iPhone/i.test(ua)) return 'iPhone';
+    if(/Android/i.test(ua)) return 'Android';
+    if(/Macintosh|Mac OS/i.test(ua)) return 'Mac';
+    if(/Windows/i.test(ua)) return 'Windows';
+  }catch(e){}
+  return 'อุปกรณ์';
+}
+function _ecShowSaveStatus(state){
+  var el=document.getElementById('ec-save-status'); if(!el) return;
+  if(state==='saving'){ el.innerHTML='💾 กำลังบันทึกร่าง…'; el.style.color='var(--text-3)'; }
+  else if(state==='cloud'){ el.innerHTML='✅ บันทึกร่างอัตโนมัติแล้ว · เปิดเครื่องอื่น (login เดิม) ทำต่อได้'; el.style.color='var(--green)'; }
+  else if(state==='local'){ el.innerHTML='💾 บันทึกร่างในเครื่องแล้ว (ออฟไลน์)'; el.style.color='var(--text-3)'; }
+  else { el.innerHTML=''; }
+}
+// hook อยู่ใน ecCalc → เรียกทุกครั้งที่ฟอร์มเปลี่ยน
+function _ecMarkDirty(){
+  if(_ecRestoring) return;
+  var g=_ecGather();
+  if(g.items.length && _ecPendingDraft){            // ผู้ใช้เริ่มกรอกเอง → ซ่อนแถบกู้คืน (กันกดทับงานตัวเอง)
+    var bn=document.getElementById('ec-draft-banner'); if(bn){ bn.style.display='none'; bn.innerHTML=''; } _ecPendingDraft=null;
+  }
+  if(!g.items.length){ if(_ecReady && _ecLastDraftJson!==''){ _ecClearDraft(); } return; }   // เคยมีร่างแล้วลบหมด = ลบร่าง (เฉพาะหลังเปิดหน้าเสร็จ)
+  var json=JSON.stringify(g.items);
+  if(json===_ecLastDraftJson) return;                                            // ไม่มีอะไรเปลี่ยน
+  _ecLastDraftJson=json;
+  var draft={ items:g.items, total:g.total, ts:Date.now(), device:_ecDeviceName() };
+  try{ localStorage.setItem(_ecDraftKey(), JSON.stringify(draft)); }catch(e){}    // เซฟในเครื่อง "เสมอ" ทันที (กันคอมดับ ตั้งแต่คีย์แรก)
+  _ecShowSaveStatus('saving');
+  if(_ecDraftTimer) clearTimeout(_ecDraftTimer);
+  _ecDraftTimer=setTimeout(function(){ _ecDraftTimer=null; _ecSaveCloudDraft(draft); }, 1200);   // debounce ขึ้น cloud
+}
+function _ecSaveCloudDraft(draft){
+  return _ecQueueCloud(async function(){           // เข้าคิว → ไม่แข่งกับ clear/save อื่น
+    if(typeof _onlineMode==='undefined' || !_onlineMode || !currentUser || !currentUser.id){ _ecShowSaveStatus('local'); return; }
+    var ok=await checkCloudPrefsSupport(); if(!ok){ _ecShowSaveStatus('local'); return; }
+    if(!currentUser.prefs) currentUser.prefs={};
+    currentUser.prefs.ecDraft=draft;               // เก็บ ecDraft รวมกับ colOrder เดิม (ไม่ทับกัน)
+    var u=(typeof users!=='undefined')?users.find(function(x){return x.id===currentUser.id;}):null; if(u){ if(!u.prefs) u.prefs={}; u.prefs.ecDraft=draft; }
+    var res=await sbFetch('gyt_users','PATCH',{prefs:currentUser.prefs},'?id=eq.'+currentUser.id);   // เขียนเฉพาะคอลัมน์ prefs (ไม่แตะ role/perms/รหัสผ่าน)
+    _ecShowSaveStatus(res!==null?'cloud':'local');
+  });
+}
+function _ecClearDraft(){
+  _ecLastDraftJson=''; if(_ecDraftTimer){ clearTimeout(_ecDraftTimer); _ecDraftTimer=null; }
+  try{ localStorage.removeItem(_ecDraftKey()); }catch(e){}
+  _ecShowSaveStatus('');
+  return _ecQueueCloud(async function(){           // ต่อท้ายคิว → รันหลัง save ที่ค้างอยู่เสมอ (กันร่างผุดกลับ)
+    if(typeof _onlineMode==='undefined' || !_onlineMode || !currentUser || !currentUser.id) return;
+    var ok=await checkCloudPrefsSupport(); if(!ok) return;
+    if(currentUser.prefs && currentUser.prefs.ecDraft) delete currentUser.prefs.ecDraft;
+    var u=(typeof users!=='undefined')?users.find(function(x){return x.id===currentUser.id;}):null; if(u && u.prefs && u.prefs.ecDraft) delete u.prefs.ecDraft;
+    await sbFetch('gyt_users','PATCH',{prefs:(currentUser.prefs||{})},'?id=eq.'+currentUser.id);
+  });
+}
+async function _ecFetchCloudDraft(){
+  try{
+    if(typeof _onlineMode==='undefined' || !_onlineMode || !currentUser || !currentUser.id) return null;
+    var ok=await checkCloudPrefsSupport(); if(!ok) return null;
+    var rows=await sbFetch('gyt_users','GET',null,'?select=prefs&id=eq.'+currentUser.id);
+    var prefs=(rows&&rows[0]&&rows[0].prefs)||null;
+    if(prefs){ currentUser.prefs=prefs; }                  // refresh in-memory ให้ตรง cloud
+    return (prefs&&prefs.ecDraft)?prefs.ecDraft:null;
+  }catch(e){ return null; }
+}
+// เปิดหน้า → เปิด auto-save ทันที + เช็คร่างค้าง (cloud เทียบ local เลือกใหม่สุด) เมื่อฟอร์มยังว่าง
+async function _ecInitDraft(){
+  if(!_ecVisHooked){ _ecVisHooked=true;
+    try{ document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState==='hidden' && _ecDraftTimer){     // ปิดจอ/สลับแอป → ดันร่างขึ้น cloud ทันที
+        clearTimeout(_ecDraftTimer); _ecDraftTimer=null;
+        try{ var raw=localStorage.getItem(_ecDraftKey()); if(raw){ _ecSaveCloudDraft(JSON.parse(raw)); } }catch(e){}
+      }
+    }); }catch(e){}
+  }
+  _ecReady=true;                          // ✅ เปิด auto-save ทันที — localStorage กันคอมดับได้ตั้งแต่คีย์แรก (ไม่รอ network)
+  if(_ecChecking) return;
+  if(_ecGather().items.length) return;    // ฟอร์มมีข้อมูลอยู่แล้ว → ไม่ต้องถามกู้คืน
+  _ecChecking=true;
+  try{
+    var local=null; try{ local=JSON.parse(localStorage.getItem(_ecDraftKey())||'null'); }catch(e){}
+    var cloud=await _ecFetchCloudDraft();
+    var draft=(cloud && local)?((Number(cloud.ts||0)>=Number(local.ts||0))?cloud:local):(cloud||local);
+    if(draft && draft.items && draft.items.length && !_ecGather().items.length){ _ecRenderRestoreBanner(draft); }   // ยังว่างจริง (กันทับงานที่เพิ่งกรอกระหว่างโหลด)
+  }catch(e){ console.warn('ec draft check', e.message); }
+  finally{ _ecChecking=false; }
+}
+function _ecRenderRestoreBanner(draft){
+  var el=document.getElementById('ec-draft-banner'); if(!el) return;
+  _ecPendingDraft=draft;
+  var d=new Date(Number(draft.ts)||Date.now());
+  var p2=function(n){ return String(n).padStart(2,'0'); };
+  var when=p2(d.getDate())+'/'+p2(d.getMonth()+1)+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+  el.style.cssText='display:block;background:#FEF9E7;border:1px solid #F1C40F;border-radius:10px;padding:12px 14px;margin-bottom:12px';
+  el.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+    '<span style="font-size:22px">🔄</span>'+
+    '<div style="flex:1;min-width:180px">'+
+      '<div style="font-weight:700;color:#7D6608">มีข้อมูลที่กรอกค้างไว้ '+draft.items.length+' รายการ (รวม ฿'+_ecFmt(draft.total||0)+')</div>'+
+      '<div style="font-size:12px;color:#9A7D0A">บันทึกอัตโนมัติล่าสุด '+when+' น. · จาก '+_ecEsc(draft.device||'อุปกรณ์')+'</div>'+
+    '</div>'+
+    '<button class="btn btn-green" style="font-size:13px" onclick="_ecRestoreDraft()">↩️ กู้คืน</button>'+
+    '<button class="btn btn-ghost" style="font-size:13px" onclick="_ecDismissDraft()">ทิ้ง</button>'+
+  '</div>';
+}
+function _ecRestoreDraft(){
+  if(!_ecPendingDraft) return;
+  if(_ecFormHasAny() && !confirm('ฟอร์มมีข้อมูลอยู่แล้ว — กู้คืนจะเขียนทับของเดิม ยืนยันมั้ย?')) return;
+  if(_ecDraftTimer){ clearTimeout(_ecDraftTimer); _ecDraftTimer=null; }   // ยกเลิก save ที่ค้าง (กันทับร่างที่กู้คืน)
+  _ecRestoring=true;
+  try{
+    document.getElementById('ec-tb').innerHTML='';
+    _ecPendingDraft.items.forEach(function(it){ ecAddRow(it); });
+    if(!document.querySelectorAll('#ec-tb tr').length){ ecAddRow(); ecAddRow(); }
+    ecCalc();
+    _ecLastDraftJson=JSON.stringify(_ecGather().items);
+  } finally { _ecRestoring=false; }
+  var b=document.getElementById('ec-draft-banner'); if(b){ b.style.display='none'; b.innerHTML=''; }
+  _ecShowSaveStatus('cloud');
+  showToast('↩️ กู้คืนข้อมูลที่ค้างไว้แล้ว');
+  _ecPendingDraft=null;
+}
+function _ecDismissDraft(){
+  if(!confirm('ทิ้งข้อมูลที่ค้างไว้? (กู้คืนไม่ได้อีก)')) return;
+  _ecClearDraft();
+  var b=document.getElementById('ec-draft-banner'); if(b){ b.style.display='none'; b.innerHTML=''; }
+  _ecPendingDraft=null;
+}
 function ecInit(){
   var el=document.getElementById('ec-payer'); if(el) el.textContent=_ecPayerName();
   _ecBuildTypeList();
   if(!document.querySelectorAll('#ec-tb tr').length){ ecAddRow(); ecAddRow(); }
   ecLoadList();
+  _ecInitDraft();   // 🆕 ตรวจร่างค้าง (กู้คืน) + เปิด auto-save
 }
 var _ecTypes=['รับตู้','คืนตู้','ค่าเที่ยว','ทางด่วน','ค่าซ่อม','อื่นๆ'];  // ค่าเริ่มต้น
 // 🆕 ประเภท = combobox (พิมพ์เองได้ + จำค่าที่เคยกรอกผ่าน localStorage)
@@ -19759,10 +19902,10 @@ function ecAddRow(d){
   if(!d.date){ var _er=document.querySelectorAll('#ec-tb tr'); if(_er.length){ var _ld=_er[_er.length-1].querySelector('.ec-date'); if(_ld) d.date=_ld.value||''; } }
   var tr=document.createElement('tr');
   tr.innerHTML='<td class="ec-idx"></td>'+
-    '<td><input class="ec-date" type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป" value="'+_ecEsc(d.date)+'"></td>'+
-    '<td><input class="ec-type" list="ec-type-list" value="'+_ecEsc(d.type)+'" onchange="_ecSaveType(this.value)" style="width:100%;border:1px solid transparent;background:transparent;padding:7px 6px;font-family:inherit;font-size:13px;border-radius:5px"></td>'+
-    '<td><input class="ec-cont" type="text" value="'+_ecEsc(d.container)+'"></td>'+
-    '<td><input class="ec-desc" value="'+_ecEsc(d.desc)+'"></td>'+
+    '<td><input class="ec-date" type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป" value="'+_ecEsc(d.date)+'" oninput="ecCalc()"></td>'+
+    '<td><input class="ec-type" list="ec-type-list" value="'+_ecEsc(d.type)+'" oninput="ecCalc()" onchange="_ecSaveType(this.value)" style="width:100%;border:1px solid transparent;background:transparent;padding:7px 6px;font-family:inherit;font-size:13px;border-radius:5px"></td>'+
+    '<td><input class="ec-cont" type="text" value="'+_ecEsc(d.container)+'" oninput="ecCalc()"></td>'+
+    '<td><input class="ec-desc" value="'+_ecEsc(d.desc)+'" oninput="ecCalc()"></td>'+
     '<td class="amt"><input type="text" inputmode="decimal" placeholder="0.00" value="'+(d.amount!=null?Number(d.amount).toFixed(2):'')+'" oninput="ecCalc()" onblur="_ecFmtAmt(this)"></td>'+
     '<td style="text-align:center"><button class="ec-del" onclick="this.closest(\'tr\').remove();ecCalc()">✕</button></td>';
   document.getElementById('ec-tb').appendChild(tr);
@@ -19772,6 +19915,7 @@ function ecCalc(){
   var rows=document.querySelectorAll('#ec-tb tr'), t=0;
   rows.forEach(function(tr,i){ tr.querySelector('.ec-idx').textContent=i+1; t+=parseFloat(tr.querySelector('.amt input').value)||0; });
   document.getElementById('ec-total').textContent='฿'+_ecFmt(t);
+  if(typeof _ecMarkDirty==='function') _ecMarkDirty();   // 🆕 auto-save ร่าง (กันคอมดับ + ข้ามเครื่อง)
 }
 function ecClear(){ document.getElementById('ec-tb').innerHTML=''; ecAddRow(); ecAddRow(); ecCalc(); }
 function _ecGather(){
@@ -19799,6 +19943,7 @@ async function ecClose(){
     var r=await fetch(SUPA_URL+'/rest/v1/gyt_expense_closings', {method:'POST', headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY, 'Content-Type':'application/json', Prefer:'return=representation'}, body:JSON.stringify(obj)});
     if(!r.ok){ var txt=await r.text(); if(/relation|does not exist|42P01|PGRST205/i.test(txt)){ showToast('⚠ ตาราง gyt_expense_closings ยังไม่ได้สร้าง — รัน SQL setup ก่อน', 8000); } else { showToast('บันทึกไม่สำเร็จ: '+r.status); } return; }
     var saved=(await r.json())[0]||obj;
+    try{ await _ecClearDraft(); }catch(_ece){}   // ลบร่าง (local+cloud) ให้เสร็จก่อน — กันร่างผุดกลับบนเครื่องอื่นหลังปิดรอบสำเร็จ
     showToast('✅ ปิดรอบ '+docno+' เรียบร้อย');
     ecClear(); await ecLoadList(); ecPrint(saved);
   }catch(e){ console.warn('ecClose', e); showToast('บันทึกไม่สำเร็จ (เครือข่าย)'); }
