@@ -5671,7 +5671,7 @@ function initApp(){
   // ratecalc ไม่ผูกกับ perm เฉพาะ — admin/supervisor เห็น (มี dashboard)
   // 🆕 v154 — payouts เปิดเฉพาะ staging branch (preview URL) เท่านั้น — main hide เพื่อรอ test ก่อน
   //   หลังทดสอบเสร็จเรียบร้อย ค่อยลบ check นี้ออก (1 บรรทัด) เพื่อเปิดบน main
-  const _onMain = (window.location.host || '').toLowerCase() === 'gyt-transport.vercel.app';
+  const _onMain = (typeof IS_STAGING!=='undefined') ? !IS_STAGING : ((window.location.host||'').toLowerCase()==='gyt-transport.vercel.app');   // 🆕 รองรับ custom domain: prod = ไม่ใช่ staging/preview (ไม่ผูก vercel.app ตายตัว)
   const ALL_NAV=[
     {id:'jobs',     icon:'🚛',label:'ตารางงาน',           perm:'view_jobs'},
     {id:'users',    icon:'👥',label:'จัดการสิทธิ์',       perm:'manage_users'},
