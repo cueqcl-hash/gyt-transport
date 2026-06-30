@@ -3147,7 +3147,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div id="fj-price-warn" style="display:none;margin-top:2px;font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:6px;font-weight:600"></div>
     </div>
 
-    <!-- 🆕 ค่าใช้จ่าย (ต้นทุน) — กรอกล่วงหน้าได้ ทุกคนกรอกได้ → ปิดรอบค่าใช้จ่ายดึงไปใช้อัตโนมัติ -->
+    <div class="sec-title" style="margin-top:4px;margin-bottom:12px">รถและคนขับ</div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ทะเบียนรถ</label>
+      <div class="sd-wrap">
+        <input class="sd-input" id="fj-plate" placeholder="พิมพ์ทะเบียน..." autocomplete="off"
+          oninput="sdPlateFilter('fj-plate')" onfocus="sdPlateOpen('fj-plate')" onblur="sdPlateBlur('fj-plate')">
+        <span class="sd-arrow">&#9662;</span>
+        <div class="sd-list" id="fj-plate-list"></div>
+      </div>
+      <div id="fj-plate-info" style="font-size:11px;color:var(--green);margin-top:3px;display:none"></div>
+    </div>
+      <div class="fg"><label class="fl">พนักงานขับ</label><input class="fi" id="fj-driver" placeholder="ชื่อคนขับ"></div>
+    </div>
+
+    <!-- 🆕 ค่าใช้จ่าย (ต้นทุน) — ย้ายมาอยู่ "ใต้" รถและคนขับ -->
     <div class="sec-title" style="margin-top:4px;margin-bottom:10px">💰 ค่าใช้จ่าย (ต้นทุน) <span style="color:var(--text-3);font-weight:400;font-size:11px">— กรอกไว้ล่วงหน้าได้ (ปิดรอบจะดึงไปใช้)</span></div>
     <div class="fg-row">
       <div class="fg"><label class="fl">เบิก — ค่าแรงคนขับ/เที่ยว (บาท) <button type="button" onclick="_fjCalcTrip()" style="margin-left:4px;font-size:10px;padding:1px 6px;border:1px solid var(--green);background:#F0FDF4;color:var(--green-d);border-radius:4px;cursor:pointer">↻ ตามประเภท</button></label><input class="fi" id="fj-cost-trip" type="number" step="any" placeholder="0"></div>
@@ -3176,20 +3190,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="fg-row">
       <div class="fg"><label class="fl">หมายเหตุ (อื่นๆ 2)</label><input class="fi" id="fj-cost-misc2-note" placeholder=""></div>
       <div class="fg"></div>
-    </div>
-
-    <div class="sec-title" style="margin-top:4px;margin-bottom:12px">รถและคนขับ</div>
-    <div class="fg-row">
-      <div class="fg"><label class="fl">ทะเบียนรถ</label>
-      <div class="sd-wrap">
-        <input class="sd-input" id="fj-plate" placeholder="พิมพ์ทะเบียน..." autocomplete="off"
-          oninput="sdPlateFilter('fj-plate')" onfocus="sdPlateOpen('fj-plate')" onblur="sdPlateBlur('fj-plate')">
-        <span class="sd-arrow">&#9662;</span>
-        <div class="sd-list" id="fj-plate-list"></div>
-      </div>
-      <div id="fj-plate-info" style="font-size:11px;color:var(--green);margin-top:3px;display:none"></div>
-    </div>
-      <div class="fg"><label class="fl">พนักงานขับ</label><input class="fi" id="fj-driver" placeholder="ชื่อคนขับ"></div>
     </div>
   </div>
   <div class="modal-foot">
