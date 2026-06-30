@@ -19960,11 +19960,19 @@ async function ecClose(){
   }catch(e){ console.warn('ecClose', e); showToast('บันทึกไม่สำเร็จ (เครือข่าย)'); }
 }
 async function ecLoadList(){
-  try{ var rows=await sbFetchAll('gyt_expense_closings','?select=*&order=created_at.desc'); _ecList=rows||[]; }
+  // 🆕 ประวัติรอบที่ปิด: เห็นเฉพาะของตัวเอง (ตาม payer_username) — ยกเว้น PISOLN/DONUT/SOMJAI เห็นทุกคน
+  var _ecSeeAll = !!(currentUser && ['PISOLN','DONUT','SOMJAI'].indexOf(currentUser.username)>=0);
+  var _ecQ='?select=*&order=created_at.desc';
+  if(!_ecSeeAll){
+    var _un=(currentUser && currentUser.username)?currentUser.username:' ';   // ไม่มี username = ไม่แสดงอะไร
+    _ecQ='?select=*&payer_username=eq.'+encodeURIComponent(_un)+'&order=created_at.desc';
+  }
+  try{ var rows=await sbFetchAll('gyt_expense_closings',_ecQ); _ecList=rows||[]; }
   catch(e){ _ecList=[]; }
   var el=document.getElementById('ec-list'); if(!el) return;
-  if(!_ecList.length){ el.innerHTML='<div style="color:var(--text-3);font-size:13px;padding:10px 0">ยังไม่มีรอบที่ปิด (หรือยังไม่ได้สร้างตาราง)</div>'; return; }
-  el.innerHTML=_ecList.slice(0,50).map(function(r){
+  if(!_ecList.length){ el.innerHTML='<div style="color:var(--text-3);font-size:13px;padding:10px 0">'+(_ecSeeAll?'ยังไม่มีรอบที่ปิด (หรือยังไม่ได้สร้างตาราง)':'คุณยังไม่มีรอบที่ปิด')+'</div>'; return; }
+  var _ecNote=_ecSeeAll?'':'<div style="font-size:11.5px;color:var(--text-3);margin-bottom:6px">👤 แสดงเฉพาะรอบที่คุณปิด</div>';
+  el.innerHTML=_ecNote+_ecList.slice(0,50).map(function(r){
     var d=r.created_at?new Date(r.created_at):null;
     var ds=d?(String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String((d.getFullYear()+543)%100)):'';
     return '<div class="ec-li"><span class="doc">'+_ecEsc(r.doc_no||('#'+r.id))+'</span>'+
