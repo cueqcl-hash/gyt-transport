@@ -3147,6 +3147,37 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div id="fj-price-warn" style="display:none;margin-top:2px;font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:6px;font-weight:600"></div>
     </div>
 
+    <!-- 🆕 ค่าใช้จ่าย (ต้นทุน) — กรอกล่วงหน้าได้ ทุกคนกรอกได้ → ปิดรอบค่าใช้จ่ายดึงไปใช้อัตโนมัติ -->
+    <div class="sec-title" style="margin-top:4px;margin-bottom:10px">💰 ค่าใช้จ่าย (ต้นทุน) <span style="color:var(--text-3);font-weight:400;font-size:11px">— กรอกไว้ล่วงหน้าได้ (ปิดรอบจะดึงไปใช้)</span></div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">เบิก — ค่าแรงคนขับ/เที่ยว (บาท) <button type="button" onclick="_fjCalcTrip()" style="margin-left:4px;font-size:10px;padding:1px 6px;border:1px solid var(--green);background:#F0FDF4;color:var(--green-d);border-radius:4px;cursor:pointer">↻ ตามประเภท</button></label><input class="fi" id="fj-cost-trip" type="number" step="any" placeholder="0"></div>
+      <div class="fg"><label class="fl">หมายเหตุ (เบิก)</label><input class="fi" id="fj-cost-trip-note" placeholder="หัวลาก / สิบล้อ"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่ายกตู้ (บาท)</label><input class="fi" id="fj-cost-box" type="number" step="any" placeholder="0"></div>
+      <div class="fg"><label class="fl">ค่าผ่านท่า (บาท)</label><input class="fi" id="fj-cost-port" type="number" step="any" placeholder="0"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่ารับตู้ (บาท)</label><input class="fi" id="fj-cost-recv" type="number" step="any" placeholder="0"></div>
+      <div class="fg"><label class="fl">หมายเหตุ (รับตู้)</label><input class="fi" id="fj-cost-recv-note" placeholder="ลาน / ท่าเรือ"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่าคืนตู้ (บาท)</label><input class="fi" id="fj-cost-ret" type="number" step="any" placeholder="0"></div>
+      <div class="fg"><label class="fl">หมายเหตุ (คืนตู้)</label><input class="fi" id="fj-cost-ret-note" placeholder="ลาน / ท่าเรือ"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่าทางด่วน (บาท)</label><input class="fi" id="fj-cost-toll" type="number" step="any" placeholder="0"></div>
+      <div class="fg"><label class="fl">อื่นๆ (บาท)</label><input class="fi" id="fj-cost-misc" type="number" step="any" placeholder="0"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">หมายเหตุ (อื่นๆ)</label><input class="fi" id="fj-cost-misc-note" placeholder=""></div>
+      <div class="fg"><label class="fl">อื่นๆ 2 (บาท)</label><input class="fi" id="fj-cost-misc2" type="number" step="any" placeholder="0"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">หมายเหตุ (อื่นๆ 2)</label><input class="fi" id="fj-cost-misc2-note" placeholder=""></div>
+      <div class="fg"></div>
+    </div>
+
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">รถและคนขับ</div>
     <div class="fg-row">
       <div class="fg"><label class="fl">ทะเบียนรถ</label>
@@ -5921,10 +5952,21 @@ function buildContainerRows(){
       ${hasPerm('view_price')?`<td style="padding:4px 6px;background:#ECFDF5">
         <input class="fi" type="number" id="mc-r${i}-price" min="0" step="any" placeholder="(ราคากลาง)" style="height:32px;font-size:12px;width:100px;border-color:#10B981;color:#065F46;font-weight:700">
       </td>`:''}
-      <td style="padding:4px 6px">
+      <td style="padding:4px 6px;white-space:nowrap">
+        <button type="button" style="height:28px;padding:0 8px;border-radius:5px;border:1px solid var(--green);background:#F0FDF4;font-size:11px;cursor:pointer;color:var(--green-d)" onclick="_mcToggleCost(${i})" title="กรอกค่าใช้จ่ายของตู้นี้">💰</button>
         ${i>1?`<button style="height:28px;padding:0 8px;border-radius:5px;border:1px solid var(--border);background:#fff;font-size:11px;cursor:pointer;color:var(--text-2)" onclick="copyFromAbove(${i})" title="คัดลอกจากแถวบน">↑ คัดลอก</button>`:''}
       </td>`;
     tbody.appendChild(row);
+    // 🆕 แถวค่าใช้จ่าย (ต้นทุน) ของตู้นี้ — ซ่อนไว้ กด 💰 เพื่อขยาย
+    var _cf=function(id,label){ return '<div style="display:flex;flex-direction:column;min-width:118px"><label style="font-size:10.5px;color:var(--text-3);margin-bottom:2px">'+label+'</label><input class="fi" type="number" step="any" id="mc-r'+i+'-cost-'+id+'" placeholder="0" style="height:30px;font-size:12px"></div>'; };
+    var crow=document.createElement('tr');
+    crow.id='mc-r'+i+'-cost-row'; crow.style.display='none';
+    crow.innerHTML='<td colspan="14" style="padding:8px 14px;background:#F0FDF4;border-bottom:2px solid #BBF7D0">'+
+      '<div style="font-weight:700;color:var(--green-d);font-size:12px;margin-bottom:6px">💰 ค่าใช้จ่าย (ต้นทุน) — ตู้ที่ '+i+'</div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">'+
+        _cf('trip','เบิก(ค่าแรง)')+_cf('box','ค่ายกตู้')+_cf('recv','ค่ารับตู้')+_cf('ret','ค่าคืนตู้')+_cf('port','ค่าผ่านท่า')+_cf('toll','ค่าทางด่วน')+_cf('misc','อื่นๆ')+_cf('misc2','อื่นๆ2')+
+      '</div></td>';
+    tbody.appendChild(crow);
   }
   document.getElementById('mc-preview').style.display='none';
   // init datetime picker ทุกแถว (DD/MM/YYYY HH:MM 24h)
@@ -6090,7 +6132,7 @@ async function saveMulti(){
       var _rpv=_rpEl?String(_rpEl.value).trim():'';
       if(_rpv!=='' && !isNaN(parseFloat(_rpv))) _rPrice=parseFloat(_rpv);
     }
-    if(_rPrice!==null) job.costs={priceAmt:_rPrice};
+    var _jc=_mcCosts(i); if(_rPrice!==null) _jc.priceAmt=_rPrice; job.costs=_jc;   // 🆕 ค่าใช้จ่าย (ต้นทุน) ต่อตู้ + ราคา
     jobs.unshift(job);
     created.push(job.id);
     if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncJobSave(job); }catch(e){ console.warn('saveMulti sync error:', e); } }
@@ -21130,6 +21172,13 @@ function _contConfirmSingle(container, excludeId){
   var dups=_findContDups(container, excludeId); if(!dups.length) return true;
   return confirm('⚠️ เบอร์ตู้ "'+container+'" ซ้ำกับ '+dups.length+' งานที่เคยลง:\n• '+_contDupList(dups,5).join('\n• ')+'\n\nยืนยันบันทึกซ้ำ?');
 }
+// 🆕 ค่าใช้จ่าย (ต้นทุน) ในฟอร์มงาน — helpers
+function _fjCalcTrip(){ var el=document.getElementById('fj-cost-trip'); if(!el) return; var t=((document.getElementById('fj-type')||{}).value)||''; el.value=(typeof getTripRate==='function')?getTripRate({type:t}):el.value; }
+function _mcToggleCost(i){ var r=document.getElementById('mc-r'+i+'-cost-row'); if(r) r.style.display=(r.style.display==='none'?'':'none'); }
+function _mcCosts(i){   // อ่าน 8 ช่องค่าใช้จ่ายของตู้ที่ i (ฟอร์มหลายตู้)
+  var g=function(id){var el=document.getElementById('mc-r'+i+'-cost-'+id);return el?el.value:'';};
+  return { tripAmt:g('trip'), boxAmt:g('box'), recvAmt:g('recv'), retAmt:g('ret'), portAmt:g('port'), tollAmt:g('toll'), miscAmt:g('misc'), misc2Amt:g('misc2') };
+}
 function openAddJob(){
   if(!hasPerm('add_jobs')){showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน');return;}
   editJID=null;
@@ -21154,6 +21203,9 @@ function openAddJob(){
   var fjW=document.getElementById('fj-price-warn'); if(fjW) fjW.style.display='none';
   var fcW=document.getElementById('fj-container-warn'); if(fcW){ fcW.style.display='none'; fcW.innerHTML=''; }   // 🆕 เคลียร์คำเตือนเบอร์ตู้ซ้ำ
   var fcI=document.getElementById('fj-container'); if(fcI) fcI.style.borderColor='';
+  // 🆕 ค่าใช้จ่าย (ต้นทุน) — เคลียร์ + เบิกตั้งต้นตามประเภท (default หัวลาก)
+  ['fj-cost-trip-note','fj-cost-box','fj-cost-recv','fj-cost-recv-note','fj-cost-ret','fj-cost-ret-note','fj-cost-port','fj-cost-toll','fj-cost-misc','fj-cost-misc-note','fj-cost-misc2','fj-cost-misc2-note'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var _ftc=document.getElementById('fj-cost-trip'); if(_ftc) _ftc.value=(typeof getTripRate==='function')?getTripRate({type:''}):'';
   if(hasPerm('view_price')) _rateLoad();
   const now=new Date();now.setMinutes(0,0,0);
   document.getElementById('fj-startdate').value=now.toISOString().slice(0,16);
@@ -21219,6 +21271,16 @@ function openEditJob(id){
   // 🆕 v158 — ช่องราคาขายต่อตู้ (เฉพาะ perm view_price)
   var fjPw2=document.getElementById('fj-price-wrap'); if(fjPw2) fjPw2.style.display=hasPerm('view_price')?'':'none';
   var fjPr2=document.getElementById('fj-price'); if(fjPr2) fjPr2.value=(j.costs && j.costs.priceAmt!==undefined && j.costs.priceAmt!==null && j.costs.priceAmt!=='')?j.costs.priceAmt:'';
+  // 🆕 ค่าใช้จ่าย (ต้นทุน) — โหลดจากงานมาแสดง (แก้ได้)
+  var _jc=j.costs||{}; var _sc=function(id,v){var el=document.getElementById(id);if(el)el.value=(v==null?'':v);};
+  _sc('fj-cost-trip',_jc.tripAmt); _sc('fj-cost-trip-note',_jc.tripNote);
+  _sc('fj-cost-box',_jc.boxAmt);
+  _sc('fj-cost-recv',_jc.recvAmt); _sc('fj-cost-recv-note',_jc.recvNote);
+  _sc('fj-cost-ret',_jc.retAmt); _sc('fj-cost-ret-note',_jc.retNote);
+  _sc('fj-cost-port',_jc.portAmt);
+  _sc('fj-cost-toll',_jc.tollAmt);
+  _sc('fj-cost-misc',_jc.miscAmt); _sc('fj-cost-misc-note',_jc.miscNote);
+  _sc('fj-cost-misc2',_jc.misc2Amt); _sc('fj-cost-misc2-note',_jc.misc2Note);
   // 🆕 v160 — prefetch ราคาฐาน + เคลียร์ hint
   var fjH2=document.getElementById('fj-price-hint'); if(fjH2) fjH2.innerHTML='';
   var fjW2=document.getElementById('fj-price-warn'); if(fjW2) fjW2.style.display='none';
@@ -21299,6 +21361,17 @@ async function saveJob(){
     obj.createdAt=__nowISO;
     jobs.unshift(obj);
   }
+  // 🆕 ค่าใช้จ่าย (ต้นทุน) จากฟอร์ม → เขียนลง obj.costs (obj.costs เริ่มจากของเดิม → เก็บ priceAmt + ค่ายืนยัน *Confirmed ไว้)
+  obj.costs=obj.costs||{};
+  var _gc=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  obj.costs.tripAmt=_gc('fj-cost-trip'); obj.costs.tripNote=_gc('fj-cost-trip-note');
+  obj.costs.boxAmt=_gc('fj-cost-box');
+  obj.costs.recvAmt=_gc('fj-cost-recv'); obj.costs.recvNote=_gc('fj-cost-recv-note');
+  obj.costs.retAmt=_gc('fj-cost-ret'); obj.costs.retNote=_gc('fj-cost-ret-note');
+  obj.costs.portAmt=_gc('fj-cost-port');
+  obj.costs.tollAmt=_gc('fj-cost-toll');
+  obj.costs.miscAmt=_gc('fj-cost-misc'); obj.costs.miscNote=_gc('fj-cost-misc-note');
+  obj.costs.misc2Amt=_gc('fj-cost-misc2'); obj.costs.misc2Note=_gc('fj-cost-misc2-note');
   // 🆕 v158 — ราคาขายต่อตู้/เที่ยว (costs.priceAmt) — เขียนเฉพาะผู้มีสิทธิ์ view_price
   if(hasPerm('view_price')){
     var _pEl=document.getElementById('fj-price');
@@ -22820,7 +22893,29 @@ function savePair(){
 // ============================
 var _printJobId = null;
 
-function openPrint(jobId){ openCostModal(jobId); }
+function openPrint(jobId){
+  // 🆕 ปริ้นใบปฏิบัติงานตรงๆ — ใช้ค่าใช้จ่ายที่กรอกในฟอร์มงานแล้ว (ไม่เปิดหน้าต่างกรอกซ้ำ)
+  var j=jobs.find(function(x){return x.id===jobId;}); if(!j){showToast('ไม่พบใบงาน');return;}
+  var costs=j.costs||{};
+  var jForPrint=Object.assign({}, j);
+  if(jForPrint.receiptName && (!jForPrint.receiptAddr || !jForPrint.receiptTaxid)){
+    var hit=(typeof shippers!=='undefined'?shippers.find(function(s){return s.name===jForPrint.receiptName;}):null)
+         ||(typeof customers!=='undefined'?customers.find(function(c){return c.name===jForPrint.receiptName;}):null)
+         ||(typeof billings!=='undefined'?billings.find(function(b){return b.name===jForPrint.receiptName;}):null);
+    if(hit){ if(!jForPrint.receiptAddr) jForPrint.receiptAddr=hit.addr||''; if(!jForPrint.receiptTaxid) jForPrint.receiptTaxid=hit.taxid||''; }
+  }
+  if(!jForPrint.receiptName && jForPrint.shipper && typeof shippers!=='undefined'){
+    var shp=shippers.find(function(s){return s.name===jForPrint.shipper;});
+    if(shp){ jForPrint.receiptName=shp.name; jForPrint.receiptAddr=shp.addr||''; jForPrint.receiptTaxid=shp.taxid||''; }
+  }
+  var pw=window.open('','gyt_print','width=900,height=1200,scrollbars=yes');
+  if(!pw){showToast('กรุณาอนุญาต Popup ใน browser ก่อนครับ');return;}
+  pw.document.write(window._PRINT_HTML_DATA||'<p style="font-family:sans-serif;padding:2rem">กำลังโหลด...</p>');
+  pw.document.close();
+  pw.getPrintJob=function(){return{job:jForPrint,costs:costs};};
+  setTimeout(function(){ try{pw.fillJob(jForPrint,costs);}catch(e){pw.postMessage({type:'fillJob',job:jForPrint,costs:costs},'*');} },700);
+  showToast('เปิดใบปฏิบัติงาน '+j.id+' แล้ว');
+}
 
 /* ════════════════════════════════════════════════════════════════
    🆕 v120 — Share job to LINE
