@@ -21013,7 +21013,7 @@ function _contDate(j){ var d=String(j.startdate||j.deliverdate||'').slice(0,10);
 function _contDupList(dups, max){
   max=max||3;
   var arr=dups.slice().sort(function(a,b){ return String(b.startdate||b.createdAt||'').localeCompare(String(a.startdate||a.createdAt||'')); });
-  var out=arr.slice(0,max).map(function(j){ var dt=_contDate(j); return (j.id||'?')+(dt?(' · '+dt):'')+(j.customer?(' · '+j.customer):''); });
+  var out=arr.slice(0,max).map(function(j){ var dt=_contDate(j); return (j.id||'?')+(dt?(' · '+dt):'')+(j.shipper?(' · '+j.shipper):''); });   // 🆕 โชว์ Shipper (เจ้าของสินค้า) แทนลูกค้า(ตัวแทน)
   if(arr.length>max) out.push('…และอีก '+(arr.length-max)+' งาน');
   return out;
 }
