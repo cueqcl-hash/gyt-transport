@@ -956,7 +956,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <!-- 🆕 ปิดรอบค่าใช้จ่าย (คนโอน) -->
       <div id="pg-closing" class="screen">
         <style>
-          .ec-wrap{max-width:880px}
+          .ec-wrap{max-width:1180px}
           .ec-card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:18px 20px;margin-bottom:16px}
           .ec-head{font-size:15px;font-weight:700;color:var(--green-d);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
           .ec-head .pn{font-size:13px;font-weight:400;color:var(--text-2)}.ec-head .pn b{color:var(--green-d);font-weight:800}
@@ -983,11 +983,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="ec-head"><span>🧾 ปิดรอบค่าใช้จ่ายใหม่</span><span class="pn">ผู้โอน: <b id="ec-payer">—</b></span></div>
             <div id="ec-draft-banner" style="display:none"></div>
             <div id="ec-save-status" style="font-size:12px;color:var(--text-3);min-height:16px;margin-bottom:6px"></div>
-            <table class="ec-tbl">
-              <thead><tr><th class="ec-idx">#</th><th style="width:104px">วัน/เดือน/ปี</th><th style="width:118px">ประเภท</th><th style="width:128px">เบอร์ตู้</th><th>รายการ</th><th class="r" style="width:118px">ยอดเงิน (บาท)</th><th style="width:34px"></th></tr></thead>
+            <div style="font-size:12px;color:var(--text-3);margin-bottom:6px">💡 พิมพ์ <b>เบอร์ตู้</b> แล้วกดออกจากช่อง → ระบบดึง SHIPPER · ทะเบียน · ค่าใช้จ่าย จากตารางงานให้อัตโนมัติ (แก้ทับได้)</div>
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+            <table class="ec-tbl" style="min-width:1480px">
+              <thead><tr><th class="ec-idx">#</th><th style="width:86px">วัน/ด/ป</th><th style="width:116px">เบอร์ตู้</th><th style="width:124px">ประเภท</th><th style="width:140px">SHIPPER</th><th style="width:84px">ทะเบียน</th><th class="r" style="width:80px">ค่าแรง(เบิก)</th><th class="r" style="width:78px">ค่าผ่านท่า</th><th class="r" style="width:72px">ค่ายกตู้</th><th class="r" style="width:72px">ค่ารับตู้</th><th class="r" style="width:72px">ค่าคืนตู้</th><th class="r" style="width:80px">อื่นๆ</th><th style="width:130px">รายการ</th><th style="width:110px">หมายเหตุ</th><th class="r" style="width:96px">รวม (บาท)</th><th style="width:34px"></th></tr></thead>
               <tbody id="ec-tb"></tbody>
-              <tfoot><tr><td colspan="5" style="text-align:right">รวมทั้งหมด</td><td class="r" id="ec-total">฿0.00</td><td></td></tr></tfoot>
+              <tfoot><tr><td colspan="14" style="text-align:right">รวมทั้งหมด</td><td class="r" id="ec-total">฿0.00</td><td></td></tr></tfoot>
             </table>
+            </div>
             <div style="margin-top:8px"><button class="btn btn-ghost" onclick="ecAddRow()">➕ เพิ่มรายการ</button></div>
             <div class="ec-actions">
               <button class="btn btn-green" onclick="ecClose()">🔒 ปิดรอบ + บันทึก</button>
@@ -19749,7 +19752,7 @@ var _ecCloudChain=Promise.resolve();
 // คิวเขียน cloud แบบลำดับเดียว → save/clear ไม่แข่งกัน (clear ที่สั่งทีหลังจะชนะเสมอ → ร่างไม่ผุดกลับ)
 function _ecQueueCloud(fn){ _ecCloudChain=_ecCloudChain.then(fn).catch(function(e){ console.warn('ec cloud', e&&e.message); }); return _ecCloudChain; }
 // ฟอร์มมีตัวอักษรในช่องใดช่องหนึ่งมั้ย (ไว้เตือนก่อนเขียนทับตอนกู้คืน)
-function _ecFormHasAny(){ var any=false; document.querySelectorAll('#ec-tb tr').forEach(function(tr){ ['.ec-date','.ec-type','.ec-cont','.ec-desc'].forEach(function(s){ var el=tr.querySelector(s); if(el && String(el.value||'').trim()) any=true; }); var a=tr.querySelector('.amt input'); if(a && String(a.value||'').trim()) any=true; }); return any; }
+function _ecFormHasAny(){ var any=false; document.querySelectorAll('#ec-tb tr').forEach(function(tr){ ['.ec-date','.ec-cont','.ec-jobtype','.ec-shipper','.ec-plate','.ec-desc','.ec-note'].forEach(function(s){ var el=tr.querySelector(s); if(el && String(el.value||'').trim()) any=true; }); tr.querySelectorAll('.amt input').forEach(function(a){ if(String(a.value||'').trim()) any=true; }); }); return any; }
 function _ecDraftKey(){ return 'gyt_ec_draft_u'+((currentUser&&currentUser.id)||'0'); }
 function _ecDeviceName(){
   try{ var ua=navigator.userAgent;
@@ -19906,39 +19909,80 @@ function _ecSaveType(v){
   saved.push(v); localStorage.setItem('gyt_ec_types', JSON.stringify(saved));
   _ecBuildTypeList();                                    // อัปเดต dropdown ให้ทุกแถวเห็นค่าใหม่ทันที
 }
+// 🆕 ดึงข้อมูลจากตารางงานตามเบอร์ตู้ (งานล่าสุด) → เติม SHIPPER/ทะเบียน/5 ค่าใช้จ่าย (เฉพาะช่องว่าง แก้ทับได้)
+function _ecAutoFill(inp){
+  if(!inp) return; var tr=inp.closest('tr'); if(!tr) return;
+  var norm=function(s){ return String(s==null?'':s).toUpperCase().replace(/[^A-Z0-9]/g,''); };
+  var key=norm(inp.value); if(!key) return;
+  var ms=(typeof jobs!=='undefined' && jobs)?jobs.filter(function(j){ return j && norm(j.container)===key; }):[];
+  if(!ms.length){ showToast('ℹ️ ไม่เจองานที่ตรงเบอร์ตู้นี้ — กรอกเองได้'); return; }
+  ms.sort(function(a,b){ return String(b.startdate||b.createdAt||'').localeCompare(String(a.startdate||a.createdAt||'')); });
+  var j=ms[0], c=j.costs||{};
+  var setTxt=function(sel,val){ var el=tr.querySelector(sel); if(el && !String(el.value||'').trim() && val!=null && String(val).trim()!=='') el.value=val; };
+  var setAmt=function(sel,val){ var el=tr.querySelector(sel); if(el && !String(el.value||'').trim() && (parseFloat(val)||0)>0) el.value=_ecFmt(val); };
+  var pk=function(f){ return (typeof _dashPickAmt==='function')?_dashPickAmt(c,f):(parseFloat(c[f+'AmtConfirmed']||c[f+'Amt'])||0); };
+  setTxt('.ec-jobtype', j.job_type||'');   // 🆕 ประเภทงาน (เช่น ขาเข้า(ตู้เปิด))
+  setTxt('.ec-shipper', j.shipper||'');
+  setTxt('.ec-plate', j.plate||'');
+  setAmt('.ec-trip', (typeof _dashTrip==='function')?_dashTrip(j):pk('trip'));   // ค่าแรง(เบิก) + guide จาก legacy
+  setAmt('.ec-port', pk('port'));
+  setAmt('.ec-box',  pk('box'));
+  setAmt('.ec-recv', pk('recv'));
+  setAmt('.ec-ret',  pk('ret'));
+  ecCalc();
+  showToast('↘️ ดึงจากงาน '+(j.id||'')+' แล้ว — แก้ทับได้');
+}
 function ecAddRow(d){
   d=d||{};
-  if(!document.getElementById('ec-type-list')){ _ecBuildTypeList(); }
   // 🆕 วันที่ — แถวใหม่ที่ไม่ระบุวัน ให้ดึงวันจากแถวล่าสุด (ไล่ต่อกันลงมา)
   if(!d.date){ var _er=document.querySelectorAll('#ec-tb tr'); if(_er.length){ var _ld=_er[_er.length-1].querySelector('.ec-date'); if(_ld) d.date=_ld.value||''; } }
+  var fa=function(v){ return (v!=null && v!=='' && !isNaN(parseFloat(v)))?_ecFmt(v):''; };   // จัด , ให้ยอดเงิน (ว่าง=ว่าง)
+  var amtCell=function(cls,val){ return '<td class="amt"><input class="'+cls+'" type="text" inputmode="decimal" placeholder="0.00" value="'+fa(val)+'" oninput="ecCalc()" onblur="_ecFmtAmt(this)"></td>'; };
   var tr=document.createElement('tr');
   tr.innerHTML='<td class="ec-idx"></td>'+
     '<td><input class="ec-date" type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป" value="'+_ecEsc(d.date)+'" oninput="ecCalc()"></td>'+
-    '<td><input class="ec-type" list="ec-type-list" value="'+_ecEsc(d.type)+'" oninput="ecCalc()" onchange="_ecSaveType(this.value)" style="width:100%;border:1px solid transparent;background:transparent;padding:7px 6px;font-family:inherit;font-size:13px;border-radius:5px"></td>'+
-    '<td><input class="ec-cont" type="text" value="'+_ecEsc(d.container)+'" oninput="ecCalc()"></td>'+
-    '<td><input class="ec-desc" value="'+_ecEsc(d.desc)+'" oninput="ecCalc()"></td>'+
-    '<td class="amt"><input type="text" inputmode="decimal" placeholder="0.00" value="'+(d.amount!=null?_ecFmt(d.amount):'')+'" oninput="ecCalc()" onblur="_ecFmtAmt(this)"></td>'+
+    '<td><input class="ec-cont" type="text" placeholder="ABCU1234567" value="'+_ecEsc(d.container)+'" oninput="ecCalc()" onblur="_ecAutoFill(this)"></td>'+
+    '<td><input class="ec-jobtype" type="text" placeholder="(ดึงจากงาน)" value="'+_ecEsc(d.jobtype)+'" oninput="ecCalc()"></td>'+
+    '<td><input class="ec-shipper" type="text" value="'+_ecEsc(d.shipper)+'" oninput="ecCalc()"></td>'+
+    '<td><input class="ec-plate" type="text" value="'+_ecEsc(d.plate)+'" oninput="ecCalc()"></td>'+
+    amtCell('ec-trip', d.trip)+amtCell('ec-port', d.port)+amtCell('ec-box', d.box)+amtCell('ec-recv', d.recv)+amtCell('ec-ret', d.ret)+amtCell('ec-misc', d.misc)+
+    '<td><input class="ec-desc" type="text" placeholder="เช่น ค่าซ่อมเบรค" value="'+_ecEsc(d.desc)+'" oninput="ecCalc()"></td>'+
+    '<td><input class="ec-note" type="text" value="'+_ecEsc(d.note)+'" oninput="ecCalc()"></td>'+
+    '<td class="r ec-rowtotal" style="font-weight:700;white-space:nowrap;color:var(--green-d)">฿0.00</td>'+
     '<td style="text-align:center"><button class="ec-del" onclick="this.closest(\'tr\').remove();ecCalc()">✕</button></td>';
   document.getElementById('ec-tb').appendChild(tr);
   ecCalc();
 }
 function ecCalc(){
   var rows=document.querySelectorAll('#ec-tb tr'), t=0;
-  rows.forEach(function(tr,i){ tr.querySelector('.ec-idx').textContent=i+1; t+=parseFloat(String(tr.querySelector('.amt input').value).replace(/,/g,''))||0; });   // ลบ , ก่อนรวม
-  document.getElementById('ec-total').textContent='฿'+_ecFmt(t);
+  var num=function(el){ return el?(parseFloat(String(el.value).replace(/,/g,''))||0):0; };
+  rows.forEach(function(tr,i){
+    var ix=tr.querySelector('.ec-idx'); if(ix) ix.textContent=i+1;
+    var rt=num(tr.querySelector('.ec-trip'))+num(tr.querySelector('.ec-port'))+num(tr.querySelector('.ec-box'))+num(tr.querySelector('.ec-recv'))+num(tr.querySelector('.ec-ret'))+num(tr.querySelector('.ec-misc'));
+    var rtc=tr.querySelector('.ec-rowtotal'); if(rtc) rtc.textContent='฿'+_ecFmt(rt);
+    t+=rt;
+  });
+  var tot=document.getElementById('ec-total'); if(tot) tot.textContent='฿'+_ecFmt(t);
   if(typeof _ecMarkDirty==='function') _ecMarkDirty();   // 🆕 auto-save ร่าง (กันคอมดับ + ข้ามเครื่อง)
 }
 function ecClear(){ document.getElementById('ec-tb').innerHTML=''; ecAddRow(); ecAddRow(); ecCalc(); }
 function _ecGather(){
   var items=[], total=0;
+  var num=function(el){ return el?(parseFloat(String(el.value).replace(/,/g,''))||0):0; };
+  var val=function(el){ return el?String(el.value||'').trim():''; };
   document.querySelectorAll('#ec-tb tr').forEach(function(tr){
-    var date=((tr.querySelector('.ec-date')||{}).value||'').trim();
-    var type=((tr.querySelector('.ec-type')||{}).value||'').trim();
-    var cont=((tr.querySelector('.ec-cont')||{}).value||'').trim();
-    var desc=((tr.querySelector('.ec-desc')||{}).value||'').trim();
-    var amt=parseFloat(String(tr.querySelector('.amt input').value).replace(/,/g,''))||0;   // ลบ , ก่อนเก็บ/บันทึก
-    if(!desc && !cont && !amt) return;
-    items.push({date:date, type:type, container:cont, desc:desc, amount:amt}); total+=amt;
+    var date=val(tr.querySelector('.ec-date'));
+    var cont=val(tr.querySelector('.ec-cont'));
+    var jobtype=val(tr.querySelector('.ec-jobtype'));
+    var shipper=val(tr.querySelector('.ec-shipper'));
+    var plate=val(tr.querySelector('.ec-plate'));
+    var desc=val(tr.querySelector('.ec-desc'));
+    var note=val(tr.querySelector('.ec-note'));
+    var trip=num(tr.querySelector('.ec-trip')), port=num(tr.querySelector('.ec-port')), box=num(tr.querySelector('.ec-box')), recv=num(tr.querySelector('.ec-recv')), ret=num(tr.querySelector('.ec-ret')), misc=num(tr.querySelector('.ec-misc'));
+    var rt=trip+port+box+recv+ret+misc;
+    if(!cont && !shipper && !plate && !desc && !note && !jobtype && !rt) return;   // แถวว่างทั้งแถว ข้าม
+    items.push({date:date, container:cont, jobtype:jobtype, shipper:shipper, plate:plate, trip:trip, port:port, box:box, recv:recv, ret:ret, misc:misc, desc:desc, note:note, total:rt});
+    total+=rt;
   });
   return {items:items, total:total};
 }
@@ -19986,28 +20030,41 @@ function ecPrint(round){
   var items=round.items||[];
   var w=window.open('','ec_print','width=800,height=1000,scrollbars=yes');
   if(!w){ showToast('กรุณาอนุญาต popup ก่อนครับ'); return; }
-  var rowsHtml=items.map(function(it,i){ var meta=(it.type?'['+_ecEsc(it.type)+'] ':'')+_ecEsc(it.desc)+(it.container?' · ตู้ '+_ecEsc(it.container):''); return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+_ecEsc(it.date)+'</td><td>'+meta+'</td><td style="text-align:right;font-weight:700">'+_ecFmt(it.amount)+'</td></tr>'; }).join('');
+  var money=function(v){ return (v!=null&&v!==''&&(parseFloat(v)||0)!==0)?_ecFmt(v):'-'; };
+  var rowsHtml=items.map(function(it,i){
+    var rt=(it.total!=null)?it.total:((Number(it.trip)||0)+(Number(it.port)||0)+(Number(it.box)||0)+(Number(it.recv)||0)+(Number(it.ret)||0)+(Number(it.misc)||0));
+    // รองรับข้อมูลเก่า (type/desc/amount) ด้วย
+    if(it.amount!=null && it.trip==null && it.recv==null){
+      var meta=(it.type?'['+_ecEsc(it.type)+'] ':'')+_ecEsc(it.desc||'');
+      return '<tr><td class="c">'+(i+1)+'</td><td>'+_ecEsc(it.date||'')+'</td><td>'+_ecEsc(it.container||'')+'</td><td colspan="10">'+meta+'</td><td class="r" style="font-weight:700">'+_ecFmt(it.amount)+'</td></tr>';
+    }
+    var dn=_ecEsc(it.desc||'')+((it.desc&&it.note)?' · ':'')+_ecEsc(it.note||'');
+    return '<tr><td class="c">'+(i+1)+'</td><td>'+_ecEsc(it.date||'')+'</td><td>'+_ecEsc(it.container||'')+'</td><td>'+_ecEsc(it.jobtype||'')+'</td><td>'+_ecEsc(it.shipper||'')+'</td><td>'+_ecEsc(it.plate||'')+'</td>'+
+      '<td class="r">'+money(it.trip)+'</td><td class="r">'+money(it.port)+'</td><td class="r">'+money(it.box)+'</td><td class="r">'+money(it.recv)+'</td><td class="r">'+money(it.ret)+'</td><td class="r">'+money(it.misc)+'</td>'+
+      '<td>'+dn+'</td><td class="r" style="font-weight:700">'+_ecFmt(rt)+'</td></tr>';
+  }).join('');
   var html='<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>'+_ecEsc(round.doc_no||'ใบปิดรอบ')+'</title><style>'+
     "@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap');"+
-    'body{font-family:Sarabun,sans-serif;color:#111;margin:0}.s{max-width:760px;margin:0 auto;padding:24px 28px}'+
-    '.hd{display:flex;justify-content:space-between;border-bottom:2px solid #1E5C3A;padding-bottom:10px;margin-bottom:14px}'+
-    '.co{font-size:16px;font-weight:800;color:#1E5C3A}.sub{font-size:11px;color:#666}'+
-    '.t{font-size:15px;font-weight:800;border:2px solid #1E5C3A;color:#1E5C3A;padding:3px 12px;border-radius:6px}'+
-    '.pn{font-size:13px;margin-bottom:12px}.pn b{color:#1E5C3A}'+
-    'table{width:100%;border-collapse:collapse;font-size:13px}th{background:#1E5C3A;color:#fff;padding:7px 8px;text-align:left}td{border-bottom:1px solid #e6e6e6;padding:6px 8px}'+
-    'tfoot td{border-top:2px solid #1E5C3A;background:#F2F7F4;font-weight:800;font-size:15px;color:#1E5C3A}'+
-    '.sg{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:34px}.sg .b{text-align:center}.sg .l{border-bottom:1px dotted #999;height:34px;margin-bottom:5px}.sg .c{font-size:11.5px;color:#555}'+
+    'body{font-family:Sarabun,sans-serif;color:#111;margin:0}.s{max-width:1080px;margin:0 auto;padding:20px 24px}'+
+    '.hd{display:flex;justify-content:space-between;border-bottom:2px solid #1E5C3A;padding-bottom:10px;margin-bottom:12px}'+
+    '.co{font-size:15px;font-weight:800;color:#1E5C3A}.sub{font-size:11px;color:#666}'+
+    '.t{font-size:14px;font-weight:800;border:2px solid #1E5C3A;color:#1E5C3A;padding:3px 12px;border-radius:6px}'+
+    '.pn{font-size:13px;margin-bottom:10px}.pn b{color:#1E5C3A}'+
+    'table{width:100%;border-collapse:collapse;font-size:11.5px}th{background:#1E5C3A;color:#fff;padding:5px 6px;text-align:left;font-size:11px}td{border-bottom:1px solid #e6e6e6;padding:4px 6px}.r{text-align:right}.c{text-align:center}'+
+    'tfoot td{border-top:2px solid #1E5C3A;background:#F2F7F4;font-weight:800;font-size:13px;color:#1E5C3A}'+
+    '.sg{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:30px}.sg .b{text-align:center}.sg .l{border-bottom:1px dotted #999;height:34px;margin-bottom:5px}.sg .c2{font-size:11.5px;color:#555}'+
     '.pr{margin-top:18px;text-align:center}.pr button{padding:9px 20px;background:#2D7A4F;color:#fff;border:none;border-radius:8px;font-family:inherit;font-weight:700;cursor:pointer}'+
-    '@media print{.pr{display:none}@page{size:A4;margin:12mm}}'+
+    '@media print{.pr{display:none}@page{size:A4 landscape;margin:10mm}}'+
     '</style></head><body><div class="s">'+
     '<div class="hd"><div><div class="co">บริษัท กรีน เยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด</div><div class="sub">ใบสรุปค่าใช้จ่ายที่จ่ายแทน — เสนอกรรมการเพื่อทราบ</div></div>'+
     '<div style="text-align:right"><div class="t">ใบปิดรอบค่าใช้จ่าย</div><div class="sub" style="margin-top:3px">เลขที่: <b>'+_ecEsc(round.doc_no||'')+'</b></div></div></div>'+
     '<div class="pn">ผู้โอน (คนจัดการเงิน): <b>'+_ecEsc(round.payer)+'</b></div>'+
-    '<table><thead><tr><th style="width:30px">#</th><th style="width:120px">วัน/เดือน/ปี</th><th>รายการ</th><th style="width:130px;text-align:right">ยอดเงิน (บาท)</th></tr></thead>'+
+    '<table><thead><tr><th class="c" style="width:22px">#</th><th style="width:66px">วันที่</th><th style="width:86px">เบอร์ตู้</th><th style="width:94px">ประเภท</th><th>SHIPPER</th><th style="width:62px">ทะเบียน</th>'+
+    '<th class="r" style="width:54px">ค่าแรง</th><th class="r" style="width:54px">ผ่านท่า</th><th class="r" style="width:48px">ยกตู้</th><th class="r" style="width:48px">รับตู้</th><th class="r" style="width:48px">คืนตู้</th><th class="r" style="width:54px">อื่นๆ</th><th style="width:150px">รายการ/หมายเหตุ</th><th class="r" style="width:72px">รวม</th></tr></thead>'+
     '<tbody>'+rowsHtml+'</tbody>'+
-    '<tfoot><tr><td colspan="3" style="text-align:right">รวมทั้งหมด</td><td style="text-align:right">฿'+_ecFmt(round.total)+'</td></tr></tfoot></table>'+
-    '<div class="sg"><div class="b"><div class="l"></div><div class="c">ผู้โอน / ผู้สรุป ( ........................... )</div></div>'+
-    '<div class="b"><div class="l"></div><div class="c">กรรมการ (รับทราบ) ( ........................... )</div></div></div>'+
+    '<tfoot><tr><td colspan="13" style="text-align:right">รวมทั้งหมด</td><td class="r">฿'+_ecFmt(round.total)+'</td></tr></tfoot></table>'+
+    '<div class="sg"><div class="b"><div class="l"></div><div class="c2">ผู้โอน / ผู้สรุป ( ........................... )</div></div>'+
+    '<div class="b"><div class="l"></div><div class="c2">กรรมการ (รับทราบ) ( ........................... )</div></div></div>'+
     '<div class="pr"><button onclick="window.print()">🖨 พิมพ์</button></div>'+
     '</div></body></html>';
   w.document.write(html); w.document.close();
@@ -20043,7 +20100,15 @@ function rcRender(){
   var idx=_rcJobIdx||{}, rows=[];
   (_ecList||[]).forEach(function(cl){
     (cl.items||[]).forEach(function(it){
-      rows.push({ date:it.date||'', payer:cl.payer||cl.payer_username||'-', type:it.type||'', container:(it.container||'').trim(), desc:it.desc||'', amount:Number(it.amount)||0 });
+      // 🆕 โครงใหม่ (ค่าใช้จ่ายแยกช่อง) → แตก ค่ารับตู้/ค่าคืนตู้ เป็นแถว ให้จับคู่งานได้เหมือนเดิม
+      if(it && (it.recv!=null||it.ret!=null||it.trip!=null||it.port!=null||it.box!=null)){
+        var base={ date:it.date||'', payer:cl.payer||cl.payer_username||'-', container:(it.container||'').trim(), desc:it.note||'' };
+        var _rv=Number(it.recv)||0, _rt=Number(it.ret)||0;
+        if(_rv) rows.push(Object.assign({}, base, {type:'รับตู้', amount:_rv}));
+        if(_rt) rows.push(Object.assign({}, base, {type:'คืนตู้', amount:_rt}));
+      } else {
+        rows.push({ date:it.date||'', payer:cl.payer||cl.payer_username||'-', type:it.type||'', container:(it.container||'').trim(), desc:it.desc||'', amount:Number(it.amount)||0 });
+      }
     });
   });
   // ตรวจซ้ำ: เบอร์ตู้ + ประเภท
@@ -25707,7 +25772,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.218';
+const APP_VERSION = '2026.04.29.219';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -32436,4 +32501,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v218 PROD — ปิดรอบ ประวัติเห็นเฉพาะของตัวเอง (ยกเว้น PISOLN/DONUT/SOMJAI) -->
+<!-- deploy v219 PROD — ปิดรอบ โครงใหม่ คอลัมน์ครบ + auto-fill จากตารางงาน -->
