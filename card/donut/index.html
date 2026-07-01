@@ -166,17 +166,17 @@
    ✏️  แก้ข้อมูลทั้งหมดได้ที่นี่ที่เดียว  ✏️
    ============================================================ */
 const CARD = {
-  nameTh:   "พิศลย์ โพนทองถิ่น (คิว)",
-  nameEn:   "Pisoln Ponthongthin (CUE)",
-  titleTh:  "ผู้จัดการฝ่ายปฏิบัติการ",
-  titleEn:  "OPERATIONS MANAGER",
+  nameTh:   "สิตานันท์ ปลัดท้วม (โดนัท)",
+  nameEn:   "Sitanan Paladthuam (DONUT)",
+  titleTh:  "ผู้ช่วยกรรมการผู้จัดการบริษัท",
+  titleEn:  "ASSISTANT MANAGING DIRECTOR",
   companyTh:"บริษัท กรีนเยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด",
   companyEn:"GREEN YELLOW TRANSPORT (THAILAND) CO.,LTD.",
 
-  phone:    "081-828-7991",
-  phone2:   "086-412-5355",
+  phone:    "085-551-3555",
+  phone2:   "",
   email:    "greenyellowtransportthai@hotmail.com",
-  lineId:   "cueqcl",
+  lineId:   "donutkisskiss",
   mapsUrl:  "https://maps.app.goo.gl/NAYnDg7UhBcZgL7R8",
   addrTh:   "เลขที่ 31/1 ซอยเชื้อเพลิง(อมร) ถนนเชื้อเพลิง แขวงช่องนนทรี เขตยานนาวา กรุงเทพมหานคร 10120",
   addrEn:   "31/1 Soi Chuaploeng (Amorn), Chongnonsee, Yannawa, Bangkok 10120",
@@ -210,11 +210,11 @@ const tel=n=>'tel:'+n.replace(/[^+\d]/g,'');
 const lineHref=/^https?:/.test(CARD.lineId)?CARD.lineId:('https://line.me/ti/p/~'+CARD.lineId.replace(/[^\w.-]/g,''));
 const acts=[
   {cls:'',href:tel(CARD.phone),ico:'phone',k:'โทร · CALL',v:CARD.phone},
-  {cls:'',href:tel(CARD.phone2),ico:'phone',k:'โทร · CALL',v:CARD.phone2},
-  {cls:'',href:lineHref,ico:'line',k:'LINE',v:CARD.lineId},
+  CARD.phone2?{cls:'',href:tel(CARD.phone2),ico:'phone',k:'โทร · CALL',v:CARD.phone2}:null,
+  CARD.lineId?{cls:'',href:lineHref,ico:'line',k:'LINE',v:CARD.lineId}:null,
   {cls:'',href:CARD.mapsUrl,ico:'map',k:'โลเคชั่นสถานที่ทำงาน',v:'ยานนาวา กรุงเทพฯ'},
   {cls:'wide',href:'mailto:'+CARD.email,ico:'mail',k:'อีเมล · EMAIL',v:CARD.email},
-];
+].filter(Boolean);
 const wrap=$('#actions');
 acts.forEach(a=>{
   const el=document.createElement('a');
@@ -244,12 +244,14 @@ function downloadVCard(){
     'BEGIN:VCARD','VERSION:3.0',
     'N:;'+CARD.nameEn+';;;','FN:'+CARD.nameEn,
     'ORG:'+CARD.companyEn,'TITLE:'+CARD.titleEn,
-    'TEL;TYPE=CELL:'+CARD.phone,'TEL;TYPE=CELL:'+CARD.phone2,'EMAIL:'+CARD.email,
+    'TEL;TYPE=CELL:'+CARD.phone,
+    CARD.phone2?'TEL;TYPE=CELL:'+CARD.phone2:null,
+    'EMAIL:'+CARD.email,
     'ADR;TYPE=WORK:;;'+CARD.addrEn+';;;;',
     'URL:'+location.href,
-    'NOTE:LINE '+CARD.lineId+' · TAX ID '+CARD.taxId+' (HEAD OFFICE) · '+CARD.addrTh,
+    'NOTE:'+(CARD.lineId?'LINE '+CARD.lineId+' · ':'')+'TAX ID '+CARD.taxId+' (HEAD OFFICE) · '+CARD.addrTh,
     'END:VCARD'
-  ].join('\r\n');
+  ].filter(Boolean).join('\r\n');
   const blob=new Blob([v],{type:'text/vcard'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');

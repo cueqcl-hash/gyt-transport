@@ -960,7 +960,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <!-- 🆕 ปิดรอบค่าใช้จ่าย (คนโอน) -->
       <div id="pg-closing" class="screen">
         <style>
-          .ec-wrap{max-width:880px}
+          .ec-wrap{max-width:1180px}
           .ec-card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:18px 20px;margin-bottom:16px}
           .ec-head{font-size:15px;font-weight:700;color:var(--green-d);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
           .ec-head .pn{font-size:13px;font-weight:400;color:var(--text-2)}.ec-head .pn b{color:var(--green-d);font-weight:800}
@@ -985,11 +985,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="ec-wrap">
           <div class="ec-card">
             <div class="ec-head"><span>🧾 ปิดรอบค่าใช้จ่ายใหม่</span><span class="pn">ผู้โอน: <b id="ec-payer">—</b></span></div>
-            <table class="ec-tbl">
-              <thead><tr><th class="ec-idx">#</th><th style="width:104px">วัน/เดือน/ปี</th><th style="width:118px">ประเภท</th><th style="width:128px">เบอร์ตู้</th><th>รายการ</th><th class="r" style="width:118px">ยอดเงิน (บาท)</th><th style="width:34px"></th></tr></thead>
+            <div id="ec-draft-banner" style="display:none"></div>
+            <div id="ec-save-status" style="font-size:12px;color:var(--text-3);min-height:16px;margin-bottom:6px"></div>
+            <div style="font-size:12px;color:var(--text-3);margin-bottom:6px">💡 พิมพ์ <b>เบอร์ตู้</b> แล้วกดออกจากช่อง → ระบบดึง SHIPPER · ทะเบียน · ค่าใช้จ่าย จากตารางงานให้อัตโนมัติ (แก้ทับได้)</div>
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+            <table class="ec-tbl" style="min-width:1480px">
+              <thead><tr><th class="ec-idx">#</th><th style="width:86px">วัน/ด/ป</th><th style="width:116px">เบอร์ตู้</th><th style="width:124px">ประเภท</th><th style="width:140px">SHIPPER</th><th style="width:84px">ทะเบียน</th><th class="r" style="width:80px">ค่าแรง(เบิก)</th><th class="r" style="width:78px">ค่าผ่านท่า</th><th class="r" style="width:72px">ค่ายกตู้</th><th class="r" style="width:72px">ค่ารับตู้</th><th class="r" style="width:72px">ค่าคืนตู้</th><th class="r" style="width:80px">อื่นๆ</th><th style="width:130px">รายการ</th><th style="width:110px">หมายเหตุ</th><th class="r" style="width:96px">รวม (บาท)</th><th style="width:34px"></th></tr></thead>
               <tbody id="ec-tb"></tbody>
-              <tfoot><tr><td colspan="5" style="text-align:right">รวมทั้งหมด</td><td class="r" id="ec-total">฿0.00</td><td></td></tr></tfoot>
+              <tfoot><tr><td colspan="14" style="text-align:right">รวมทั้งหมด</td><td class="r" id="ec-total">฿0.00</td><td></td></tr></tfoot>
             </table>
+            </div>
             <div style="margin-top:8px"><button class="btn btn-ghost" onclick="ecAddRow()">➕ เพิ่มรายการ</button></div>
             <div class="ec-actions">
               <button class="btn btn-green" onclick="ecClose()">🔒 ปิดรอบ + บันทึก</button>
@@ -3060,7 +3065,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       </div>
     </div>
     <div class="fg-row">
-      <div class="fg"><label class="fl">หมายเลขตู้</label><input class="fi" id="fj-container" placeholder="ABCU1234567"></div>
+      <div class="fg"><label class="fl">หมายเลขตู้</label><input class="fi" id="fj-container" placeholder="ABCU1234567" oninput="_contCheckSingle()"><div id="fj-container-warn" style="display:none;font-size:11.5px;margin-top:3px;line-height:1.35"></div></div>
       <div class="fg"><label class="fl">ประเภทตู้</label>
       <div class="sd-wrap">
         <input class="sd-input" id="fj-type-input" placeholder="พิมพ์เพื่อกรอง เช่น 20 หรือ 40..." autocomplete="off"
@@ -3158,6 +3163,37 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div id="fj-plate-info" style="font-size:11px;color:var(--green);margin-top:3px;display:none"></div>
     </div>
       <div class="fg"><label class="fl">พนักงานขับ</label><input class="fi" id="fj-driver" placeholder="ชื่อคนขับ"></div>
+    </div>
+
+    <!-- 🆕 ค่าใช้จ่าย (ต้นทุน) — ย้ายมาอยู่ "ใต้" รถและคนขับ -->
+    <div class="sec-title" style="margin-top:4px;margin-bottom:10px">💰 ค่าใช้จ่าย (ต้นทุน) <span style="color:var(--text-3);font-weight:400;font-size:11px">— กรอกไว้ล่วงหน้าได้ (ปิดรอบจะดึงไปใช้)</span></div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">เบิก — ค่าแรงคนขับ/เที่ยว (บาท) <button type="button" onclick="_fjCalcTrip()" style="margin-left:4px;font-size:10px;padding:1px 6px;border:1px solid var(--green);background:#F0FDF4;color:var(--green-d);border-radius:4px;cursor:pointer">↻ ตามประเภท</button></label><input class="fi" id="fj-cost-trip" type="number" step="any" placeholder="0"></div>
+      <div class="fg"><label class="fl">หมายเหตุ (เบิก)</label><input class="fi" id="fj-cost-trip-note" placeholder="หัวลาก / สิบล้อ"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่ายกตู้ (บาท)</label><input class="fi" id="fj-cost-box" type="number" step="any" placeholder="0"></div>
+      <div class="fg"><label class="fl">ค่าผ่านท่า (บาท)</label><input class="fi" id="fj-cost-port" type="number" step="any" placeholder="0"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่ารับตู้ (บาท)</label><input class="fi" id="fj-cost-recv" type="number" step="any" placeholder="0"></div>
+      <div class="fg"><label class="fl">หมายเหตุ (รับตู้)</label><input class="fi" id="fj-cost-recv-note" placeholder="ลาน / ท่าเรือ"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่าคืนตู้ (บาท)</label><input class="fi" id="fj-cost-ret" type="number" step="any" placeholder="0"></div>
+      <div class="fg"><label class="fl">หมายเหตุ (คืนตู้)</label><input class="fi" id="fj-cost-ret-note" placeholder="ลาน / ท่าเรือ"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">ค่าทางด่วน (บาท)</label><input class="fi" id="fj-cost-toll" type="number" step="any" placeholder="0"></div>
+      <div class="fg"><label class="fl">อื่นๆ (บาท)</label><input class="fi" id="fj-cost-misc" type="number" step="any" placeholder="0"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">หมายเหตุ (อื่นๆ)</label><input class="fi" id="fj-cost-misc-note" placeholder=""></div>
+      <div class="fg"><label class="fl">อื่นๆ 2 (บาท)</label><input class="fi" id="fj-cost-misc2" type="number" step="any" placeholder="0"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">หมายเหตุ (อื่นๆ 2)</label><input class="fi" id="fj-cost-misc2-note" placeholder=""></div>
+      <div class="fg"></div>
     </div>
   </div>
   <div class="modal-foot">
@@ -5673,7 +5709,7 @@ function initApp(){
   // ratecalc ไม่ผูกกับ perm เฉพาะ — admin/supervisor เห็น (มี dashboard)
   // 🆕 v154 — payouts เปิดเฉพาะ staging branch (preview URL) เท่านั้น — main hide เพื่อรอ test ก่อน
   //   หลังทดสอบเสร็จเรียบร้อย ค่อยลบ check นี้ออก (1 บรรทัด) เพื่อเปิดบน main
-  const _onMain = (window.location.host || '').toLowerCase() === 'gyt-transport.vercel.app';
+  const _onMain = (typeof IS_STAGING!=='undefined') ? !IS_STAGING : ((window.location.host||'').toLowerCase()==='gyt-transport.vercel.app');   // 🆕 รองรับ custom domain: prod = ไม่ใช่ staging/preview (ไม่ผูก vercel.app ตายตัว)
   const ALL_NAV=[
     {id:'jobs',     icon:'🚛',label:'ตารางงาน',           perm:'view_jobs'},
     {id:'users',    icon:'👥',label:'จัดการสิทธิ์',       perm:'manage_users'},
@@ -5876,7 +5912,7 @@ function buildContainerRows(){
     const fp = `mc-r${i}`;
     row.innerHTML=`
       <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--green);font-size:13px">${i}</td>
-      <td style="padding:4px 6px"><input class="fi" id="mc-r${i}-container" placeholder="ABCU${String(i).padStart(7,'0')}" style="height:32px;font-size:12px"></td>
+      <td style="padding:4px 6px"><input class="fi" id="mc-r${i}-container" placeholder="ABCU${String(i).padStart(7,'0')}" oninput="_contCheckMultiDebounced()" style="height:32px;font-size:12px"><div id="mc-r${i}-container-warn" style="display:none;font-size:10px;margin-top:2px;line-height:1.25"></div></td>
       <td style="padding:4px 6px">
         <div class="sd-wrap">
           <input class="sd-input" id="${fp}-type-input" placeholder="20'/40'/HC..." autocomplete="off"
@@ -5920,10 +5956,21 @@ function buildContainerRows(){
       ${hasPerm('view_price')?`<td style="padding:4px 6px;background:#ECFDF5">
         <input class="fi" type="number" id="mc-r${i}-price" min="0" step="any" placeholder="(ราคากลาง)" style="height:32px;font-size:12px;width:100px;border-color:#10B981;color:#065F46;font-weight:700">
       </td>`:''}
-      <td style="padding:4px 6px">
+      <td style="padding:4px 6px;white-space:nowrap">
+        <button type="button" style="height:28px;padding:0 8px;border-radius:5px;border:1px solid var(--green);background:#F0FDF4;font-size:11px;cursor:pointer;color:var(--green-d)" onclick="_mcToggleCost(${i})" title="กรอกค่าใช้จ่ายของตู้นี้">💰</button>
         ${i>1?`<button style="height:28px;padding:0 8px;border-radius:5px;border:1px solid var(--border);background:#fff;font-size:11px;cursor:pointer;color:var(--text-2)" onclick="copyFromAbove(${i})" title="คัดลอกจากแถวบน">↑ คัดลอก</button>`:''}
       </td>`;
     tbody.appendChild(row);
+    // 🆕 แถวค่าใช้จ่าย (ต้นทุน) ของตู้นี้ — ซ่อนไว้ กด 💰 เพื่อขยาย
+    var _cf=function(id,label){ return '<div style="display:flex;flex-direction:column;min-width:118px"><label style="font-size:10.5px;color:var(--text-3);margin-bottom:2px">'+label+'</label><input class="fi" type="number" step="any" id="mc-r'+i+'-cost-'+id+'" placeholder="0" style="height:30px;font-size:12px"></div>'; };
+    var crow=document.createElement('tr');
+    crow.id='mc-r'+i+'-cost-row'; crow.style.display='none';
+    crow.innerHTML='<td colspan="14" style="padding:8px 14px;background:#F0FDF4;border-bottom:2px solid #BBF7D0">'+
+      '<div style="font-weight:700;color:var(--green-d);font-size:12px;margin-bottom:6px">💰 ค่าใช้จ่าย (ต้นทุน) — ตู้ที่ '+i+'</div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">'+
+        _cf('trip','เบิก(ค่าแรง)')+_cf('box','ค่ายกตู้')+_cf('recv','ค่ารับตู้')+_cf('ret','ค่าคืนตู้')+_cf('port','ค่าผ่านท่า')+_cf('toll','ค่าทางด่วน')+_cf('misc','อื่นๆ')+_cf('misc2','อื่นๆ2')+
+      '</div></td>';
+    tbody.appendChild(crow);
   }
   document.getElementById('mc-preview').style.display='none';
   // init datetime picker ทุกแถว (DD/MM/YYYY HH:MM 24h)
@@ -6017,6 +6064,17 @@ async function saveMulti(){
       return;
     }
   }
+  // 🆕 เตือนเบอร์ตู้ซ้ำ (soft) — ทั้งซ้ำกันเองในใบนี้ + ซ้ำกับงานเดิม (ยังลงต่อได้)
+  var _dupLines=[], _seenC={};
+  for(let i=1;i<=n;i++){
+    var _cv=(document.getElementById('mc-r'+i+'-container')?.value||'').trim();
+    var _ck=_contNorm(_cv); if(!_ck) continue;
+    if(_seenC[_ck]){ _dupLines.push('ตู้ที่ '+i+' "'+_cv+'" ซ้ำกับตู้ที่ '+_seenC[_ck]+' ในใบนี้'); }
+    else _seenC[_ck]=i;
+    var _dj=_findContDups(_cv,null);
+    if(_dj.length) _dupLines.push('ตู้ที่ '+i+' "'+_cv+'" เคยลงแล้ว: '+_contDupText(_dj));
+  }
+  if(_dupLines.length){ if(!confirm('⚠️ พบเบอร์ตู้ซ้ำ:\n• '+_dupLines.join('\n• ')+'\n\nยืนยันบันทึกทั้งหมด?')) return; }
   const shared={
     customer,phone:document.getElementById('mc-phone').value.trim(),
     shipper,carrier:document.getElementById('mc-carrier').value.trim(),
@@ -6078,7 +6136,7 @@ async function saveMulti(){
       var _rpv=_rpEl?String(_rpEl.value).trim():'';
       if(_rpv!=='' && !isNaN(parseFloat(_rpv))) _rPrice=parseFloat(_rpv);
     }
-    if(_rPrice!==null) job.costs={priceAmt:_rPrice};
+    var _jc=_mcCosts(i); if(_rPrice!==null) _jc.priceAmt=_rPrice; job.costs=_jc;   // 🆕 ค่าใช้จ่าย (ต้นทุน) ต่อตู้ + ราคา
     jobs.unshift(job);
     created.push(job.id);
     if(typeof _onlineMode!=='undefined' && _onlineMode){ try{ syncJobSave(job); }catch(e){ console.warn('saveMulti sync error:', e); } }
@@ -19547,11 +19605,11 @@ function ctkApplyCustom(){
   var cb=document.getElementById('ctk-mode-custom'); if(cb) cb.classList.add('active');
   renderCartrackDash();
 }
-function _ctkRangeLabel(){ if(!_ctkFrom||!_ctkTo) return ''; var a=_ctkFrom.split('-'), b=_ctkTo.split('-'); return a[2]+'/'+a[1]+'–'+b[2]+'/'+b[1]+'/'+(Number(b[0])+543); }
+function _ctkRangeLabel(){ if(!_ctkFrom||!_ctkTo) return ''; var a=_ctkFrom.split('-'), b=_ctkTo.split('-'); return Number(a[2])+' '+(_ctkThMon[a[1]]||a[1])+' – '+Number(b[2])+' '+(_ctkThMon[b[1]]||b[1])+' '+(Number(b[0])+543); }
 var _ctkThMon={'01':'ม.ค.','02':'ก.พ.','03':'มี.ค.','04':'เม.ย.','05':'พ.ค.','06':'มิ.ย.','07':'ก.ค.','08':'ส.ค.','09':'ก.ย.','10':'ต.ค.','11':'พ.ย.','12':'ธ.ค.'};
 function _ctkLabel(p){ if(!p) return ''; var pp=String(p).split('-');
-  if(_ctkGrain==='day') return pp[2]+'/'+pp[1]+'/'+(Number(pp[0])+543);
-  if(_ctkGrain==='week'){ var s=new Date(Number(pp[0]),Number(pp[1])-1,Number(pp[2])); var e=new Date(s.getTime()+6*86400000); return 'สัปดาห์ '+s.getDate()+'/'+(s.getMonth()+1)+'–'+e.getDate()+'/'+(e.getMonth()+1)+'/'+(e.getFullYear()+543); }
+  if(_ctkGrain==='day') return Number(pp[2])+' '+(_ctkThMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543);
+  if(_ctkGrain==='week'){ var s=new Date(Number(pp[0]),Number(pp[1])-1,Number(pp[2])); var e=new Date(s.getTime()+6*86400000); var sm=_ctkThMon[String(s.getMonth()+1).padStart(2,'0')], em=_ctkThMon[String(e.getMonth()+1).padStart(2,'0')]; return 'สัปดาห์ '+s.getDate()+' '+sm+' – '+e.getDate()+' '+em+' '+(e.getFullYear()+543); }
   return (_ctkThMon[pp[1]]||pp[1])+' '+(Number(pp[0])+543); }
 // ดึงงวดล่าสุดตามโหมด: เดือน=monthTable/period · วัน=gyt_cartrack_daily/day
 async function _ctkLatest(monthTable){
@@ -19750,14 +19808,155 @@ async function renderVehicleSafety(){
 var _ecList = [];
 function _ecFmt(n){ return Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 // 🆕 ยอดเงิน → แสดง 2 ทศนิยมตอนพิมพ์เสร็จ (800 → 800.00, 921.1 → 921.10)
-function _ecFmtAmt(el){ var v=parseFloat(String(el.value).replace(/,/g,'')); el.value=isNaN(v)?'':v.toFixed(2); ecCalc(); }
+function _ecFmtAmt(el){ var v=parseFloat(String(el.value).replace(/,/g,'')); el.value=isNaN(v)?'':_ecFmt(v); ecCalc(); }   // 🆕 ใส่ , คั่นหลักพัน (1234.5 → 1,234.50)
 function _ecEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function _ecPayerName(){ if(!currentUser) return '—'; return ((currentUser.fname||'')+' '+(currentUser.lname||'')).trim() || currentUser.username || '—'; }
+/* ───────────────────────────────────────────────
+   🆕 auto-save "ร่าง" ปิดรอบ — กันคอมดับ (localStorage ในเครื่อง = ทันที)
+   + ทำต่อข้ามเครื่อง (cloud: gyt_users.prefs.ecDraft ผูกกับ login)
+   ─────────────────────────────────────────────── */
+var _ecDraftTimer=null, _ecReady=false, _ecRestoring=false, _ecLastDraftJson='', _ecPendingDraft=null, _ecVisHooked=false, _ecChecking=false;
+var _ecCloudChain=Promise.resolve();
+// คิวเขียน cloud แบบลำดับเดียว → save/clear ไม่แข่งกัน (clear ที่สั่งทีหลังจะชนะเสมอ → ร่างไม่ผุดกลับ)
+function _ecQueueCloud(fn){ _ecCloudChain=_ecCloudChain.then(fn).catch(function(e){ console.warn('ec cloud', e&&e.message); }); return _ecCloudChain; }
+// ฟอร์มมีตัวอักษรในช่องใดช่องหนึ่งมั้ย (ไว้เตือนก่อนเขียนทับตอนกู้คืน)
+function _ecFormHasAny(){ var any=false; document.querySelectorAll('#ec-tb tr').forEach(function(tr){ ['.ec-date','.ec-cont','.ec-jobtype','.ec-shipper','.ec-plate','.ec-desc','.ec-note'].forEach(function(s){ var el=tr.querySelector(s); if(el && String(el.value||'').trim()) any=true; }); tr.querySelectorAll('.amt input').forEach(function(a){ if(String(a.value||'').trim()) any=true; }); }); return any; }
+function _ecDraftKey(){ return 'gyt_ec_draft_u'+((currentUser&&currentUser.id)||'0'); }
+function _ecDeviceName(){
+  try{ var ua=navigator.userAgent;
+    if(/iPad/i.test(ua)) return 'iPad';
+    if(/iPhone/i.test(ua)) return 'iPhone';
+    if(/Android/i.test(ua)) return 'Android';
+    if(/Macintosh|Mac OS/i.test(ua)) return 'Mac';
+    if(/Windows/i.test(ua)) return 'Windows';
+  }catch(e){}
+  return 'อุปกรณ์';
+}
+function _ecShowSaveStatus(state){
+  var el=document.getElementById('ec-save-status'); if(!el) return;
+  if(state==='saving'){ el.innerHTML='💾 กำลังบันทึกร่าง…'; el.style.color='var(--text-3)'; }
+  else if(state==='cloud'){ el.innerHTML='✅ บันทึกร่างอัตโนมัติแล้ว · เปิดเครื่องอื่น (login เดิม) ทำต่อได้'; el.style.color='var(--green)'; }
+  else if(state==='local'){ el.innerHTML='💾 บันทึกร่างในเครื่องแล้ว (ออฟไลน์)'; el.style.color='var(--text-3)'; }
+  else { el.innerHTML=''; }
+}
+// hook อยู่ใน ecCalc → เรียกทุกครั้งที่ฟอร์มเปลี่ยน
+function _ecMarkDirty(){
+  if(_ecRestoring) return;
+  var g=_ecGather();
+  if(g.items.length && _ecPendingDraft){            // ผู้ใช้เริ่มกรอกเอง → ซ่อนแถบกู้คืน (กันกดทับงานตัวเอง)
+    var bn=document.getElementById('ec-draft-banner'); if(bn){ bn.style.display='none'; bn.innerHTML=''; } _ecPendingDraft=null;
+  }
+  if(!g.items.length){ if(_ecReady && _ecLastDraftJson!==''){ _ecClearDraft(); } return; }   // เคยมีร่างแล้วลบหมด = ลบร่าง (เฉพาะหลังเปิดหน้าเสร็จ)
+  var json=JSON.stringify(g.items);
+  if(json===_ecLastDraftJson) return;                                            // ไม่มีอะไรเปลี่ยน
+  _ecLastDraftJson=json;
+  var draft={ items:g.items, total:g.total, ts:Date.now(), device:_ecDeviceName() };
+  try{ localStorage.setItem(_ecDraftKey(), JSON.stringify(draft)); }catch(e){}    // เซฟในเครื่อง "เสมอ" ทันที (กันคอมดับ ตั้งแต่คีย์แรก)
+  _ecShowSaveStatus('saving');
+  if(_ecDraftTimer) clearTimeout(_ecDraftTimer);
+  _ecDraftTimer=setTimeout(function(){ _ecDraftTimer=null; _ecSaveCloudDraft(draft); }, 1200);   // debounce ขึ้น cloud
+}
+function _ecSaveCloudDraft(draft){
+  return _ecQueueCloud(async function(){           // เข้าคิว → ไม่แข่งกับ clear/save อื่น
+    if(typeof _onlineMode==='undefined' || !_onlineMode || !currentUser || !currentUser.id){ _ecShowSaveStatus('local'); return; }
+    var ok=await checkCloudPrefsSupport(); if(!ok){ _ecShowSaveStatus('local'); return; }
+    if(!currentUser.prefs) currentUser.prefs={};
+    currentUser.prefs.ecDraft=draft;               // เก็บ ecDraft รวมกับ colOrder เดิม (ไม่ทับกัน)
+    var u=(typeof users!=='undefined')?users.find(function(x){return x.id===currentUser.id;}):null; if(u){ if(!u.prefs) u.prefs={}; u.prefs.ecDraft=draft; }
+    var res=await sbFetch('gyt_users','PATCH',{prefs:currentUser.prefs},'?id=eq.'+currentUser.id);   // เขียนเฉพาะคอลัมน์ prefs (ไม่แตะ role/perms/รหัสผ่าน)
+    _ecShowSaveStatus(res!==null?'cloud':'local');
+  });
+}
+function _ecClearDraft(){
+  _ecLastDraftJson=''; if(_ecDraftTimer){ clearTimeout(_ecDraftTimer); _ecDraftTimer=null; }
+  try{ localStorage.removeItem(_ecDraftKey()); }catch(e){}
+  _ecShowSaveStatus('');
+  return _ecQueueCloud(async function(){           // ต่อท้ายคิว → รันหลัง save ที่ค้างอยู่เสมอ (กันร่างผุดกลับ)
+    if(typeof _onlineMode==='undefined' || !_onlineMode || !currentUser || !currentUser.id) return;
+    var ok=await checkCloudPrefsSupport(); if(!ok) return;
+    if(currentUser.prefs && currentUser.prefs.ecDraft) delete currentUser.prefs.ecDraft;
+    var u=(typeof users!=='undefined')?users.find(function(x){return x.id===currentUser.id;}):null; if(u && u.prefs && u.prefs.ecDraft) delete u.prefs.ecDraft;
+    await sbFetch('gyt_users','PATCH',{prefs:(currentUser.prefs||{})},'?id=eq.'+currentUser.id);
+  });
+}
+async function _ecFetchCloudDraft(){
+  try{
+    if(typeof _onlineMode==='undefined' || !_onlineMode || !currentUser || !currentUser.id) return null;
+    var ok=await checkCloudPrefsSupport(); if(!ok) return null;
+    var rows=await sbFetch('gyt_users','GET',null,'?select=prefs&id=eq.'+currentUser.id);
+    var prefs=(rows&&rows[0]&&rows[0].prefs)||null;
+    if(prefs){ currentUser.prefs=prefs; }                  // refresh in-memory ให้ตรง cloud
+    return (prefs&&prefs.ecDraft)?prefs.ecDraft:null;
+  }catch(e){ return null; }
+}
+// เปิดหน้า → เปิด auto-save ทันที + เช็คร่างค้าง (cloud เทียบ local เลือกใหม่สุด) เมื่อฟอร์มยังว่าง
+async function _ecInitDraft(){
+  if(!_ecVisHooked){ _ecVisHooked=true;
+    try{ document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState==='hidden' && _ecDraftTimer){     // ปิดจอ/สลับแอป → ดันร่างขึ้น cloud ทันที
+        clearTimeout(_ecDraftTimer); _ecDraftTimer=null;
+        try{ var raw=localStorage.getItem(_ecDraftKey()); if(raw){ _ecSaveCloudDraft(JSON.parse(raw)); } }catch(e){}
+      }
+    }); }catch(e){}
+  }
+  _ecReady=true;                          // ✅ เปิด auto-save ทันที — localStorage กันคอมดับได้ตั้งแต่คีย์แรก (ไม่รอ network)
+  if(_ecChecking) return;
+  if(_ecGather().items.length) return;    // ฟอร์มมีข้อมูลอยู่แล้ว → ไม่ต้องถามกู้คืน
+  _ecChecking=true;
+  try{
+    var local=null; try{ local=JSON.parse(localStorage.getItem(_ecDraftKey())||'null'); }catch(e){}
+    var cloud=await _ecFetchCloudDraft();
+    var draft=(cloud && local)?((Number(cloud.ts||0)>=Number(local.ts||0))?cloud:local):(cloud||local);
+    if(draft && draft.items && draft.items.length && !_ecGather().items.length){ _ecRenderRestoreBanner(draft); }   // ยังว่างจริง (กันทับงานที่เพิ่งกรอกระหว่างโหลด)
+  }catch(e){ console.warn('ec draft check', e.message); }
+  finally{ _ecChecking=false; }
+}
+function _ecRenderRestoreBanner(draft){
+  var el=document.getElementById('ec-draft-banner'); if(!el) return;
+  _ecPendingDraft=draft;
+  var d=new Date(Number(draft.ts)||Date.now());
+  var p2=function(n){ return String(n).padStart(2,'0'); };
+  var when=p2(d.getDate())+'/'+p2(d.getMonth()+1)+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+  el.style.cssText='display:block;background:#FEF9E7;border:1px solid #F1C40F;border-radius:10px;padding:12px 14px;margin-bottom:12px';
+  el.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+    '<span style="font-size:22px">🔄</span>'+
+    '<div style="flex:1;min-width:180px">'+
+      '<div style="font-weight:700;color:#7D6608">มีข้อมูลที่กรอกค้างไว้ '+draft.items.length+' รายการ (รวม ฿'+_ecFmt(draft.total||0)+')</div>'+
+      '<div style="font-size:12px;color:#9A7D0A">บันทึกอัตโนมัติล่าสุด '+when+' น. · จาก '+_ecEsc(draft.device||'อุปกรณ์')+'</div>'+
+    '</div>'+
+    '<button class="btn btn-green" style="font-size:13px" onclick="_ecRestoreDraft()">↩️ กู้คืน</button>'+
+    '<button class="btn btn-ghost" style="font-size:13px" onclick="_ecDismissDraft()">ทิ้ง</button>'+
+  '</div>';
+}
+function _ecRestoreDraft(){
+  if(!_ecPendingDraft) return;
+  if(_ecFormHasAny() && !confirm('ฟอร์มมีข้อมูลอยู่แล้ว — กู้คืนจะเขียนทับของเดิม ยืนยันมั้ย?')) return;
+  if(_ecDraftTimer){ clearTimeout(_ecDraftTimer); _ecDraftTimer=null; }   // ยกเลิก save ที่ค้าง (กันทับร่างที่กู้คืน)
+  _ecRestoring=true;
+  try{
+    document.getElementById('ec-tb').innerHTML='';
+    _ecPendingDraft.items.forEach(function(it){ ecAddRow(it); });
+    if(!document.querySelectorAll('#ec-tb tr').length){ ecAddRow(); ecAddRow(); }
+    ecCalc();
+    _ecLastDraftJson=JSON.stringify(_ecGather().items);
+  } finally { _ecRestoring=false; }
+  var b=document.getElementById('ec-draft-banner'); if(b){ b.style.display='none'; b.innerHTML=''; }
+  _ecShowSaveStatus('cloud');
+  showToast('↩️ กู้คืนข้อมูลที่ค้างไว้แล้ว');
+  _ecPendingDraft=null;
+}
+function _ecDismissDraft(){
+  if(!confirm('ทิ้งข้อมูลที่ค้างไว้? (กู้คืนไม่ได้อีก)')) return;
+  _ecClearDraft();
+  var b=document.getElementById('ec-draft-banner'); if(b){ b.style.display='none'; b.innerHTML=''; }
+  _ecPendingDraft=null;
+}
 function ecInit(){
   var el=document.getElementById('ec-payer'); if(el) el.textContent=_ecPayerName();
   _ecBuildTypeList();
   if(!document.querySelectorAll('#ec-tb tr').length){ ecAddRow(); ecAddRow(); }
   ecLoadList();
+  _ecInitDraft();   // 🆕 ตรวจร่างค้าง (กู้คืน) + เปิด auto-save
 }
 var _ecTypes=['รับตู้','คืนตู้','ค่าเที่ยว','ทางด่วน','ค่าซ่อม','อื่นๆ'];  // ค่าเริ่มต้น
 // 🆕 ประเภท = combobox (พิมพ์เองได้ + จำค่าที่เคยกรอกผ่าน localStorage)
@@ -19778,38 +19977,80 @@ function _ecSaveType(v){
   saved.push(v); localStorage.setItem('gyt_ec_types', JSON.stringify(saved));
   _ecBuildTypeList();                                    // อัปเดต dropdown ให้ทุกแถวเห็นค่าใหม่ทันที
 }
+// 🆕 ดึงข้อมูลจากตารางงานตามเบอร์ตู้ (งานล่าสุด) → เติม SHIPPER/ทะเบียน/5 ค่าใช้จ่าย (เฉพาะช่องว่าง แก้ทับได้)
+function _ecAutoFill(inp){
+  if(!inp) return; var tr=inp.closest('tr'); if(!tr) return;
+  var norm=function(s){ return String(s==null?'':s).toUpperCase().replace(/[^A-Z0-9]/g,''); };
+  var key=norm(inp.value); if(!key) return;
+  var ms=(typeof jobs!=='undefined' && jobs)?jobs.filter(function(j){ return j && norm(j.container)===key; }):[];
+  if(!ms.length){ showToast('ℹ️ ไม่เจองานที่ตรงเบอร์ตู้นี้ — กรอกเองได้'); return; }
+  ms.sort(function(a,b){ return String(b.startdate||b.createdAt||'').localeCompare(String(a.startdate||a.createdAt||'')); });
+  var j=ms[0], c=j.costs||{};
+  var setTxt=function(sel,val){ var el=tr.querySelector(sel); if(el && !String(el.value||'').trim() && val!=null && String(val).trim()!=='') el.value=val; };
+  var setAmt=function(sel,val){ var el=tr.querySelector(sel); if(el && !String(el.value||'').trim() && (parseFloat(val)||0)>0) el.value=_ecFmt(val); };
+  var pk=function(f){ return (typeof _dashPickAmt==='function')?_dashPickAmt(c,f):(parseFloat(c[f+'AmtConfirmed']||c[f+'Amt'])||0); };
+  setTxt('.ec-jobtype', j.job_type||'');   // 🆕 ประเภทงาน (เช่น ขาเข้า(ตู้เปิด))
+  setTxt('.ec-shipper', j.shipper||'');
+  setTxt('.ec-plate', j.plate||'');
+  setAmt('.ec-trip', (typeof _dashTrip==='function')?_dashTrip(j):pk('trip'));   // ค่าแรง(เบิก) + guide จาก legacy
+  setAmt('.ec-port', pk('port'));
+  setAmt('.ec-box',  pk('box'));
+  setAmt('.ec-recv', pk('recv'));
+  setAmt('.ec-ret',  pk('ret'));
+  ecCalc();
+  showToast('↘️ ดึงจากงาน '+(j.id||'')+' แล้ว — แก้ทับได้');
+}
 function ecAddRow(d){
   d=d||{};
-  if(!document.getElementById('ec-type-list')){ _ecBuildTypeList(); }
   // 🆕 วันที่ — แถวใหม่ที่ไม่ระบุวัน ให้ดึงวันจากแถวล่าสุด (ไล่ต่อกันลงมา)
   if(!d.date){ var _er=document.querySelectorAll('#ec-tb tr'); if(_er.length){ var _ld=_er[_er.length-1].querySelector('.ec-date'); if(_ld) d.date=_ld.value||''; } }
+  var fa=function(v){ return (v!=null && v!=='' && !isNaN(parseFloat(v)))?_ecFmt(v):''; };   // จัด , ให้ยอดเงิน (ว่าง=ว่าง)
+  var amtCell=function(cls,val){ return '<td class="amt"><input class="'+cls+'" type="text" inputmode="decimal" placeholder="0.00" value="'+fa(val)+'" oninput="ecCalc()" onblur="_ecFmtAmt(this)"></td>'; };
   var tr=document.createElement('tr');
   tr.innerHTML='<td class="ec-idx"></td>'+
-    '<td><input class="ec-date" type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป" value="'+_ecEsc(d.date)+'"></td>'+
-    '<td><input class="ec-type" list="ec-type-list" value="'+_ecEsc(d.type)+'" onchange="_ecSaveType(this.value)" style="width:100%;border:1px solid transparent;background:transparent;padding:7px 6px;font-family:inherit;font-size:13px;border-radius:5px"></td>'+
-    '<td><input class="ec-cont" type="text" value="'+_ecEsc(d.container)+'"></td>'+
-    '<td><input class="ec-desc" value="'+_ecEsc(d.desc)+'"></td>'+
-    '<td class="amt"><input type="text" inputmode="decimal" placeholder="0.00" value="'+(d.amount!=null?Number(d.amount).toFixed(2):'')+'" oninput="ecCalc()" onblur="_ecFmtAmt(this)"></td>'+
+    '<td><input class="ec-date" type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป" value="'+_ecEsc(d.date)+'" oninput="ecCalc()"></td>'+
+    '<td><input class="ec-cont" type="text" placeholder="ABCU1234567" value="'+_ecEsc(d.container)+'" oninput="ecCalc()" onblur="_ecAutoFill(this)"></td>'+
+    '<td><input class="ec-jobtype" type="text" placeholder="(ดึงจากงาน)" value="'+_ecEsc(d.jobtype)+'" oninput="ecCalc()"></td>'+
+    '<td><input class="ec-shipper" type="text" value="'+_ecEsc(d.shipper)+'" oninput="ecCalc()"></td>'+
+    '<td><input class="ec-plate" type="text" value="'+_ecEsc(d.plate)+'" oninput="ecCalc()"></td>'+
+    amtCell('ec-trip', d.trip)+amtCell('ec-port', d.port)+amtCell('ec-box', d.box)+amtCell('ec-recv', d.recv)+amtCell('ec-ret', d.ret)+amtCell('ec-misc', d.misc)+
+    '<td><input class="ec-desc" type="text" placeholder="เช่น ค่าซ่อมเบรค" value="'+_ecEsc(d.desc)+'" oninput="ecCalc()"></td>'+
+    '<td><input class="ec-note" type="text" value="'+_ecEsc(d.note)+'" oninput="ecCalc()"></td>'+
+    '<td class="r ec-rowtotal" style="font-weight:700;white-space:nowrap;color:var(--green-d)">฿0.00</td>'+
     '<td style="text-align:center"><button class="ec-del" onclick="this.closest(\'tr\').remove();ecCalc()">✕</button></td>';
   document.getElementById('ec-tb').appendChild(tr);
   ecCalc();
 }
 function ecCalc(){
   var rows=document.querySelectorAll('#ec-tb tr'), t=0;
-  rows.forEach(function(tr,i){ tr.querySelector('.ec-idx').textContent=i+1; t+=parseFloat(tr.querySelector('.amt input').value)||0; });
-  document.getElementById('ec-total').textContent='฿'+_ecFmt(t);
+  var num=function(el){ return el?(parseFloat(String(el.value).replace(/,/g,''))||0):0; };
+  rows.forEach(function(tr,i){
+    var ix=tr.querySelector('.ec-idx'); if(ix) ix.textContent=i+1;
+    var rt=num(tr.querySelector('.ec-trip'))+num(tr.querySelector('.ec-port'))+num(tr.querySelector('.ec-box'))+num(tr.querySelector('.ec-recv'))+num(tr.querySelector('.ec-ret'))+num(tr.querySelector('.ec-misc'));
+    var rtc=tr.querySelector('.ec-rowtotal'); if(rtc) rtc.textContent='฿'+_ecFmt(rt);
+    t+=rt;
+  });
+  var tot=document.getElementById('ec-total'); if(tot) tot.textContent='฿'+_ecFmt(t);
+  if(typeof _ecMarkDirty==='function') _ecMarkDirty();   // 🆕 auto-save ร่าง (กันคอมดับ + ข้ามเครื่อง)
 }
 function ecClear(){ document.getElementById('ec-tb').innerHTML=''; ecAddRow(); ecAddRow(); ecCalc(); }
 function _ecGather(){
   var items=[], total=0;
+  var num=function(el){ return el?(parseFloat(String(el.value).replace(/,/g,''))||0):0; };
+  var val=function(el){ return el?String(el.value||'').trim():''; };
   document.querySelectorAll('#ec-tb tr').forEach(function(tr){
-    var date=((tr.querySelector('.ec-date')||{}).value||'').trim();
-    var type=((tr.querySelector('.ec-type')||{}).value||'').trim();
-    var cont=((tr.querySelector('.ec-cont')||{}).value||'').trim();
-    var desc=((tr.querySelector('.ec-desc')||{}).value||'').trim();
-    var amt=parseFloat(tr.querySelector('.amt input').value)||0;
-    if(!desc && !cont && !amt) return;
-    items.push({date:date, type:type, container:cont, desc:desc, amount:amt}); total+=amt;
+    var date=val(tr.querySelector('.ec-date'));
+    var cont=val(tr.querySelector('.ec-cont'));
+    var jobtype=val(tr.querySelector('.ec-jobtype'));
+    var shipper=val(tr.querySelector('.ec-shipper'));
+    var plate=val(tr.querySelector('.ec-plate'));
+    var desc=val(tr.querySelector('.ec-desc'));
+    var note=val(tr.querySelector('.ec-note'));
+    var trip=num(tr.querySelector('.ec-trip')), port=num(tr.querySelector('.ec-port')), box=num(tr.querySelector('.ec-box')), recv=num(tr.querySelector('.ec-recv')), ret=num(tr.querySelector('.ec-ret')), misc=num(tr.querySelector('.ec-misc'));
+    var rt=trip+port+box+recv+ret+misc;
+    if(!cont && !shipper && !plate && !desc && !note && !jobtype && !rt) return;   // แถวว่างทั้งแถว ข้าม
+    items.push({date:date, container:cont, jobtype:jobtype, shipper:shipper, plate:plate, trip:trip, port:port, box:box, recv:recv, ret:ret, misc:misc, desc:desc, note:note, total:rt});
+    total+=rt;
   });
   return {items:items, total:total};
 }
@@ -19825,16 +20066,25 @@ async function ecClose(){
     var r=await fetch(SUPA_URL+'/rest/v1/gyt_expense_closings', {method:'POST', headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY, 'Content-Type':'application/json', Prefer:'return=representation'}, body:JSON.stringify(obj)});
     if(!r.ok){ var txt=await r.text(); if(/relation|does not exist|42P01|PGRST205/i.test(txt)){ showToast('⚠ ตาราง gyt_expense_closings ยังไม่ได้สร้าง — รัน SQL setup ก่อน', 8000); } else { showToast('บันทึกไม่สำเร็จ: '+r.status); } return; }
     var saved=(await r.json())[0]||obj;
+    try{ await _ecClearDraft(); }catch(_ece){}   // ลบร่าง (local+cloud) ให้เสร็จก่อน — กันร่างผุดกลับบนเครื่องอื่นหลังปิดรอบสำเร็จ
     showToast('✅ ปิดรอบ '+docno+' เรียบร้อย');
     ecClear(); await ecLoadList(); ecPrint(saved);
   }catch(e){ console.warn('ecClose', e); showToast('บันทึกไม่สำเร็จ (เครือข่าย)'); }
 }
 async function ecLoadList(){
-  try{ var rows=await sbFetchAll('gyt_expense_closings','?select=*&order=created_at.desc'); _ecList=rows||[]; }
+  // 🆕 ประวัติรอบที่ปิด: เห็นเฉพาะของตัวเอง (ตาม payer_username) — ยกเว้น PISOLN/DONUT/SOMJAI เห็นทุกคน
+  var _ecSeeAll = !!(currentUser && ['PISOLN','DONUT','SOMJAI'].indexOf(currentUser.username)>=0);
+  var _ecQ='?select=*&order=created_at.desc';
+  if(!_ecSeeAll){
+    var _un=(currentUser && currentUser.username)?currentUser.username:' ';   // ไม่มี username = ไม่แสดงอะไร
+    _ecQ='?select=*&payer_username=eq.'+encodeURIComponent(_un)+'&order=created_at.desc';
+  }
+  try{ var rows=await sbFetchAll('gyt_expense_closings',_ecQ); _ecList=rows||[]; }
   catch(e){ _ecList=[]; }
   var el=document.getElementById('ec-list'); if(!el) return;
-  if(!_ecList.length){ el.innerHTML='<div style="color:var(--text-3);font-size:13px;padding:10px 0">ยังไม่มีรอบที่ปิด (หรือยังไม่ได้สร้างตาราง)</div>'; return; }
-  el.innerHTML=_ecList.slice(0,50).map(function(r){
+  if(!_ecList.length){ el.innerHTML='<div style="color:var(--text-3);font-size:13px;padding:10px 0">'+(_ecSeeAll?'ยังไม่มีรอบที่ปิด (หรือยังไม่ได้สร้างตาราง)':'คุณยังไม่มีรอบที่ปิด')+'</div>'; return; }
+  var _ecNote=_ecSeeAll?'':'<div style="font-size:11.5px;color:var(--text-3);margin-bottom:6px">👤 แสดงเฉพาะรอบที่คุณปิด</div>';
+  el.innerHTML=_ecNote+_ecList.slice(0,50).map(function(r){
     var d=r.created_at?new Date(r.created_at):null;
     var ds=d?(String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String((d.getFullYear()+543)%100)):'';
     return '<div class="ec-li"><span class="doc">'+_ecEsc(r.doc_no||('#'+r.id))+'</span>'+
@@ -19848,28 +20098,41 @@ function ecPrint(round){
   var items=round.items||[];
   var w=window.open('','ec_print','width=800,height=1000,scrollbars=yes');
   if(!w){ showToast('กรุณาอนุญาต popup ก่อนครับ'); return; }
-  var rowsHtml=items.map(function(it,i){ var meta=(it.type?'['+_ecEsc(it.type)+'] ':'')+_ecEsc(it.desc)+(it.container?' · ตู้ '+_ecEsc(it.container):''); return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+_ecEsc(it.date)+'</td><td>'+meta+'</td><td style="text-align:right;font-weight:700">'+_ecFmt(it.amount)+'</td></tr>'; }).join('');
+  var money=function(v){ return (v!=null&&v!==''&&(parseFloat(v)||0)!==0)?_ecFmt(v):'-'; };
+  var rowsHtml=items.map(function(it,i){
+    var rt=(it.total!=null)?it.total:((Number(it.trip)||0)+(Number(it.port)||0)+(Number(it.box)||0)+(Number(it.recv)||0)+(Number(it.ret)||0)+(Number(it.misc)||0));
+    // รองรับข้อมูลเก่า (type/desc/amount) ด้วย
+    if(it.amount!=null && it.trip==null && it.recv==null){
+      var meta=(it.type?'['+_ecEsc(it.type)+'] ':'')+_ecEsc(it.desc||'');
+      return '<tr><td class="c">'+(i+1)+'</td><td>'+_ecEsc(it.date||'')+'</td><td>'+_ecEsc(it.container||'')+'</td><td colspan="10">'+meta+'</td><td class="r" style="font-weight:700">'+_ecFmt(it.amount)+'</td></tr>';
+    }
+    var dn=_ecEsc(it.desc||'')+((it.desc&&it.note)?' · ':'')+_ecEsc(it.note||'');
+    return '<tr><td class="c">'+(i+1)+'</td><td>'+_ecEsc(it.date||'')+'</td><td>'+_ecEsc(it.container||'')+'</td><td>'+_ecEsc(it.jobtype||'')+'</td><td>'+_ecEsc(it.shipper||'')+'</td><td>'+_ecEsc(it.plate||'')+'</td>'+
+      '<td class="r">'+money(it.trip)+'</td><td class="r">'+money(it.port)+'</td><td class="r">'+money(it.box)+'</td><td class="r">'+money(it.recv)+'</td><td class="r">'+money(it.ret)+'</td><td class="r">'+money(it.misc)+'</td>'+
+      '<td>'+dn+'</td><td class="r" style="font-weight:700">'+_ecFmt(rt)+'</td></tr>';
+  }).join('');
   var html='<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>'+_ecEsc(round.doc_no||'ใบปิดรอบ')+'</title><style>'+
     "@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap');"+
-    'body{font-family:Sarabun,sans-serif;color:#111;margin:0}.s{max-width:760px;margin:0 auto;padding:24px 28px}'+
-    '.hd{display:flex;justify-content:space-between;border-bottom:2px solid #1E5C3A;padding-bottom:10px;margin-bottom:14px}'+
-    '.co{font-size:16px;font-weight:800;color:#1E5C3A}.sub{font-size:11px;color:#666}'+
-    '.t{font-size:15px;font-weight:800;border:2px solid #1E5C3A;color:#1E5C3A;padding:3px 12px;border-radius:6px}'+
-    '.pn{font-size:13px;margin-bottom:12px}.pn b{color:#1E5C3A}'+
-    'table{width:100%;border-collapse:collapse;font-size:13px}th{background:#1E5C3A;color:#fff;padding:7px 8px;text-align:left}td{border-bottom:1px solid #e6e6e6;padding:6px 8px}'+
-    'tfoot td{border-top:2px solid #1E5C3A;background:#F2F7F4;font-weight:800;font-size:15px;color:#1E5C3A}'+
-    '.sg{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:34px}.sg .b{text-align:center}.sg .l{border-bottom:1px dotted #999;height:34px;margin-bottom:5px}.sg .c{font-size:11.5px;color:#555}'+
+    'body{font-family:Sarabun,sans-serif;color:#111;margin:0}.s{max-width:1080px;margin:0 auto;padding:20px 24px}'+
+    '.hd{display:flex;justify-content:space-between;border-bottom:2px solid #1E5C3A;padding-bottom:10px;margin-bottom:12px}'+
+    '.co{font-size:15px;font-weight:800;color:#1E5C3A}.sub{font-size:11px;color:#666}'+
+    '.t{font-size:14px;font-weight:800;border:2px solid #1E5C3A;color:#1E5C3A;padding:3px 12px;border-radius:6px}'+
+    '.pn{font-size:13px;margin-bottom:10px}.pn b{color:#1E5C3A}'+
+    'table{width:100%;border-collapse:collapse;font-size:11.5px}th{background:#1E5C3A;color:#fff;padding:5px 6px;text-align:left;font-size:11px}td{border-bottom:1px solid #e6e6e6;padding:4px 6px}.r{text-align:right}.c{text-align:center}'+
+    'tfoot td{border-top:2px solid #1E5C3A;background:#F2F7F4;font-weight:800;font-size:13px;color:#1E5C3A}'+
+    '.sg{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:30px}.sg .b{text-align:center}.sg .l{border-bottom:1px dotted #999;height:34px;margin-bottom:5px}.sg .c2{font-size:11.5px;color:#555}'+
     '.pr{margin-top:18px;text-align:center}.pr button{padding:9px 20px;background:#2D7A4F;color:#fff;border:none;border-radius:8px;font-family:inherit;font-weight:700;cursor:pointer}'+
-    '@media print{.pr{display:none}@page{size:A4;margin:12mm}}'+
+    '@media print{.pr{display:none}@page{size:A4 landscape;margin:10mm}}'+
     '</style></head><body><div class="s">'+
     '<div class="hd"><div><div class="co">บริษัท กรีน เยลโล่ ทรานสปอร์ต (ประเทศไทย) จำกัด</div><div class="sub">ใบสรุปค่าใช้จ่ายที่จ่ายแทน — เสนอกรรมการเพื่อทราบ</div></div>'+
     '<div style="text-align:right"><div class="t">ใบปิดรอบค่าใช้จ่าย</div><div class="sub" style="margin-top:3px">เลขที่: <b>'+_ecEsc(round.doc_no||'')+'</b></div></div></div>'+
     '<div class="pn">ผู้โอน (คนจัดการเงิน): <b>'+_ecEsc(round.payer)+'</b></div>'+
-    '<table><thead><tr><th style="width:30px">#</th><th style="width:120px">วัน/เดือน/ปี</th><th>รายการ</th><th style="width:130px;text-align:right">ยอดเงิน (บาท)</th></tr></thead>'+
+    '<table><thead><tr><th class="c" style="width:22px">#</th><th style="width:66px">วันที่</th><th style="width:86px">เบอร์ตู้</th><th style="width:94px">ประเภท</th><th>SHIPPER</th><th style="width:62px">ทะเบียน</th>'+
+    '<th class="r" style="width:54px">ค่าแรง</th><th class="r" style="width:54px">ผ่านท่า</th><th class="r" style="width:48px">ยกตู้</th><th class="r" style="width:48px">รับตู้</th><th class="r" style="width:48px">คืนตู้</th><th class="r" style="width:54px">อื่นๆ</th><th style="width:150px">รายการ/หมายเหตุ</th><th class="r" style="width:72px">รวม</th></tr></thead>'+
     '<tbody>'+rowsHtml+'</tbody>'+
-    '<tfoot><tr><td colspan="3" style="text-align:right">รวมทั้งหมด</td><td style="text-align:right">฿'+_ecFmt(round.total)+'</td></tr></tfoot></table>'+
-    '<div class="sg"><div class="b"><div class="l"></div><div class="c">ผู้โอน / ผู้สรุป ( ........................... )</div></div>'+
-    '<div class="b"><div class="l"></div><div class="c">กรรมการ (รับทราบ) ( ........................... )</div></div></div>'+
+    '<tfoot><tr><td colspan="13" style="text-align:right">รวมทั้งหมด</td><td class="r">฿'+_ecFmt(round.total)+'</td></tr></tfoot></table>'+
+    '<div class="sg"><div class="b"><div class="l"></div><div class="c2">ผู้โอน / ผู้สรุป ( ........................... )</div></div>'+
+    '<div class="b"><div class="l"></div><div class="c2">กรรมการ (รับทราบ) ( ........................... )</div></div></div>'+
     '<div class="pr"><button onclick="window.print()">🖨 พิมพ์</button></div>'+
     '</div></body></html>';
   w.document.write(html); w.document.close();
@@ -19905,7 +20168,15 @@ function rcRender(){
   var idx=_rcJobIdx||{}, rows=[];
   (_ecList||[]).forEach(function(cl){
     (cl.items||[]).forEach(function(it){
-      rows.push({ date:it.date||'', payer:cl.payer||cl.payer_username||'-', type:it.type||'', container:(it.container||'').trim(), desc:it.desc||'', amount:Number(it.amount)||0 });
+      // 🆕 โครงใหม่ (ค่าใช้จ่ายแยกช่อง) → แตก ค่ารับตู้/ค่าคืนตู้ เป็นแถว ให้จับคู่งานได้เหมือนเดิม
+      if(it && (it.recv!=null||it.ret!=null||it.trip!=null||it.port!=null||it.box!=null)){
+        var base={ date:it.date||'', payer:cl.payer||cl.payer_username||'-', container:(it.container||'').trim(), desc:it.note||'' };
+        var _rv=Number(it.recv)||0, _rt=Number(it.ret)||0;
+        if(_rv) rows.push(Object.assign({}, base, {type:'รับตู้', amount:_rv}));
+        if(_rt) rows.push(Object.assign({}, base, {type:'คืนตู้', amount:_rt}));
+      } else {
+        rows.push({ date:it.date||'', payer:cl.payer||cl.payer_username||'-', type:it.type||'', container:(it.container||'').trim(), desc:it.desc||'', amount:Number(it.amount)||0 });
+      }
     });
   });
   // ตรวจซ้ำ: เบอร์ตู้ + ประเภท
@@ -20868,6 +21139,72 @@ function ratePriceCheck(prefix){
   } else { warn.style.display='none'; }
 }
 
+/* ───────────────────────────────────────────────
+   🆕 เตือนเบอร์ตู้ซ้ำ (soft) — เทียบทุกงานทุกเวลา + ในใบหลายตู้
+   normalize: พิมพ์ใหญ่ + ตัดอักขระที่ไม่ใช่ A-Z0-9 (เว้นวรรค/ขีด) · เตือนแต่ยังลงได้
+   ─────────────────────────────────────────────── */
+function _contNorm(s){ return String(s==null?'':s).toUpperCase().replace(/[^A-Z0-9]/g,''); }
+function _contEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _findContDups(container, excludeId){
+  var key=_contNorm(container); if(!key) return [];
+  if(typeof jobs==='undefined' || !jobs) return [];
+  return jobs.filter(function(j){ return j && _contNorm(j.container)===key && !(excludeId && j.id===excludeId); });
+}
+function _contDate(j){ var d=String(j.startdate||j.deliverdate||'').slice(0,10); if(!d) return ''; var p=d.split('-'); if(p.length<3) return d; return p[2]+'/'+p[1]+'/'+(parseInt(p[0],10)+543); }   // → DD/MM/พ.ศ.
+function _contDupList(dups, max){
+  max=max||3;
+  var arr=dups.slice().sort(function(a,b){ return String(b.startdate||b.createdAt||'').localeCompare(String(a.startdate||a.createdAt||'')); });
+  var out=arr.slice(0,max).map(function(j){ var dt=_contDate(j); return (j.id||'?')+(dt?(' · '+dt):'')+(j.shipper?(' · '+j.shipper):''); });   // 🆕 โชว์ Shipper (เจ้าของสินค้า) แทนลูกค้า(ตัวแทน)
+  if(arr.length>max) out.push('…และอีก '+(arr.length-max)+' งาน');
+  return out;
+}
+function _contDupText(dups){ return _contDupList(dups,3).join('  |  '); }
+// ── ฟอร์มใบเดี่ยว: เตือนสดใต้ช่อง ──
+function _contCheckSingle(){
+  var inp=document.getElementById('fj-container'), warn=document.getElementById('fj-container-warn');
+  if(!inp||!warn) return;
+  if(!_contNorm(inp.value)){ warn.style.display='none'; warn.innerHTML=''; inp.style.borderColor=''; return; }
+  var dups=_findContDups(inp.value, editJID);
+  if(!dups.length){ warn.style.display='none'; warn.innerHTML=''; inp.style.borderColor=''; return; }
+  warn.style.display='block';
+  warn.innerHTML='<span style="color:#B45309">⚠️ เบอร์ตู้นี้เคยลงแล้ว '+dups.length+' งาน — '+_contEsc(_contDupText(dups))+' · ตรวจว่าไม่ซ้ำก่อนบันทึก</span>';
+  inp.style.borderColor='#F59E0B';
+}
+// ── ฟอร์มหลายตู้: เตือนสดทุกแถว (ในใบเดียวกัน=แดง · ซ้ำงานเดิม=เหลือง) ──
+var _contMultiTimer=null;
+function _contCheckMultiDebounced(){ if(_contMultiTimer) clearTimeout(_contMultiTimer); _contMultiTimer=setTimeout(_contCheckMultiAll, 250); }
+function _contCheckMultiAll(){
+  var n=parseInt((document.getElementById('mc-count')||{}).value)||1;
+  var map={};
+  for(var k=1;k<=n;k++){ var ip=document.getElementById('mc-r'+k+'-container'); if(!ip) continue; var ky=_contNorm(ip.value); if(!ky) continue; (map[ky]=map[ky]||[]).push(k); }
+  for(var i=1;i<=n;i++){
+    var inp=document.getElementById('mc-r'+i+'-container'), warn=document.getElementById('mc-r'+i+'-container-warn');
+    if(!inp||!warn) continue;
+    var key=_contNorm(inp.value);
+    if(!key){ warn.style.display='none'; warn.innerHTML=''; inp.style.borderColor=''; continue; }
+    var msgs=[], bad=false;
+    var sib=(map[key]||[]).filter(function(x){return x!==i;});
+    if(sib.length){ msgs.push('⛔️ ซ้ำกับตู้ที่ '+sib.join(', ')+' ในใบนี้'); bad=true; }
+    var dups=_findContDups(inp.value, null);
+    if(dups.length){ msgs.push('⚠️ เคยลงแล้ว '+dups.length+' งาน ('+_contDupText(dups)+')'); }
+    if(!msgs.length){ warn.style.display='none'; warn.innerHTML=''; inp.style.borderColor=''; continue; }
+    warn.style.display='block'; warn.style.color=bad?'#DC2626':'#B45309';
+    warn.innerHTML=_contEsc(msgs.join(' · '));
+    inp.style.borderColor=bad?'#DC2626':'#F59E0B';
+  }
+}
+// ── ตอนกดบันทึกใบเดี่ยว: คืน true ถ้าไม่ซ้ำ หรือผู้ใช้ยืนยันให้ลงต่อ ──
+function _contConfirmSingle(container, excludeId){
+  var dups=_findContDups(container, excludeId); if(!dups.length) return true;
+  return confirm('⚠️ เบอร์ตู้ "'+container+'" ซ้ำกับ '+dups.length+' งานที่เคยลง:\n• '+_contDupList(dups,5).join('\n• ')+'\n\nยืนยันบันทึกซ้ำ?');
+}
+// 🆕 ค่าใช้จ่าย (ต้นทุน) ในฟอร์มงาน — helpers
+function _fjCalcTrip(){ var el=document.getElementById('fj-cost-trip'); if(!el) return; var t=((document.getElementById('fj-type')||{}).value)||''; el.value=(typeof getTripRate==='function')?getTripRate({type:t}):el.value; }
+function _mcToggleCost(i){ var r=document.getElementById('mc-r'+i+'-cost-row'); if(r) r.style.display=(r.style.display==='none'?'':'none'); }
+function _mcCosts(i){   // อ่าน 8 ช่องค่าใช้จ่ายของตู้ที่ i (ฟอร์มหลายตู้)
+  var g=function(id){var el=document.getElementById('mc-r'+i+'-cost-'+id);return el?el.value:'';};
+  return { tripAmt:g('trip'), boxAmt:g('box'), recvAmt:g('recv'), retAmt:g('ret'), portAmt:g('port'), tollAmt:g('toll'), miscAmt:g('misc'), misc2Amt:g('misc2') };
+}
 function openAddJob(){
   if(!hasPerm('add_jobs')){showToast('⚠ ไม่มีสิทธิ์เพิ่มใบงาน');return;}
   editJID=null;
@@ -20890,6 +21227,11 @@ function openAddJob(){
   // 🆕 v160 — prefetch ราคาฐาน + เคลียร์ hint
   var fjH=document.getElementById('fj-price-hint'); if(fjH) fjH.innerHTML='';
   var fjW=document.getElementById('fj-price-warn'); if(fjW) fjW.style.display='none';
+  var fcW=document.getElementById('fj-container-warn'); if(fcW){ fcW.style.display='none'; fcW.innerHTML=''; }   // 🆕 เคลียร์คำเตือนเบอร์ตู้ซ้ำ
+  var fcI=document.getElementById('fj-container'); if(fcI) fcI.style.borderColor='';
+  // 🆕 ค่าใช้จ่าย (ต้นทุน) — เคลียร์ + เบิกตั้งต้นตามประเภท (default หัวลาก)
+  ['fj-cost-trip-note','fj-cost-box','fj-cost-recv','fj-cost-recv-note','fj-cost-ret','fj-cost-ret-note','fj-cost-port','fj-cost-toll','fj-cost-misc','fj-cost-misc-note','fj-cost-misc2','fj-cost-misc2-note'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var _ftc=document.getElementById('fj-cost-trip'); if(_ftc) _ftc.value=(typeof getTripRate==='function')?getTripRate({type:''}):'';
   if(hasPerm('view_price')) _rateLoad();
   const now=new Date();now.setMinutes(0,0,0);
   document.getElementById('fj-startdate').value=now.toISOString().slice(0,16);
@@ -20955,11 +21297,22 @@ function openEditJob(id){
   // 🆕 v158 — ช่องราคาขายต่อตู้ (เฉพาะ perm view_price)
   var fjPw2=document.getElementById('fj-price-wrap'); if(fjPw2) fjPw2.style.display=hasPerm('view_price')?'':'none';
   var fjPr2=document.getElementById('fj-price'); if(fjPr2) fjPr2.value=(j.costs && j.costs.priceAmt!==undefined && j.costs.priceAmt!==null && j.costs.priceAmt!=='')?j.costs.priceAmt:'';
+  // 🆕 ค่าใช้จ่าย (ต้นทุน) — โหลดจากงานมาแสดง (แก้ได้)
+  var _jc=j.costs||{}; var _sc=function(id,v){var el=document.getElementById(id);if(el)el.value=(v==null?'':v);};
+  _sc('fj-cost-trip',_jc.tripAmt); _sc('fj-cost-trip-note',_jc.tripNote);
+  _sc('fj-cost-box',_jc.boxAmt);
+  _sc('fj-cost-recv',_jc.recvAmt); _sc('fj-cost-recv-note',_jc.recvNote);
+  _sc('fj-cost-ret',_jc.retAmt); _sc('fj-cost-ret-note',_jc.retNote);
+  _sc('fj-cost-port',_jc.portAmt);
+  _sc('fj-cost-toll',_jc.tollAmt);
+  _sc('fj-cost-misc',_jc.miscAmt); _sc('fj-cost-misc-note',_jc.miscNote);
+  _sc('fj-cost-misc2',_jc.misc2Amt); _sc('fj-cost-misc2-note',_jc.misc2Note);
   // 🆕 v160 — prefetch ราคาฐาน + เคลียร์ hint
   var fjH2=document.getElementById('fj-price-hint'); if(fjH2) fjH2.innerHTML='';
   var fjW2=document.getElementById('fj-price-warn'); if(fjW2) fjW2.style.display='none';
   if(hasPerm('view_price')) _rateLoad();
   document.getElementById('modal-job').classList.add('open');
+  _contCheckSingle();   // 🆕 ถ้าเบอร์ตู้ที่แก้อยู่ซ้ำกับงานอื่น ขึ้นเตือนทันที (ยกเว้นตัวเอง)
   // init datetime picker (DD/MM/YYYY HH:MM 24h)
   setTimeout(function(){
     initDateTimePicker('fj-startdate');
@@ -21016,6 +21369,7 @@ async function saveJob(){
     status:document.getElementById('fj-status').value,
     note:document.getElementById('fj-note').value.trim(),
   };
+  if(!_contConfirmSingle(obj.container, editJID)) return;   // 🆕 เตือนเบอร์ตู้ซ้ำ (soft — ยกเลิกได้ ถ้ายืนยันลงต่อ)
   var __byName=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'ไม่ระบุ';
   var __nowISO=new Date().toISOString();
   if(editJID){
@@ -21033,6 +21387,17 @@ async function saveJob(){
     obj.createdAt=__nowISO;
     jobs.unshift(obj);
   }
+  // 🆕 ค่าใช้จ่าย (ต้นทุน) จากฟอร์ม → เขียนลง obj.costs (obj.costs เริ่มจากของเดิม → เก็บ priceAmt + ค่ายืนยัน *Confirmed ไว้)
+  obj.costs=obj.costs||{};
+  var _gc=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  obj.costs.tripAmt=_gc('fj-cost-trip'); obj.costs.tripNote=_gc('fj-cost-trip-note');
+  obj.costs.boxAmt=_gc('fj-cost-box');
+  obj.costs.recvAmt=_gc('fj-cost-recv'); obj.costs.recvNote=_gc('fj-cost-recv-note');
+  obj.costs.retAmt=_gc('fj-cost-ret'); obj.costs.retNote=_gc('fj-cost-ret-note');
+  obj.costs.portAmt=_gc('fj-cost-port');
+  obj.costs.tollAmt=_gc('fj-cost-toll');
+  obj.costs.miscAmt=_gc('fj-cost-misc'); obj.costs.miscNote=_gc('fj-cost-misc-note');
+  obj.costs.misc2Amt=_gc('fj-cost-misc2'); obj.costs.misc2Note=_gc('fj-cost-misc2-note');
   // 🆕 v158 — ราคาขายต่อตู้/เที่ยว (costs.priceAmt) — เขียนเฉพาะผู้มีสิทธิ์ view_price
   if(hasPerm('view_price')){
     var _pEl=document.getElementById('fj-price');
@@ -22554,7 +22919,29 @@ function savePair(){
 // ============================
 var _printJobId = null;
 
-function openPrint(jobId){ openCostModal(jobId); }
+function openPrint(jobId){
+  // 🆕 ปริ้นใบปฏิบัติงานตรงๆ — ใช้ค่าใช้จ่ายที่กรอกในฟอร์มงานแล้ว (ไม่เปิดหน้าต่างกรอกซ้ำ)
+  var j=jobs.find(function(x){return x.id===jobId;}); if(!j){showToast('ไม่พบใบงาน');return;}
+  var costs=j.costs||{};
+  var jForPrint=Object.assign({}, j);
+  if(jForPrint.receiptName && (!jForPrint.receiptAddr || !jForPrint.receiptTaxid)){
+    var hit=(typeof shippers!=='undefined'?shippers.find(function(s){return s.name===jForPrint.receiptName;}):null)
+         ||(typeof customers!=='undefined'?customers.find(function(c){return c.name===jForPrint.receiptName;}):null)
+         ||(typeof billings!=='undefined'?billings.find(function(b){return b.name===jForPrint.receiptName;}):null);
+    if(hit){ if(!jForPrint.receiptAddr) jForPrint.receiptAddr=hit.addr||''; if(!jForPrint.receiptTaxid) jForPrint.receiptTaxid=hit.taxid||''; }
+  }
+  if(!jForPrint.receiptName && jForPrint.shipper && typeof shippers!=='undefined'){
+    var shp=shippers.find(function(s){return s.name===jForPrint.shipper;});
+    if(shp){ jForPrint.receiptName=shp.name; jForPrint.receiptAddr=shp.addr||''; jForPrint.receiptTaxid=shp.taxid||''; }
+  }
+  var pw=window.open('','gyt_print','width=900,height=1200,scrollbars=yes');
+  if(!pw){showToast('กรุณาอนุญาต Popup ใน browser ก่อนครับ');return;}
+  pw.document.write(window._PRINT_HTML_DATA||'<p style="font-family:sans-serif;padding:2rem">กำลังโหลด...</p>');
+  pw.document.close();
+  pw.getPrintJob=function(){return{job:jForPrint,costs:costs};};
+  setTimeout(function(){ try{pw.fillJob(jForPrint,costs);}catch(e){pw.postMessage({type:'fillJob',job:jForPrint,costs:costs},'*');} },700);
+  showToast('เปิดใบปฏิบัติงาน '+j.id+' แล้ว');
+}
 
 /* ════════════════════════════════════════════════════════════════
    🆕 v120 — Share job to LINE
@@ -25506,7 +25893,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.211';
+const APP_VERSION = '2026.04.29.221';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -32235,4 +32622,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v210 PROD — promote Dashboard Cartrack โหมดรายวัน/รายสัปดาห์ (v208+v209) จาก staging -->
+<!-- deploy v220 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน/หลายตู้/แก้ไข + ปริ้นตรง + รถ<!-- deploy v1 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน+หลายตู้+แก้ไข, ปริ้นตรง, จัดลำดับ รถ/คนขับ เหนือค่าใช้จ่าย -->คนขับเหนือค่าใช้จ่าย -->
