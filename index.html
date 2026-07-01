@@ -1527,7 +1527,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <!-- PANEL: รอวางบิล (create) — default active -->
         <div class="bill-panel active" id="bill-panel-create">
           <div style="background:#F0F8F0;border:1px solid var(--green-m);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green-d)">
-            💡 เลือกลูกค้า + ช่วงวันที่ → ระบบจะแสดง <strong>ใบงานที่เสร็จงานแล้ว + มีค่าใช้จ่ายในระบบ + ยังไม่ออกใบ</strong> → tick แล้วกดสร้างใบวางบิล
+            💡 แสดง <strong>งานที่เสร็จแล้ว + มีค่าใช้จ่าย + ยังไม่วางบิล</strong> ทั้งหมด → กรองด้วย dropdown ลูกค้า / ช่วงวันที่ได้ → tick แล้วกดสร้างใบวางบิล
           </div>
           <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
             <span style="font-size:12px;color:var(--text-2)">ลูกค้า:</span>
@@ -1547,6 +1547,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <th style="padding:9px 8px;text-align:center;border-bottom:2px solid var(--border);width:32px"><input type="checkbox" id="bc-cb-all" onchange="billingToggleAllJobs(this)"></th>
               <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:90px">วันที่</th>
               <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:90px">JOB ID</th>
+              <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:150px">ลูกค้า / Shipper</th>
               <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2)">เส้นทาง / Booking</th>
               <th style="padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:80px">ตู้</th>
               <th style="padding:9px 8px;text-align:right;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-2);width:110px">ค่าใช้จ่าย</th>
@@ -1555,7 +1556,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <tbody id="bc-jobs-tbody"></tbody>
           </table>
           </div></div>
-          <div id="bc-jobs-empty" style="display:none;text-align:center;padding:40px;color:var(--text-3)">เลือกลูกค้าก่อน — หรือลูกค้านี้ยังไม่มี job ที่พร้อมออกใบ</div>
+          <div id="bc-jobs-empty" style="display:none;text-align:center;padding:40px;color:var(--text-3)">🎉 ไม่มีงานรอวางบิล (ตามตัวกรอง) — ทุกงานที่มีค่าใช้จ่ายถูกวางบิลแล้ว</div>
           <div style="position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:10px 14px;margin-top:12px;display:flex;align-items:center;gap:12px">
             <span style="font-size:13px;color:var(--text-2)">เลือกแล้ว: <strong style="color:var(--text-1)" id="bc-sel-count">0</strong> ใบ • ยอดรวม: <strong style="font-family:var(--mono);color:var(--text-1)" id="bc-sel-sum">0</strong> ฿</span>
             <button class="btn btn-green" id="bc-create-btn" onclick="billingCreateBill()" disabled style="margin-left:auto;height:36px">✏️ สร้างใบวางบิล →</button>
@@ -25892,7 +25893,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.221';
+const APP_VERSION = '2026.04.29.222';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -30699,7 +30700,7 @@ function billingPopulateCustomerDropdown(){
   var sel = document.getElementById('bc-flt-customer');
   if(!sel) return;
   var current = sel.value;
-  sel.innerHTML = '<option value="">-- เลือกลูกค้า --</option>' +
+  sel.innerHTML = '<option value="">👥 ทุกลูกค้า (ทั้งหมด)</option>' +
     _BL_MASTER.map(function(m){
       return '<option value="'+_bl_esc(m.customer_code)+'">'+_bl_esc(m.customer_code+' — '+(m.customer_name||''))+'</option>';
     }).join('');
@@ -30710,25 +30711,20 @@ async function billingRenderCreate(){
   var code = document.getElementById('bc-flt-customer').value;
   var tbody = document.getElementById('bc-jobs-tbody');
   var empty = document.getElementById('bc-jobs-empty');
-  if(!code){
-    tbody.innerHTML=''; empty.style.display='block';
-    document.getElementById('bc-sel-count').textContent='0';
-    document.getElementById('bc-sel-sum').textContent='0';
-    document.getElementById('bc-create-btn').disabled=true;
-    return;
-  }
-  // find customer by code → match shipper name OR receipt_name
-  var customer = _BL_MASTER.find(function(m){return m.customer_code===code;});
-  if(!customer){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  document.getElementById('bc-sel-count').textContent='0';
+  document.getElementById('bc-sel-sum').textContent='0';
+  document.getElementById('bc-create-btn').disabled=true;
+  // 🆕 code ว่าง = โชว์งานรอวางบิลทุกลูกค้า · เลือกลูกค้า = กรองเฉพาะเจ้านั้น
+  var customer = code ? _BL_MASTER.find(function(m){return m.customer_code===code;}) : null;
   // fetch jobs with costs, filter to those matching this customer's name
   try{
-    var url = SUPA_URL + '/rest/v1/gyt_jobs?select=id,shipper,receipt_name,startdate,deliverdate,booking,container,type,origin,dest,returnyard,costs&order=startdate.desc&limit=500';
+    var url = SUPA_URL + '/rest/v1/gyt_jobs?select=id,shipper,receipt_name,startdate,deliverdate,booking,container,type,origin,dest,returnyard,costs&order=startdate.desc&limit=1000';
     var jobs = await fetch(url, {headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY}}).then(function(r){return r.json();});
     // already-billed job IDs (with which bill_no for display)
     var billedMap = {};   // job_id → bill_no
     _BL_BILLS.forEach(function(b){ (b.job_ids||[]).forEach(function(j){ billedMap[j] = b.bill_no; }); });
     // match logic: substring (case-insensitive)
-    var custKey = (customer.customer_name||'').toLowerCase().split(' ')[0];
+    var custKey = customer ? (customer.customer_name||'').toLowerCase().split(' ')[0] : '';  // 🆕 ว่าง = ไม่กรองลูกค้า
     var showAll = document.getElementById('bc-show-all-jobs')?.checked;
     var matched = (jobs||[]).filter(function(j){
       // 🆕 v116 — แสดงทุก job ที่ match ลูกค้า (ทั้ง billed/unbilled) ตาม checkbox
@@ -30739,8 +30735,9 @@ async function billingRenderCreate(){
       var _frt = (+c.priceAmt||0)>0 ? (+c.priceAmt||0) : (+c.tripAmt||0);
       var total = _frt+(+c.boxAmt||0)+(+c.recvAmt||0)+(+c.retAmt||0)+(+c.portAmt||0)+(+c.tollAmt||0)+(+c.miscAmt||0)+(+c.misc2Amt||0);
       if(total<=0) return false;
+      if(!custKey) return true;   // 🆕 ไม่เลือกลูกค้า = โชว์งานรอวางบิลทั้งหมด
       var nm = ((j.shipper||'')+' '+(j.receipt_name||'')).toLowerCase();
-      return custKey && nm.includes(custKey);
+      return nm.includes(custKey);
     });
     // expose billedMap for renderer
     window._BC_BILLED_MAP = billedMap;
@@ -30772,6 +30769,7 @@ async function billingRenderCreate(){
         '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)"><input type="checkbox" class="bc-cb" data-job-id="'+_bl_esc(j.id)+'" data-job-amt="'+total+'" '+cbAttr+' onchange="billingUpdateSelection()"></td>'+
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11.5px">'+_bl_date(j.startdate)+'</td>'+
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--green-d);font-weight:600">'+_bl_esc(j.id)+'</td>'+
+        '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px" title="'+_bl_esc(j.shipper||j.receipt_name||'')+'">'+_bl_esc(j.shipper||j.receipt_name||'—')+'</td>'+
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:400px" title="'+_bl_esc(route+book)+'">'+_bl_esc(route+book)+'</td>'+
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-2)">'+_bl_esc((j.container||'')+(j.type?' '+j.type:''))+'</td>'+
         '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:600">'+_bl_fmt(total)+'</td>'+
@@ -30799,7 +30797,11 @@ function billingUpdateSelection(){
   var sum = cbs.reduce(function(s,c){return s+(+c.getAttribute('data-job-amt')||0);}, 0);
   document.getElementById('bc-sel-count').textContent = n;
   document.getElementById('bc-sel-sum').textContent = _bl_fmt(sum);
-  document.getElementById('bc-create-btn').disabled = n===0;
+  // 🆕 บิลออกทีละลูกค้า → ปุ่มสร้างเปิดเฉพาะเมื่อเลือกลูกค้าใน dropdown แล้ว
+  var hasCust = !!document.getElementById('bc-flt-customer').value;
+  var _cbtn = document.getElementById('bc-create-btn');
+  _cbtn.disabled = (n===0 || !hasCust);
+  _cbtn.title = !hasCust ? 'เลือกลูกค้าใน dropdown ก่อนสร้างบิล (บิลออกทีละลูกค้า)' : '';
 }
 
 async function billingCreateBill(){
@@ -30807,7 +30809,7 @@ async function billingCreateBill(){
   if(!cbs.length){ if(typeof showToast==='function') showToast('กรุณาเลือก job ก่อน'); return; }
   var code = document.getElementById('bc-flt-customer').value;
   var customer = _BL_MASTER.find(function(m){return m.customer_code===code;});
-  if(!customer){ if(typeof showToast==='function') showToast('ไม่พบลูกค้า'); return; }
+  if(!customer){ if(typeof showToast==='function') showToast('เลือกลูกค้าใน dropdown ก่อนสร้างบิล (บิลออกทีละลูกค้า)'); return; }
   var pickedJobs = cbs.map(function(c){
     var id = c.getAttribute('data-job-id');
     return _BL_JOBS.find(function(j){return j.id===id;});
