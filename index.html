@@ -1482,23 +1482,22 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
 
         <!-- 🗂 Tabs -->
+        <!-- 🆕 4-tab pipeline: รอวางบิล → ค้างจ่าย → จ่ายแล้ว(+ใบเสร็จ) → ลูกค้า -->
         <div class="bill-tabs">
-          <div class="bill-tab active" data-bill-tab="issued" onclick="billingSwitchView('issued')">📑 ใบวางบิล <span class="bill-tab-badge" id="bt-issued-c">0</span></div>
-          <div class="bill-tab" data-bill-tab="create" onclick="billingSwitchView('create')">✏️ ออกใบใหม่</div>
-          <div class="bill-tab" data-bill-tab="paid" onclick="billingSwitchView('paid')">💰 ชำระเงินเรียบร้อย <span class="bill-tab-badge" id="bt-paid-c">0</span></div>
-          <div class="bill-tab" data-bill-tab="receipt" onclick="billingSwitchView('receipt')">🧾 ออกใบเสร็จรับเงิน <span class="bill-tab-badge" id="bt-receipt-c">0</span></div>
-          <div class="bill-tab" data-bill-tab="master" onclick="billingSwitchView('master')">👥 ลูกค้าวางบิล <span class="bill-tab-badge" id="bt-master-c">0</span></div>
+          <div class="bill-tab active" data-bill-tab="create" onclick="billingSwitchView('create')">📥 รอวางบิล <span class="bill-tab-badge" id="bt-create-c">0</span></div>
+          <div class="bill-tab" data-bill-tab="issued" onclick="billingSwitchView('issued')">⏳ ค้างจ่าย <span class="bill-tab-badge" id="bt-issued-c">0</span></div>
+          <div class="bill-tab" data-bill-tab="paid" onclick="billingSwitchView('paid')">✅ จ่ายแล้ว <span class="bill-tab-badge" id="bt-paid-c">0</span></div>
+          <div class="bill-tab" data-bill-tab="master" onclick="billingSwitchView('master')">👥 ลูกค้า <span class="bill-tab-badge" id="bt-master-c">0</span></div>
         </div>
 
-        <!-- PANEL 1: Issued -->
-        <div class="bill-panel active" id="bill-panel-issued">
+        <!-- PANEL: ค้างจ่าย (issued) -->
+        <div class="bill-panel" id="bill-panel-issued">
           <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
             <span style="font-size:12px;color:var(--text-2)">สถานะ:</span>
-            <select class="fi" id="bl-flt-status" onchange="billingRenderIssued()" style="width:140px;height:32px">
-              <option value="">ทั้งหมด</option>
-              <option value="draft">ร่าง (draft)</option>
-              <option value="issued">ออกใบแล้ว</option>
-              <option value="paid">จ่ายแล้ว</option>
+            <select class="fi" id="bl-flt-status" onchange="billingRenderIssued()" style="width:150px;height:32px">
+              <option value="">ค้างจ่ายทั้งหมด</option>
+              <option value="unpaid">📤 ค้างจ่าย</option>
+              <option value="draft">📝 ร่าง</option>
             </select>
             <input class="fi" id="bl-flt-search" placeholder="🔍 ค้นเลขใบ / ลูกค้า..." oninput="billingRenderIssued()" style="flex:1;min-width:200px;height:32px">
             <button class="btn btn-ghost" onclick="billingLoadAll()" style="height:32px"><span>🔄</span> Refresh</button>
@@ -1521,8 +1520,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <div id="bl-issued-empty" style="display:none;text-align:center;padding:40px;color:var(--text-3)">ยังไม่มีใบวางบิล</div>
         </div>
 
-        <!-- PANEL 2: Create new bill -->
-        <div class="bill-panel" id="bill-panel-create">
+        <!-- PANEL: รอวางบิล (create) — default active -->
+        <div class="bill-panel active" id="bill-panel-create">
           <div style="background:#F0F8F0;border:1px solid var(--green-m);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green-d)">
             💡 เลือกลูกค้า + ช่วงวันที่ → ระบบจะแสดง <strong>ใบงานที่เสร็จงานแล้ว + มีค่าใช้จ่ายในระบบ + ยังไม่ออกใบ</strong> → tick แล้วกดสร้างใบวางบิล
           </div>
@@ -25867,7 +25866,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.220';
+const APP_VERSION = '2026.04.29.221';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -30500,7 +30499,7 @@ var _BL_INITED = false;
 var _BL_BILLS = [];
 var _BL_MASTER = [];
 var _BL_JOBS = [];        // jobs for create-tab
-var _BL_VIEW = 'issued';
+var _BL_VIEW = 'create';  // 🆕 default tab = รอวางบิล
 
 function billingInit(){
   // change view based on URL hash on first call
@@ -30546,12 +30545,29 @@ async function billingLoadAll(){
     billingRenderCreate();
     if(typeof billingRenderPaid==='function') billingRenderPaid();        // 🆕 v116
     if(typeof billingRenderReceipt==='function') billingRenderReceipt();  // 🆕 v116
+    if(typeof billingCountPending==='function') billingCountPending();    // 🆕 นับงานรอวางบิล → badge
   }catch(e){
     console.error('billing load error:', e);
     if(typeof showToast==='function') showToast('โหลดข้อมูลใบวางบิลไม่สำเร็จ: '+e.message);
   }
 }
 
+// 🆕 นับงานที่เสร็จแล้ว + มีค่าใช้จ่าย + ยังไม่วางบิล (ทุกลูกค้า) → badge tab "รอวางบิล"
+async function billingCountPending(){
+  try{
+    var url = SUPA_URL + '/rest/v1/gyt_jobs?select=id,costs&order=startdate.desc&limit=1000';
+    var jobs = await fetch(url, {headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY}}).then(function(r){return r.json();});
+    var billed = {}; _BL_BILLS.forEach(function(b){ (b.job_ids||[]).forEach(function(j){ billed[j]=1; }); });
+    var n = 0;
+    (jobs||[]).forEach(function(j){
+      if(billed[j.id] || !j.costs) return;
+      var c=j.costs; var _frt=(+c.priceAmt||0)>0?(+c.priceAmt||0):(+c.tripAmt||0);
+      var total=_frt+(+c.boxAmt||0)+(+c.recvAmt||0)+(+c.retAmt||0)+(+c.portAmt||0)+(+c.tollAmt||0)+(+c.miscAmt||0)+(+c.misc2Amt||0);
+      if(total>0) n++;
+    });
+    var el=document.getElementById('bt-create-c'); if(el) el.textContent = n;
+  }catch(e){ console.warn('billingCountPending', e); }
+}
 function _bl_fmt(n){
   var x = +n || 0;
   return x.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -30588,12 +30604,13 @@ function billingRenderStats(){
   document.getElementById('bs-issued-amt').textContent = _bl_fmt(issuedAmt)+' ฿ ค้างจ่าย';
   document.getElementById('bs-paid').textContent = paid.length;
   document.getElementById('bs-paid-amt').textContent = _bl_fmt(paidAmt)+' ฿';
-  document.getElementById('bt-issued-c').textContent = total;
+  document.getElementById('bt-issued-c').textContent = (total - paid.length);   // 🆕 ค้างจ่าย = ยังไม่จ่าย
+  document.getElementById('bt-paid-c').textContent = paid.length;
   document.getElementById('bt-master-c').textContent = _BL_MASTER.length;
 }
 
 function billingRenderIssued(){
-  var bills = _BL_BILLS.slice();
+  var bills = _BL_BILLS.filter(function(b){return b.status!=='paid';});  // 🆕 tab "ค้างจ่าย" = ยังไม่จ่ายเท่านั้น
   var st = document.getElementById('bl-flt-status').value;
   var q = (document.getElementById('bl-flt-search').value||'').toLowerCase().trim();
   if(st) bills = bills.filter(function(b){return b.status===st;});
@@ -30932,7 +30949,7 @@ function billingRenderReceipt(){
   });
   var notIssuedCount = paid.filter(function(b){return !b.receipt_no;}).length;
   document.getElementById('br-count').textContent = notIssuedCount;
-  document.getElementById('bt-receipt-c').textContent = notIssuedCount;
+  var _brc=document.getElementById('bt-receipt-c'); if(_brc) _brc.textContent = notIssuedCount;  // 🆕 tab ลบแล้ว (รวมใน จ่ายแล้ว) — null-safe
   var tbody = document.getElementById('br-tbody');
   var empty = document.getElementById('br-empty');
   if(!rows.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
