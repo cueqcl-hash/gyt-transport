@@ -25893,7 +25893,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.222';
+const APP_VERSION = '2026.04.29.223';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -30772,7 +30772,7 @@ async function billingRenderCreate(){
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px" title="'+_bl_esc(j.shipper||j.receipt_name||'')+'">'+_bl_esc(j.shipper||j.receipt_name||'—')+'</td>'+
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:400px" title="'+_bl_esc(route+book)+'">'+_bl_esc(route+book)+'</td>'+
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-2)">'+_bl_esc((j.container||'')+(j.type?' '+j.type:''))+'</td>'+
-        '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:600">'+_bl_fmt(total)+'</td>'+
+        '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:600;white-space:nowrap">'+_bl_fmt(total)+' <span onclick="billingJobCostDetail(\''+_bl_esc(j.id)+'\')" title="ดูรายละเอียดค่าใช้จ่าย" style="cursor:pointer;opacity:0.55;font-size:13px;margin-left:2px">👁</span></td>'+
         '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)">'+statusCell+'</td>'+
         '</tr>';
     }).join('');
@@ -30789,6 +30789,30 @@ async function billingRenderCreate(){
 function billingToggleAllJobs(cb){
   document.querySelectorAll('.bc-cb').forEach(function(c){c.checked = cb.checked;});
   billingUpdateSelection();
+}
+
+// 🆕 👁 คลิกดูรายละเอียดค่าใช้จ่ายของงาน (แยกแต่ละรายการ)
+function billingJobCostDetail(jobId){
+  var j = (_BL_JOBS||[]).find(function(x){return x.id===jobId;});
+  if(!j || !j.costs){ if(typeof showToast==='function') showToast('ไม่พบข้อมูลค่าใช้จ่าย'); return; }
+  var c = j.costs;
+  var frt = (+c.priceAmt||0)>0 ? (+c.priceAmt||0) : (+c.tripAmt||0);
+  var items = [['🚚 ค่าขนส่ง',frt],['📦 ค่ายกตู้',+c.boxAmt||0],['📥 ค่ารับตู้',+c.recvAmt||0],['📤 ค่าคืนตู้',+c.retAmt||0],['⚓ ค่าผ่านท่า',+c.portAmt||0],['🛣️ ค่าทางด่วน',+c.tollAmt||0],[(c.miscNote||'อื่นๆ'),+c.miscAmt||0],[(c.misc2Note||'อื่นๆ (2)'),+c.misc2Amt||0]];
+  var rows='', tot=0;
+  items.forEach(function(it){ if(it[1]>0){ rows+='<div style="display:flex;justify-content:space-between;gap:24px;padding:4px 0;border-bottom:1px dashed #eee"><span style="color:var(--text-2)">'+_bl_esc(it[0])+'</span><span style="font-family:var(--mono);font-weight:600">'+_bl_fmt(it[1])+'</span></div>'; tot+=it[1]; } });
+  if(!rows) rows='<div style="color:var(--text-3);padding:6px 0">— ไม่มีรายการค่าใช้จ่าย —</div>';
+  var old=document.getElementById('bc-cost-pop'); if(old) old.remove();
+  var pop=document.createElement('div'); pop.id='bc-cost-pop';
+  pop.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:flex;align-items:center;justify-content:center';
+  pop.onclick=function(e){ if(e.target===pop) pop.remove(); };
+  pop.innerHTML='<div style="background:#fff;border-radius:12px;padding:18px 22px;min-width:320px;max-width:92vw;box-shadow:0 12px 40px rgba(0,0,0,.25)">'+
+    '<div style="font-weight:700;color:var(--green-d);margin-bottom:4px">💰 รายละเอียดค่าใช้จ่าย</div>'+
+    '<div style="font-size:11.5px;color:var(--text-3);margin-bottom:10px">JOB '+_bl_esc(jobId)+' · '+_bl_esc((j.shipper||j.receipt_name||''))+'</div>'+
+    rows+
+    '<div style="display:flex;justify-content:space-between;gap:24px;border-top:2px solid var(--green);margin-top:8px;padding-top:7px;font-weight:800;color:var(--green-d)"><span>รวม</span><span style="font-family:var(--mono)">'+_bl_fmt(tot)+' ฿</span></div>'+
+    '<button onclick="var p=document.getElementById(\'bc-cost-pop\');if(p)p.remove()" style="margin-top:13px;width:100%;padding:8px;border:none;background:var(--green);color:#fff;border-radius:6px;cursor:pointer;font-weight:600">ปิด</button>'+
+    '</div>';
+  document.body.appendChild(pop);
 }
 
 function billingUpdateSelection(){
