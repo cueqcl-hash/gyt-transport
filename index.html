@@ -930,6 +930,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <div class="dfin-bar" style="margin-top:6px"><div><div class="dfin-title">🛡️ ความปลอดภัยรายคัน</div><div class="dfin-sub">คะแนนเสี่ยงจากพฤติกรรมขับ (วิ่งเกิน90 · ขับกระชาก · ความเร็วสูงสุด) เรียงเสี่ยงมากบนสุด · รายคัน ไม่อิงชื่อคนขับ</div></div></div>
           <div class="dfin-card" style="margin-bottom:18px"><div id="ctk-safety"><div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลด…</div></div></div>
 
+          <!-- เบรกกระทันหัน -->
+          <div class="dfin-bar" style="margin-top:6px"><div><div class="dfin-title">🛑 เบรกกระทันหัน</div><div class="dfin-sub">แยกจาก "กระชาก" รวม — เบรกแรงบ่อย = เสี่ยงชน + เปลืองน้ำมัน (ทิ้งแรงส่ง) · เรียงมากสุดบนสุด</div></div></div>
+          <div class="dfin-card" style="margin-bottom:18px"><div id="ctk-brake"><div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลด…</div></div></div>
+
           <!-- น้ำมัน & ความสิ้นเปลือง -->
           <div class="dfin-bar" style="margin-top:6px"><div><div class="dfin-title">⛽ ความสิ้นเปลืองน้ำมัน (กม./ลิตร)</div><div class="dfin-sub">รายคัน เรียงเปลืองสุดบนสุด</div></div></div>
           <div class="dfin-card" style="margin-bottom:18px"><div id="ctk-fuel"><div style="color:var(--text-3);font-size:12px;padding:10px 0">กำลังโหลด…</div></div></div>
@@ -19581,10 +19585,32 @@ async function renderCartrackDash(){
   if(typeof hasPerm==='function' && !hasPerm('dashboard')){ wrap.style.display='none'; if(no) no.style.display='block'; return; }
   if(no) no.style.display='none'; wrap.style.display='block';
   try{ renderVehicleSafety(); }catch(e){ console.warn('ctk safety', e); }
+  try{ renderCtkBrake(); }catch(e){ console.warn('ctk brake', e); }
   try{ renderCtkFuel(); }catch(e){ console.warn('ctk fuel', e); }
   try{ renderCtkTheft(); }catch(e){ console.warn('ctk theft', e); }
   try{ renderCtkIdle(); }catch(e){ console.warn('ctk idle', e); }
   try{ renderCtkTag(); }catch(e){ console.warn('ctk tag', e); }
+}
+// 🛑 เบรกกระทันหันรายคัน (แยกจาก harsh รวม) · เรียงมากสุดบนสุด · เกี่ยวข้องทั้งความปลอดภัย+สิ้นเปลืองน้ำมัน
+async function renderCtkBrake(){
+  var el=document.getElementById('ctk-brake'); if(!el) return;
+  try{
+    var R=await _ctkLatest('gyt_vehicle_safety');
+    var data=(R.data||[]).filter(function(r){ return r.brake!=null; }).map(function(r){ var km=Number(r.km)||0, br=Number(r.brake)||0; return { plate:r.plate, brake:br, accel:Number(r.accel)||0, corner:Number(r.corner)||0, per100:km>0?br/km*100:0 }; });
+    if(!data.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลเบรกกระทันหัน (รอรัน SQL เพิ่มคอลัมน์ / ข้อมูลรอบใหม่)</div>'; return; }
+    data.sort(function(a,b){ return b.per100-a.per100; });
+    var totBr=data.reduce(function(s,d){return s+d.brake;},0);
+    function c(v){ return v>=4?'#DC2626':(v>=2?'#D97706':'#16A34A'); }
+    var html='<div style="font-size:11.5px;color:var(--text-3);margin-bottom:8px">เบรกกระทันหันรวม '+_dashFmt(totBr)+' ครั้ง · เบรกแรงบ่อย = เสี่ยงชน + เปลืองน้ำมัน (ทิ้งแรงส่งที่เผาน้ำมันมาแล้ว)</div>';
+    html+='<div style="max-height:460px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th style="text-align:right">เบรก /100กม</th><th style="text-align:right">เบรก(ครั้ง)</th><th style="text-align:right">ออกตัวแรง</th><th style="text-align:right">เลี้ยวแรง</th></tr></thead><tbody>';
+    html+=data.map(function(d){ return '<tr><td style="font-weight:700">'+_finEsc(d.plate)+'</td>'
+      +'<td style="text-align:right;font-weight:800;color:'+c(d.per100)+'">'+d.per100.toFixed(1)+'</td>'
+      +'<td style="text-align:right">'+_dashFmt(d.brake)+'</td>'
+      +'<td style="text-align:right;color:var(--text-3)">'+_dashFmt(d.accel)+'</td>'
+      +'<td style="text-align:right;color:var(--text-3)">'+_dashFmt(d.corner)+'</td></tr>'; }).join('');
+    html+='</tbody></table></div><div style="font-size:11px;color:var(--text-3);margin-top:6px">🔴 ≥4 ครั้ง/100กม · 🟡 2–4 · 🟢 ต่ำกว่า 2 · Cartrack แยก เบรกแรง/ออกตัวแรง/เลี้ยวแรง</div>';
+    el.innerHTML=html;
+  }catch(e){ console.warn('ctk brake', e.message); el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">โหลดข้อมูลเบรกไม่สำเร็จ</div>'; }
 }
 // ⛽ ความสิ้นเปลืองน้ำมัน (กม./ลิตร) จาก gyt_fuel_summary · เรียงเปลืองสุดบนสุด + ธง critical <2.5
 async function renderCtkFuel(){
@@ -25480,7 +25506,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.210';
+const APP_VERSION = '2026.04.29.211';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
