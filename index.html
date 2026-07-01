@@ -5485,6 +5485,14 @@ const ALL_COLS = [
   {id:'carrier',     label:'Carrier Line',            field:'carrier',      width:'110px'},
   {id:'booking',     label:'Booking/BL/JOB',          field:'booking',      width:'130px'},
   {id:'price',       label:'💰 ค่าขนส่งต่อตู้/เที่ยว', field:'price',       width:'130px'},  // 🆕 v158 — เห็นเฉพาะ perm view_price
+  {id:'cost_trip',   label:'เบิก(ค่าแรง)',            field:'cost_trip',    width:'88px'},   // 🆕 ต้นทุน — ทีม operation (view_cost)
+  {id:'cost_box',    label:'ค่ายกตู้',                field:'cost_box',     width:'78px'},
+  {id:'cost_recv',   label:'ค่ารับตู้',               field:'cost_recv',    width:'78px'},
+  {id:'cost_ret',    label:'ค่าคืนตู้',               field:'cost_ret',     width:'78px'},
+  {id:'cost_port',   label:'ค่าผ่านท่า',              field:'cost_port',    width:'80px'},
+  {id:'cost_toll',   label:'ค่าทางด่วน',              field:'cost_toll',    width:'82px'},
+  {id:'cost_misc',   label:'ค่าอื่นๆ',                field:'cost_misc',    width:'78px'},
+  {id:'cost_total',  label:'รวมต้นทุน',               field:'cost_total',   width:'98px'},   // 🆕 รวม — เฉพาะ PISOLN/DONUT/SOMJAI (view_cost_total)
   {id:'status',      label:'สถานะใบงาน',              field:'status',       width:'110px'},
   {id:'note',        label:'หมายเหตุ',                field:'note',         width:'180px'},
   {id:'id',          label:'เลขใบงาน',               field:'id',           width:'88px', pinned:true},
@@ -5494,7 +5502,7 @@ const ALL_COLS = [
 // IMPORTANT: ตรงนี้แก้เฉพาะ legacy global key (gyt_colOrder) เท่านั้น
 // ไม่แตะ per-user keys (gyt_colOrder_u<id>) → user prefs ปลอดภัย
 (function(){
-  var def=['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','cargo_type','customer','carrier','booking','price','status','note','id'];  // 🆕 v158 — +price
+  var def=['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','cargo_type','customer','carrier','booking','price','cost_trip','cost_box','cost_recv','cost_ret','cost_port','cost_toll','cost_misc','cost_total','status','note','id'];  // 🆕 v158 — +price
   var stored=JSON.parse(localStorage.getItem('gyt_colOrder')||'[]');
   var needInit = stored.length === 0;
   if(needInit){
@@ -5504,7 +5512,7 @@ const ALL_COLS = [
   // ไม่ overwrite ของ user — user customize แล้วเก็บไว้เลย
 })();
 
-const _DEFAULT_COL_ORDER = ['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','cargo_type','customer','carrier','booking','price','status','note','id'];  // 🆕 v158 — +price
+const _DEFAULT_COL_ORDER = ['startdate','delivery_type','plate','driver','shipper','origin','dest','deliverdate','returnyard','job_type','type','container','weight','cargo_type','customer','carrier','booking','price','cost_trip','cost_box','cost_recv','cost_ret','cost_port','cost_toll','cost_misc','cost_total','status','note','id'];  // 🆕 v158 — +price
 // Column ที่ซ่อนเป็น default (user เปิดได้เองใน Column Manager)
 const _DEFAULT_HIDDEN_COLS = ['cargo_type'];
 let colOrder = JSON.parse(localStorage.getItem('gyt_colOrder')||JSON.stringify(_DEFAULT_COL_ORDER));
@@ -5648,6 +5656,10 @@ function hasPerm(p){
   if(p==='manage_closing') return currentUser.role==='supervisor' || ['PISOLN','MOO','TOON','DONUT'].indexOf(currentUser.username)>=0;
   // 🆕 view_closing_sum (รวมค่าใช้จ่ายที่ปิดบัญชี): เห็นเฉพาะ กรรมการ(admin) + PISOLN + DONUT (เท่ากับ gate การเงิน)
   if(p==='view_closing_sum') return (typeof _dashCanSeeFinance==='function') ? _dashCanSeeFinance() : (currentUser.username==='PISOLN'||currentUser.username==='DONUT');
+  // 🆕 view_cost (คอลัมน์ต้นทุน 7 ช่องในตารางงาน): ทีม operation = ทุก role ยกเว้นบัญชี(accounting=AOI)
+  if(p==='view_cost') return currentUser.role!=='accounting';
+  // 🆕 view_cost_total (คอลัมน์รวมต้นทุน): เฉพาะ PISOLN + DONUT + SOMJAI (admin=PISOLN ผ่านบรรทัดบนแล้ว)
+  if(p==='view_cost_total') return ['PISOLN','DONUT','SOMJAI'].indexOf(currentUser.username)>=0;
   return Array.isArray(currentUser.perms) && currentUser.perms.includes(p);
 }
 
@@ -20371,10 +20383,23 @@ const COL_PERM_MAP = {
   'plate':      'view_plate',
   'driver':     'view_plate',
   'price':      'view_price',  // 🆕 v158 — ราคาขายต่อตู้ เห็นเฉพาะผู้บริหาร+บัญชี
+  'cost_trip':'view_cost','cost_box':'view_cost','cost_recv':'view_cost','cost_ret':'view_cost','cost_port':'view_cost','cost_toll':'view_cost','cost_misc':'view_cost',  // 🆕 ต้นทุน 7 ช่อง — ทีม operation
+  'cost_total':'view_cost_total',  // 🆕 รวมต้นทุน — เฉพาะ PISOLN/DONUT/SOMJAI
   // origin/dest/returnyard text → ไม่ผูก perm (เห็นได้)
   // map link ใน cells ผูก view_location (จัดการในส่วน render)
 };
 
+// 🆕 ค่าต้นทุนต่อคอลัมน์ในตารางงาน (อ่านจาก job.costs ผ่าน _dashPickAmt/_dashTrip/_dashJobOpCost)
+function _jobCostVal(j, id){
+  var c=(j&&j.costs)||{};
+  if(id==='cost_total') return (typeof _dashJobOpCost==='function')?_dashJobOpCost(j):0;
+  if(id==='cost_trip')  return (typeof _dashTrip==='function')?_dashTrip(j):(typeof _dashPickAmt==='function'?_dashPickAmt(c,'trip'):0);
+  return (typeof _dashPickAmt==='function')?_dashPickAmt(c, id.replace('cost_','')):0;
+}
+function _jobCostCell(j, id){
+  var n=Number(_jobCostVal(j,id))||0, isTot=(id==='cost_total');
+  return '<td style="text-align:right;font-family:var(--mono);font-weight:'+(isTot?'800':'600')+';color:'+(isTot?'#065F46':'#B45309')+'">'+(n>0?n.toLocaleString('th-TH'):'—')+'</td>';
+}
 function getCols(){
   const visible=colOrder.filter(id=>!hiddenCols.has(id));
   return visible
@@ -20541,6 +20566,7 @@ function renderJobs(){
         if(c.id==='shipper')return`<td style="color:var(--green-d);font-weight:600">${v||'—'}</td>`;
         // 🆕 v158 — ราคาขายต่อตู้ (costs.priceAmt) — getCols กรอง perm ให้แล้ว
         if(c.id==='price'){const pv=j.costs&&j.costs.priceAmt!==undefined&&j.costs.priceAmt!==null&&j.costs.priceAmt!==''?Number(j.costs.priceAmt):null;return`<td style="text-align:right;font-family:var(--mono);font-weight:700;color:#065F46">${pv!==null&&!isNaN(pv)?pv.toLocaleString('th-TH'):'—'}</td>`;}
+        if(c.id&&c.id.indexOf('cost_')===0) return _jobCostCell(j, c.id);   // 🆕 คอลัมน์ต้นทุน (getCols กรอง perm ให้แล้ว)
         // location text แสดงตลอด (ไม่ผูก perm), แต่ map link ผูก view_location
         if(c.id==='origin'){const showMap=hasPerm('view_location')&&j.originUrl;return`<td>${showMap?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.originUrl}">📍 ${v}</span>`:(v||'—')}</td>`;}
         if(c.id==='dest'){const showMap=hasPerm('view_location')&&j.destUrl;return`<td>${showMap?`<span class="loc-icon" onclick="window.open(this.dataset.url,'_blank')" data-url="${j.destUrl}">📍 ${v}</span>`:(v||'—')}</td>`;}
