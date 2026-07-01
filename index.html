@@ -5656,8 +5656,8 @@ function hasPerm(p){
   if(p==='manage_closing') return currentUser.role==='supervisor' || ['PISOLN','MOO','TOON','DONUT'].indexOf(currentUser.username)>=0;
   // 🆕 view_closing_sum (รวมค่าใช้จ่ายที่ปิดบัญชี): เห็นเฉพาะ กรรมการ(admin) + PISOLN + DONUT (เท่ากับ gate การเงิน)
   if(p==='view_closing_sum') return (typeof _dashCanSeeFinance==='function') ? _dashCanSeeFinance() : (currentUser.username==='PISOLN'||currentUser.username==='DONUT');
-  // 🆕 view_cost (คอลัมน์ต้นทุน 7 ช่องในตารางงาน): ทีม operation = ทุก role ยกเว้นบัญชี(accounting=AOI)
-  if(p==='view_cost') return currentUser.role!=='accounting';
+  // 🆕 view_cost (คอลัมน์ต้นทุน 7 ช่องในตารางงาน): เห็นได้ทุกคน รวมบัญชี(AOI) — จำกัดเฉพาะ "รวมต้นทุน" (view_cost_total)
+  if(p==='view_cost') return true;
   // 🆕 view_cost_total (คอลัมน์รวมต้นทุน): เฉพาะ PISOLN + DONUT + SOMJAI (admin=PISOLN ผ่านบรรทัดบนแล้ว)
   if(p==='view_cost_total') return ['PISOLN','DONUT','SOMJAI'].indexOf(currentUser.username)>=0;
   return Array.isArray(currentUser.perms) && currentUser.perms.includes(p);
