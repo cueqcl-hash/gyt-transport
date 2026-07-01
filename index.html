@@ -5660,6 +5660,8 @@ function hasPerm(p){
   if(p==='view_cost') return true;
   // 🆕 view_cost_total (คอลัมน์รวมต้นทุน): เฉพาะ PISOLN + DONUT + SOMJAI (admin=PISOLN ผ่านบรรทัดบนแล้ว)
   if(p==='view_cost_total') return ['PISOLN','DONUT','SOMJAI'].indexOf(currentUser.username)>=0;
+  // 🆕 view_price (ค่าขนส่งต่อตู้/เที่ยว): เห็นเฉพาะ AOI/PISOLN/DONUT/SOMJAI/TOON เท่านั้น (คุมทั้งคอลัมน์ + ช่องกรอกในฟอร์ม)
+  if(p==='view_price') return ['AOI','PISOLN','DONUT','SOMJAI','TOON'].indexOf(currentUser.username)>=0;
   return Array.isArray(currentUser.perms) && currentUser.perms.includes(p);
 }
 
