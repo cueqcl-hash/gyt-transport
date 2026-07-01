@@ -5,7 +5,7 @@ create table if not exists gyt_cartrack_weekly (
   id bigserial primary key,
   plate text not null,
   week date not null,
-  trips int, km numeric, max_speed numeric, spd_evt int, spd_min int, harsh int, spd_per100 numeric,
+  trips int, km numeric, max_speed numeric, spd_evt int, spd_min int, harsh int, brake int, accel int, corner int, spd_per100 numeric,
   eng_hr numeric, idle_hr numeric, idle_pct numeric, no_tag int,
   fills int, liters numeric, amount numeric, kmpl numeric,
   created_at timestamptz default now()
