@@ -17866,7 +17866,7 @@ async function finLoad(){
   if(plate !== '*'){
     var legacyShort = (plate.match(/(\d{2,3}-\d{4})/)||[])[0];
     if(legacyShort){
-      legacyPlateFilter = '&plate=eq.' + encodeURIComponent(legacyShort);
+      legacyPlateFilter = '&plate=like.' + encodeURIComponent(legacyShort) + '*';  // v222 — แมตช์ทั้ง "75-3421" และ "75-3421 กท." (เดิม eq เป๊ะ เลยไม่เจอตัวมี กท.)
     } else {
       legacyPlateFilter = plateFilter;
     }
@@ -25893,7 +25893,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.221';
+const APP_VERSION = '2026.04.29.222';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
