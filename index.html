@@ -19284,6 +19284,17 @@ function _dashSetMode(mode){
   _dashBuildPeriodCtrl();
   renderFinanceDashboard();
 }
+// 🆕 เดือน default ของ Dashboard = เดือนล่าสุดที่มีงาน (กันโชว์เดือนปัจจุบันที่ยังว่าง ต้นเดือน)
+//    ถ้าเดือนปัจจุบันข้อมูลยังไม่ถึงครึ่งของเดือนก่อน (ยังไม่ครบ) → ถอยไปใช้เดือนก่อนหน้า
+function _dashDefaultMonth(){
+  var now=new Date(), curM=_dashMK(now), cnt={};
+  (typeof jobs!=='undefined'?jobs:[]).forEach(function(j){ if(!j||!j.startdate||j.status==='ยกเลิก')return; var s=String(j.startdate).slice(0,7); if(/^\d{4}-\d{2}$/.test(s)) cnt[s]=(cnt[s]||0)+1; });
+  var ms=Object.keys(cnt).sort();
+  if(!ms.length) return curM;
+  var latest=ms[ms.length-1];
+  if(latest===curM && ms.length>=2){ var prev=ms[ms.length-2]; if((cnt[latest]||0) < (cnt[prev]||0)*0.5) return prev; }
+  return latest;
+}
 function _dashBuildPeriodCtrl(){
   var el=document.getElementById('dfin-period-ctrl'); if(!el) return;
   var now=new Date(), o='';
@@ -19296,6 +19307,8 @@ function _dashBuildPeriodCtrl(){
   } else {
     for(var i=0;i<24;i++){ var d=new Date(now.getFullYear(), now.getMonth()-i, 1); o+='<option value="'+_dashMK(d)+'">'+_dashThaiMonth(d.getMonth()+1)+' '+(d.getFullYear()+543)+'</option>'; }
     el.innerHTML='<select class="dfin-period" id="dash-month" onchange="renderFinanceDashboard()">'+o+'</select>';
+    var _dm=document.getElementById('dash-month'), _def=(typeof _dashDefaultMonth==='function')?_dashDefaultMonth():'';   // 🆕 default = เดือนล่าสุดที่มีข้อมูล
+    if(_dm && _def){ _dm.value=_def; }
   }
 }
 
