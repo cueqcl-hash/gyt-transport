@@ -1005,6 +1005,25 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="ec-head">📋 ประวัติรอบที่ปิดแล้ว <button class="btn btn-ghost" style="font-size:11px" onclick="ecLoadList()">&#8635; รีเฟรช</button></div>
             <div id="ec-list"><div style="color:var(--text-3);font-size:13px;padding:10px 0">กำลังโหลด...</div></div>
           </div>
+          <!-- 🆕 💵 เงินเดือนพนักงานขับรถ — เห็น/ใช้เฉพาะ PISOLN -->
+          <div class="ec-card" id="sal-card" style="display:none">
+            <div class="ec-head"><span>💵 เงินเดือนพนักงานขับรถ <span style="background:#FEE2E2;color:#991B1B;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;vertical-align:middle">🔒 เฉพาะพี่</span></span>
+              <span class="pn">ประจำเดือน <input type="month" id="sal-month" onchange="salMonthChange()" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px"></span></div>
+            <div id="sal-note" style="display:none;background:#FEF9E7;border:1px solid #F1C40F;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#7D6608;margin-bottom:10px"></div>
+            <table class="ec-tbl" style="max-width:700px">
+              <thead><tr><th class="ec-idx">#</th><th>ชื่อ</th><th style="width:86px;text-align:center">ประเภทรถ</th><th class="r" style="width:132px">ยอดโอน (บาท)</th></tr></thead>
+              <tbody id="sal-tb"></tbody>
+              <tfoot><tr><td colspan="3" style="text-align:right">ยอดรวม</td><td class="r" id="sal-total">฿0.00</td></tr></tfoot>
+            </table>
+            <div style="font-size:11.5px;color:var(--text-3);margin-top:6px">ยอดฐาน: สิบล้อ 5,000 · เทลเลอร์ 5,500 — แก้ตามจริงได้ (เบิกล่วงหน้า/ค่าทางด่วน) · เว้นว่าง = ไม่โอน</div>
+            <div class="ec-actions">
+              <button class="btn btn-green" onclick="salSave()">💾 บันทึกรอบเงินเดือน</button>
+              <button class="btn btn-ghost" onclick="salPrintCurrent()">🖨 พิมพ์</button>
+              <button class="btn btn-ghost" onclick="salBuildRows(null)">&#8635; รีเซ็ตเป็นยอดฐาน</button>
+            </div>
+            <div style="margin-top:14px;font-weight:700;color:var(--green-d);font-size:13.5px">📋 ประวัติรอบเงินเดือน</div>
+            <div id="sal-list"><div style="color:var(--text-3);font-size:13px;padding:8px 0">กำลังโหลด...</div></div>
+          </div>
         </div>
       </div>
 
@@ -19555,6 +19574,10 @@ function _dashRenderDrivers(pr){
   var agg={};
   function ens(d){ if(!agg[d]) agg[d]={drv:d,trips:0,rev:0,pay:0}; return agg[d]; }
   jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,pr))return; var d=(j.driver||'').trim(); if(!d)return; var a=ens(d); a.trips++; a.rev+=_dashJobRevenue(j); a.pay+=_dashTrip(j); });
+  // 🆕 เงินเดือน (รอบ SAL-* จากหน้าปิดรอบ) → คอลัมน์เงินเดือน + รายรับรวม
+  if(typeof _salRoundsCache!=='undefined' && _salRoundsCache===null && typeof _salFetchRounds==='function'){ _salRoundsCache=[]; _salFetchRounds().then(function(){ try{_dashRenderDrivers(pr);}catch(e){} }); }
+  var salMap=(typeof _salMapForPr==='function')?_salMapForPr(pr):{};
+  Object.keys(salMap).forEach(function(nm){ if(!agg[nm] && salMap[nm]>0) agg[nm]={drv:nm,trips:0,rev:0,pay:0}; });   // คนมีเงินเดือนแต่ไม่มีเที่ยว (เช่นลาป่วย) ก็โชว์
   var arr=Object.keys(agg).map(function(k){return agg[k];});
   var active=arr.length;
   var totTrips=arr.reduce(function(s,a){return s+a.trips;},0);
@@ -19572,12 +19595,13 @@ function _dashRenderDrivers(pr){
   var byTrips=arr.slice().sort(function(a,b){return b.trips-a.trips;}).slice(0,8);
   _dashMkChart('dashDrvChart',{type:'bar',data:{labels:byTrips.map(function(a){return a.drv;}),datasets:[{label:'จำนวนเที่ยว',data:byTrips.map(function(a){return a.trips;}),backgroundColor:'#2563EB'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#f0f0f0'},ticks:{font:{family:'Sarabun'}}},y:{grid:{display:false},ticks:{font:{family:'Sarabun',size:11}}}}}});
 
-  var byT=arr.slice().sort(function(a,b){return (b.pay-a.pay)||(b.trips-a.trips);});  // เรียงตามเบิก(ที่มีข้อมูล) แล้วค่อยเที่ยว · โชว์ทุกคน
+  var _inc=function(a){ return a.pay+(salMap[a.drv]||0); };   // รายรับรวม = เบิก + เงินเดือน
+  var byT=arr.slice().sort(function(a,b){return (_inc(b)-_inc(a))||(b.trips-a.trips);});  // เรียงตามรายรับรวม · โชว์ทุกคน
   var _gy=function(v){ return v>0?'฿'+_dashFmt(v):'<span style="color:var(--text-3)">—</span>'; };
   document.getElementById('ddrv-table').innerHTML = byT.length?
-    '<div style="max-height:420px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>คนขับ</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">เบิก (ค่าแรง)</th><th style="text-align:right">รายได้ <small style="color:var(--text-3);font-weight:400">(รอ import ราคา)</small></th><th style="text-align:right">รายได้/เที่ยว</th></tr></thead><tbody>'+
-    byT.map(function(a){ return '<tr><td style="font-weight:700">'+_finEsc(a.drv)+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">'+_gy(a.pay)+'</td><td style="text-align:right;color:var(--text-3)">'+_gy(a.rev)+'</td><td style="text-align:right;color:var(--text-3)">'+(a.rev>0?'฿'+_dashFmt(a.rev/a.trips):'<span style="color:var(--text-3)">—</span>')+'</td></tr>'; }).join('')+
-    '</tbody></table></div><div style="font-size:11px;color:var(--text-3);margin-top:6px">แสดงครบทุกคน '+byT.length+' คน · "รายได้" รอ import ราคา (priceAmt ยังว่าง) · "เบิก" = ค่าแรงจาก guide</div>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลคนขับในช่วงนี้</div>';
+    '<div style="max-height:420px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>คนขับ</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">เบิก (ค่าแรง)</th><th style="text-align:right">เงินเดือน</th><th style="text-align:right">รายรับรวม</th><th style="text-align:right">รายได้ <small style="color:var(--text-3);font-weight:400">(รอ import ราคา)</small></th><th style="text-align:right">รายได้/เที่ยว</th></tr></thead><tbody>'+
+    byT.map(function(a){ var sl=salMap[a.drv]||0; return '<tr><td style="font-weight:700">'+_finEsc(a.drv)+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right;color:var(--green-d)">'+_gy(a.pay)+'</td><td style="text-align:right;color:#2563EB;font-weight:600">'+_gy(sl)+'</td><td style="text-align:right;font-weight:800;color:var(--green-d)">'+_gy(a.pay+sl)+'</td><td style="text-align:right;color:var(--text-3)">'+_gy(a.rev)+'</td><td style="text-align:right;color:var(--text-3)">'+(a.rev>0?'฿'+_dashFmt(a.rev/a.trips):'<span style="color:var(--text-3)">—</span>')+'</td></tr>'; }).join('')+
+    '</tbody></table></div><div style="font-size:11px;color:var(--text-3);margin-top:6px">แสดงครบทุกคน '+byT.length+' คน · "เงินเดือน" = จากรอบเงินเดือน (หน้าปิดรอบค่าใช้จ่าย) ของเดือนในช่วงที่เลือก · รายรับรวม = เบิก + เงินเดือน · "รายได้" รอ import ราคา</div>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลคนขับในช่วงนี้</div>';
 }
 
 // ค่าทางด่วน M-Flow รถส่วนตัวกรรมการ (ตารางแยก gyt_personal_tolls — แสดงอย่างเดียว ไม่นับต้นทุนบริษัท)
@@ -19971,6 +19995,7 @@ function ecInit(){
   if(!document.querySelectorAll('#ec-tb tr').length){ ecAddRow(); ecAddRow(); }
   ecLoadList();
   _ecInitDraft();   // 🆕 ตรวจร่างค้าง (กู้คืน) + เปิด auto-save
+  try{ if(typeof salInit==='function') salInit(); }catch(_se){}   // 🆕 💵 เงินเดือนคนขับ (เฉพาะ PISOLN)
 }
 var _ecTypes=['รับตู้','คืนตู้','ค่าเที่ยว','ทางด่วน','ค่าซ่อม','อื่นๆ'];  // ค่าเริ่มต้น
 // 🆕 ประเภท = combobox (พิมพ์เองได้ + จำค่าที่เคยกรอกผ่าน localStorage)
@@ -20088,10 +20113,10 @@ async function ecClose(){
 async function ecLoadList(){
   // 🆕 ประวัติรอบที่ปิด: เห็นเฉพาะของตัวเอง (ตาม payer_username) — ยกเว้น PISOLN/DONUT/SOMJAI เห็นทุกคน
   var _ecSeeAll = !!(currentUser && ['PISOLN','DONUT','SOMJAI'].indexOf(currentUser.username)>=0);
-  var _ecQ='?select=*&order=created_at.desc';
+  var _ecQ='?select=*&status=neq.salary&order=created_at.desc';   // 🆕 ไม่เอารอบเงินเดือน (SAL-*) มาปน
   if(!_ecSeeAll){
     var _un=(currentUser && currentUser.username)?currentUser.username:' ';   // ไม่มี username = ไม่แสดงอะไร
-    _ecQ='?select=*&payer_username=eq.'+encodeURIComponent(_un)+'&order=created_at.desc';
+    _ecQ='?select=*&status=neq.salary&payer_username=eq.'+encodeURIComponent(_un)+'&order=created_at.desc';
   }
   try{ var rows=await sbFetchAll('gyt_expense_closings',_ecQ); _ecList=rows||[]; }
   catch(e){ _ecList=[]; }
@@ -20153,6 +20178,158 @@ function ecPrint(round){
 }
 
 /* ════════════════════════════════════════════════
+   💵 เงินเดือนพนักงานขับรถ (เฉพาะ PISOLN) — เก็บใน gyt_expense_closings
+   doc_no='SAL-YYYY-MM' · status='salary' · items=[{no,nick,name,type,amount}]
+   ไม่ต้องรัน SQL · ผูก dashboard ผลงานรายคนขับ (คอลัมน์เงินเดือน+รายรับรวม)
+   ════════════════════════════════════════════════ */
+var SAL_DRIVERS=[
+  {no:1, nick:'ทอง',     name:'แสงทอง จันนุบิน',      type:'สิบล้อ',   base:5000},
+  {no:2, nick:'อ๋อย',     name:'ธีรชัย รื่นจีน',        type:'สิบล้อ',   base:5000},
+  {no:3, nick:'คมเพชร',  name:'คมเพชร ทองสิทธิ์',     type:'สิบล้อ',   base:5000},
+  {no:4, nick:'ต๋อม',     name:'อนุสรณ์ มาทอง',        type:'สิบล้อ',   base:5000},
+  {no:5, nick:'นะ',      name:'อนุสรณ์ จันนุบิน',      type:'สิบล้อ',   base:5000},
+  {no:6, nick:'วิเชียร',  name:'วิเชียร คามตะศีรา',    type:'เทลเลอร์', base:5500},
+  {no:7, nick:'สี',       name:'สี ผาตรี',             type:'เทลเลอร์', base:5500},
+  {no:8, nick:'สมบูรณ์', name:'สมบูรณ์ สมฤาชา',       type:'เทลเลอร์', base:5500},
+  {no:9, nick:'ตุ่ย',     name:'วิรพล คำยอดแก้ว',      type:'เทลเลอร์', base:5500},
+  {no:10,nick:'บาส',     name:'อานัฐชัย ราชวงศ์',     type:'เทลเลอร์', base:5500},
+  {no:11,nick:'บอส',     name:'รัตชัย สังข์สุวรรณ',    type:'เทลเลอร์', base:5500},
+  {no:12,nick:'อานนท์',  name:'อานนท์ สวัสดี',        type:'เทลเลอร์', base:5500},
+  {no:13,nick:'อ้วน',     name:'มานพ ดีขุนทด',         type:'เทลเลอร์', base:5500},
+  {no:14,nick:'เต่า',     name:'สมจิตร ราชวงศ์',       type:'เทลเลอร์', base:5500},
+  {no:15,nick:'มิตร',    name:'มิตร กุดสาร',          type:'เทลเลอร์', base:5500},
+  {no:16,nick:'ดำ',      name:'ประสิทธิ์ แสงวิมาน',   type:'เทลเลอร์', base:5500},
+  {no:17,nick:'โจ้',      name:'พงษ์ศักดิ์ อินทะเสนา', type:'เทลเลอร์', base:5500},
+  {no:18,nick:'เก่ง',     name:'วัลลภ จงใจจาคะ',       type:'เทลเลอร์', base:5500},
+];
+var _SAL_TH_M=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+var _salList=[], _salRoundsCache=null;
+function _salIsBoss(){ return !!(currentUser && currentUser.username==='PISOLN'); }
+function _salYmLabel(ym){ var p=String(ym||'').split('-'); if(p.length<2) return ym||''; return (_SAL_TH_M[(parseInt(p[1],10)||1)-1]||p[1])+' '+(parseInt(p[0],10)+543); }
+function _salNum(el){ return parseFloat(String((el&&el.value)||'').replace(/,/g,''))||0; }
+function _salFmtIn(el){ var v=parseFloat(String(el.value).replace(/,/g,'')); el.value=(isNaN(v)||v===0)?'':_ecFmt(v); salCalc(); }
+function salInit(){
+  var card=document.getElementById('sal-card'); if(!card) return;
+  if(!_salIsBoss()){ card.style.display='none'; return; }
+  card.style.display='block';
+  var mi=document.getElementById('sal-month');
+  if(mi && !mi.value){ var n=new Date(); mi.value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0'); }
+  salLoadList().then(function(){ salMonthChange(true); });
+}
+function salBuildRows(amounts){   // amounts={ชื่อจริง:ยอด} หรือ null=ยอดฐาน
+  var tb=document.getElementById('sal-tb'); if(!tb) return;
+  tb.innerHTML=SAL_DRIVERS.map(function(d){
+    var v=amounts?(amounts[d.name]!=null?Number(amounts[d.name]):0):d.base;
+    var vs=(v>0)?_ecFmt(v):'';
+    return '<tr><td class="ec-idx">'+d.no+'</td>'+
+      '<td><b>'+_ecEsc(d.nick)+'</b> <span style="color:var(--text-3);font-size:11px">'+_ecEsc(d.name)+'</span></td>'+
+      '<td style="text-align:center;font-size:11.5px;font-weight:600;color:'+(d.type==='สิบล้อ'?'#B45309':'#2563EB')+'">'+d.type+'</td>'+
+      '<td class="amt"><input type="text" inputmode="decimal" placeholder="-" value="'+vs+'" oninput="salCalc(true)" onblur="_salFmtIn(this)"></td></tr>';
+  }).join('');
+  salCalc();
+}
+function salCalc(userEdit){
+  var t=0; document.querySelectorAll('#sal-tb .amt input').forEach(function(el){ t+=_salNum(el); });
+  var el=document.getElementById('sal-total'); if(el) el.textContent='฿'+_ecFmt(t);
+  if(userEdit){ try{ var ym=(document.getElementById('sal-month')||{}).value; localStorage.setItem('gyt_sal_draft', JSON.stringify({ym:ym, amounts:_salGather().items.map(function(i){return i.amount;})})); }catch(e){} }   // ร่างกันคอมดับ
+}
+function _salGather(){
+  var items=[], total=0, inputs=document.querySelectorAll('#sal-tb .amt input');
+  SAL_DRIVERS.forEach(function(d,i){ var amt=_salNum(inputs[i]); items.push({no:d.no,nick:d.nick,name:d.name,type:d.type,amount:amt}); total+=amt; });
+  return {items:items,total:total};
+}
+function _salFindRound(ym){ return _salList.find(function(r){ return String(r.doc_no||'')===('SAL-'+ym); }); }
+function salMonthChange(silent){
+  var ym=(document.getElementById('sal-month')||{}).value; if(!ym) return;
+  var ex=_salFindRound(ym), note=document.getElementById('sal-note');
+  if(ex){
+    var am={}; (ex.items||[]).forEach(function(it){ am[it.name]=it.amount; });
+    salBuildRows(am);
+    if(note){ note.style.display='block'; note.innerHTML='📌 เดือนนี้บันทึกแล้ว (รวม ฿'+_ecFmt(ex.total)+') — แก้ตัวเลขแล้วกด 💾 = <b>บันทึกทับของเดิม</b>'; }
+    return;
+  }
+  salBuildRows(null);
+  if(note){ note.style.display='none'; note.innerHTML=''; }
+  try{ var d=JSON.parse(localStorage.getItem('gyt_sal_draft')||'null');   // กู้ร่าง (คอมดับระหว่างกรอก)
+    if(d && d.ym===ym && Array.isArray(d.amounts)){
+      var inputs=document.querySelectorAll('#sal-tb .amt input');
+      d.amounts.forEach(function(a,i){ if(inputs[i]) inputs[i].value=(Number(a)||0)>0?_ecFmt(a):''; });
+      salCalc();
+      if(note){ note.style.display='block'; note.innerHTML='🔄 กู้คืนตัวเลขที่กรอกค้างไว้ของเดือนนี้แล้ว (ยังไม่ได้บันทึก)'; }
+    }
+  }catch(e){}
+}
+async function salSave(){
+  if(!_salIsBoss()){ showToast('⚠ เฉพาะพี่ (PISOLN) เท่านั้น'); return; }
+  var ym=(document.getElementById('sal-month')||{}).value; if(!ym){ showToast('เลือกเดือนก่อนครับ'); return; }
+  var g=_salGather();
+  if(!g.total){ showToast('ยังไม่มียอดเงิน'); return; }
+  var ex=_salFindRound(ym), nPaid=g.items.filter(function(i){return i.amount>0;}).length;
+  if(!confirm((ex?'บันทึกทับรอบเดิมของเดือน ':'บันทึกรอบเงินเดือนเดือน ')+_salYmLabel(ym)+' ?\nโอน '+nPaid+' คน · รวม ฿'+_ecFmt(g.total))) return;
+  try{
+    var hd={apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY, 'Content-Type':'application/json', Prefer:'return=representation'};
+    var r;
+    if(ex){ r=await fetch(SUPA_URL+'/rest/v1/gyt_expense_closings?id=eq.'+ex.id, {method:'PATCH', headers:hd, body:JSON.stringify({items:g.items, item_count:g.items.length, total:g.total})}); }
+    else { r=await fetch(SUPA_URL+'/rest/v1/gyt_expense_closings', {method:'POST', headers:hd, body:JSON.stringify({doc_no:'SAL-'+ym, payer:_ecPayerName(), payer_username:(currentUser?currentUser.username:''), items:g.items, item_count:g.items.length, total:g.total, status:'salary', created_by:_ecPayerName()})}); }
+    if(!r.ok){ showToast('บันทึกไม่สำเร็จ: '+r.status, 5000); return; }
+    try{ localStorage.removeItem('gyt_sal_draft'); }catch(e){}
+    _salRoundsCache=null;   // ให้ dashboard โหลดเงินเดือนใหม่
+    showToast('✅ บันทึกเงินเดือน '+_salYmLabel(ym)+' เรียบร้อย');
+    await salLoadList(); salMonthChange(true);
+  }catch(e){ console.warn('salSave', e); showToast('บันทึกไม่สำเร็จ (เครือข่าย)'); }
+}
+async function salLoadList(){
+  try{ var rows=await sbFetchAll('gyt_expense_closings','?status=eq.salary&order=doc_no.desc'); _salList=rows||[]; }catch(e){ _salList=[]; }
+  var el=document.getElementById('sal-list'); if(!el) return _salList;
+  el.innerHTML=_salList.length? _salList.slice(0,24).map(function(r){
+    var ym=String(r.doc_no||'').replace('SAL-','');
+    return '<div class="ec-li"><span class="doc">'+_ecEsc(_salYmLabel(ym))+'</span><span style="color:var(--text-3);font-size:12px">'+(r.item_count||0)+' คน</span><span class="amt">฿'+_ecFmt(r.total)+'</span>'+
+      '<button class="btn btn-ghost" style="font-size:11px" onclick="salPrintById('+r.id+')">🖨 พิมพ์</button></div>';
+  }).join('') : '<div style="color:var(--text-3);font-size:13px;padding:8px 0">ยังไม่มีรอบเงินเดือน</div>';
+  return _salList;
+}
+function salPrintById(id){ var r=_salList.find(function(x){return x.id===id;}); if(r) _salPrint(String(r.doc_no||'').replace('SAL-',''), r.items||[], r.total); }
+function salPrintCurrent(){ var ym=(document.getElementById('sal-month')||{}).value; var g=_salGather(); _salPrint(ym, g.items, g.total); }
+function _salPrint(ym, items, total){
+  var w=window.open('','sal_print','width=760,height=1000,scrollbars=yes');
+  if(!w){ showToast('กรุณาอนุญาต popup ก่อนครับ'); return; }
+  var rows=items.map(function(it){ return '<tr><td class="c">'+(it.no||'')+'</td><td class="n">'+_ecEsc(it.nick||it.name||'')+'</td><td class="r">'+((Number(it.amount)||0)>0?_ecFmt(it.amount):'-')+'</td></tr>'; }).join('');
+  var html='<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>เงินเดือน '+_ecEsc(_salYmLabel(ym))+'</title><style>'+
+    "@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap');"+
+    'body{font-family:Sarabun,sans-serif;color:#111;margin:0}.s{max-width:560px;margin:0 auto;padding:24px}'+
+    'h1{font-size:17px;font-weight:800;color:#166534;text-align:center;text-decoration:underline;margin:0 0 12px}'+
+    'table{width:100%;border-collapse:collapse;font-size:14px}td,th{border:1.5px solid #111;padding:7px 12px}'+
+    '.c{text-align:center;width:44px}.n{text-align:center}.r{text-align:right;width:150px;font-variant-numeric:tabular-nums}'+
+    'tfoot td{background:#FDE8E8;font-weight:800;font-size:15px}'+
+    '.pr{margin-top:16px;text-align:center}.pr button{padding:9px 20px;background:#2D7A4F;color:#fff;border:none;border-radius:8px;font-family:inherit;font-weight:700;cursor:pointer}'+
+    '@media print{.pr{display:none}@page{size:A4;margin:14mm}}'+
+    '</style></head><body><div class="s">'+
+    '<h1>เงินเดือนพนักงานขับรถ ประจำเดือน '+_ecEsc(_salYmLabel(ym))+'</h1>'+
+    '<table><tbody>'+rows+'</tbody>'+
+    '<tfoot><tr><td colspan="2" class="n" style="text-align:center">ยอดรวม</td><td class="r">'+_ecFmt(total)+'</td></tr></tfoot></table>'+
+    '<div class="pr"><button onclick="window.print()">🖨 พิมพ์</button></div>'+
+    '</div></body></html>';
+  w.document.write(html); w.document.close();
+}
+// ── ตัวช่วยฝั่ง dashboard: รอบเงินเดือน → map {ชื่อจริง: ยอด} ตามช่วงที่เลือก ──
+async function _salFetchRounds(){
+  try{ var rows=await sbFetchAll('gyt_expense_closings','?status=eq.salary&select=doc_no,items,total&order=doc_no.desc'); _salRoundsCache=rows||[]; }catch(e){ _salRoundsCache=[]; }
+  return _salRoundsCache;
+}
+function _salMapForPr(pr){
+  var map={}; if(!_salRoundsCache || !pr) return map;
+  _salRoundsCache.forEach(function(r){
+    var m=String(r.doc_no||'').match(/^SAL-(\d{4})-(\d{2})/); if(!m) return;
+    var ym=m[1]+'-'+m[2], inPr=false;
+    if(pr.months){ inPr=pr.months.has(ym); }
+    else if(pr.from && pr.to){ var md=new Date(ym+'-15T12:00'); inPr=(md>=pr.from && md<=pr.to); }
+    if(!inPr) return;
+    (r.items||[]).forEach(function(it){ var k=String(it.name||'').trim(); if(!k) return; map[k]=(map[k]||0)+(Number(it.amount)||0); });
+  });
+  return map;
+}
+
+/* ════════════════════════════════════════════════
    🆕 รวม + กระทบยอดค่าใช้จ่าย (ปิดบัญชี) ↔ งานขนส่ง
    แตก gyt_expense_closings.items[] → จับคู่ gyt_jobs ด้วยเบอร์ตู้
    เห็นเฉพาะ กรรมการ(admin)/PISOLN/DONUT · การ์ดจ่ายเกิน=เฉพาะ PISOLN
@@ -20181,6 +20358,7 @@ async function rcInit(){
 function rcRender(){
   var idx=_rcJobIdx||{}, rows=[];
   (_ecList||[]).forEach(function(cl){
+    if(cl && cl.status==='salary') return;   // 🆕 ข้ามรอบเงินเดือน (SAL-*) — ไม่ใช่ค่าใช้จ่ายผูกตู้
     (cl.items||[]).forEach(function(it){
       // 🆕 โครงใหม่ (ค่าใช้จ่ายแยกช่อง) → แตก ค่ารับตู้/ค่าคืนตู้ เป็นแถว ให้จับคู่งานได้เหมือนเดิม
       if(it && (it.recv!=null||it.ret!=null||it.trip!=null||it.port!=null||it.box!=null)){
