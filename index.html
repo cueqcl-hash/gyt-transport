@@ -1018,6 +1018,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div style="font-size:11.5px;color:var(--text-3);margin-top:6px">ยอดฐาน: สิบล้อ 5,000 · เทลเลอร์ 5,500 — แก้ตามจริงได้ (เบิกล่วงหน้า/ค่าทางด่วน) · เว้นว่าง = ไม่โอน</div>
             <div class="ec-actions">
               <button class="btn btn-green" onclick="salSave()">💾 บันทึกรอบเงินเดือน</button>
+              <button class="btn btn-yellow" onclick="salNewMonth()">➕ ออกเดือนใหม่</button>
               <button class="btn btn-ghost" onclick="salPrintCurrent()">🖨 พิมพ์</button>
               <button class="btn btn-ghost" onclick="salBuildRows(null)">&#8635; รีเซ็ตเป็นยอดฐาน</button>
             </div>
@@ -19574,10 +19575,11 @@ function _dashRenderDrivers(pr){
   var agg={};
   function ens(d){ if(!agg[d]) agg[d]={drv:d,trips:0,rev:0,pay:0}; return agg[d]; }
   jobs.forEach(function(j){ if(j.status==='ยกเลิก')return; if(!_dashInPr(j.startdate,pr))return; var d=(j.driver||'').trim(); if(!d)return; var a=ens(d); a.trips++; a.rev+=_dashJobRevenue(j); a.pay+=_dashTrip(j); });
-  // 🆕 เงินเดือน (รอบ SAL-* จากหน้าปิดรอบ) → คอลัมน์เงินเดือน + รายรับรวม
-  if(typeof _salRoundsCache!=='undefined' && _salRoundsCache===null && typeof _salFetchRounds==='function'){ _salRoundsCache=[]; _salFetchRounds().then(function(){ try{_dashRenderDrivers(pr);}catch(e){} }); }
-  var salMap=(typeof _salMapForPr==='function')?_salMapForPr(pr):{};
-  Object.keys(salMap).forEach(function(nm){ if(!agg[nm] && salMap[nm]>0) agg[nm]={drv:nm,trips:0,rev:0,pay:0}; });   // คนมีเงินเดือนแต่ไม่มีเที่ยว (เช่นลาป่วย) ก็โชว์
+  // 🆕 เงินเดือน "ฐาน" ตามประเภทรถ (สิบล้อ 5,000 / เทลเลอร์ 5,500) × จำนวนเดือนในช่วง
+  //     ไม่ใช้ยอดโอนจริง เพราะยอดจริงมีค่าทางด่วนที่คนขับเบิกปนอยู่
+  var _salMonths=(typeof _salMonthCount==='function')?_salMonthCount(pr):1;
+  var salMap={}; if(typeof SAL_DRIVERS!=='undefined'){ SAL_DRIVERS.forEach(function(d){ salMap[d.name]=(Number(d.base)||0)*_salMonths; }); }
+  Object.keys(salMap).forEach(function(nm){ if(!agg[nm] && salMap[nm]>0) agg[nm]={drv:nm,trips:0,rev:0,pay:0}; });   // คนมีเงินเดือนแต่ไม่มีเที่ยวก็โชว์
   var arr=Object.keys(agg).map(function(k){return agg[k];});
   var active=arr.length;
   var totTrips=arr.reduce(function(s,a){return s+a.trips;},0);
@@ -19601,7 +19603,7 @@ function _dashRenderDrivers(pr){
   document.getElementById('ddrv-table').innerHTML = byT.length?
     '<div style="max-height:420px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>คนขับ</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">เบิก (ค่าแรง)</th><th style="text-align:right">เงินเดือน</th><th style="text-align:right">รายรับรวม</th><th style="text-align:right">รายได้ <small style="color:var(--text-3);font-weight:400">(รอ import ราคา)</small></th><th style="text-align:right">รายได้/เที่ยว</th></tr></thead><tbody>'+
     byT.map(function(a){ var sl=salMap[a.drv]||0; return '<tr><td style="font-weight:700">'+_finEsc(a.drv)+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right;color:var(--green-d)">'+_gy(a.pay)+'</td><td style="text-align:right;color:#2563EB;font-weight:600">'+_gy(sl)+'</td><td style="text-align:right;font-weight:800;color:var(--green-d)">'+_gy(a.pay+sl)+'</td><td style="text-align:right;color:var(--text-3)">'+_gy(a.rev)+'</td><td style="text-align:right;color:var(--text-3)">'+(a.rev>0?'฿'+_dashFmt(a.rev/a.trips):'<span style="color:var(--text-3)">—</span>')+'</td></tr>'; }).join('')+
-    '</tbody></table></div><div style="font-size:11px;color:var(--text-3);margin-top:6px">แสดงครบทุกคน '+byT.length+' คน · "เงินเดือน" = จากรอบเงินเดือน (หน้าปิดรอบค่าใช้จ่าย) ของเดือนในช่วงที่เลือก · รายรับรวม = เบิก + เงินเดือน · "รายได้" รอ import ราคา</div>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลคนขับในช่วงนี้</div>';
+    '</tbody></table></div><div style="font-size:11px;color:var(--text-3);margin-top:6px">แสดงครบทุกคน '+byT.length+' คน · "เงินเดือน" = ฐานตามประเภทรถ (สิบล้อ 5,000 / เทลเลอร์ 5,500) × '+_salMonths+' เดือนในช่วง (ไม่ใช่ยอดโอนจริงที่มีค่าทางด่วนปน) · รายรับรวม = เบิก + เงินเดือน · "รายได้" รอ import ราคา</div>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลคนขับในช่วงนี้</div>';
 }
 
 // ค่าทางด่วน M-Flow รถส่วนตัวกรรมการ (ตารางแยก gyt_personal_tolls — แสดงอย่างเดียว ไม่นับต้นทุนบริษัท)
@@ -20259,6 +20261,16 @@ function salMonthChange(silent){
     }
   }catch(e){}
 }
+function salNewMonth(){   // 🆕 ➕ ออกเดือนใหม่ — เด้งไปเดือนถัดไป + รีเซ็ตยอดฐาน (ถ้าเดือนนั้นมีข้อมูลแล้วจะโหลดมาแทน)
+  if(!_salIsBoss()) return;
+  var mi=document.getElementById('sal-month'); if(!mi) return;
+  var cur=mi.value||''; if(!cur){ var n=new Date(); cur=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0'); }
+  var p=cur.split('-'), y=parseInt(p[0],10)||new Date().getFullYear(), m=(parseInt(p[1],10)||1)+1; if(m>12){ m=1; y++; }
+  try{ localStorage.removeItem('gyt_sal_draft'); }catch(e){}
+  mi.value=y+'-'+String(m).padStart(2,'0');
+  salMonthChange();
+  showToast('🆕 เริ่มเดือน '+_salYmLabel(mi.value)+' (ยอดฐาน 5,000/5,500)');
+}
 async function salSave(){
   if(!_salIsBoss()){ showToast('⚠ เฉพาะพี่ (PISOLN) เท่านั้น'); return; }
   var ym=(document.getElementById('sal-month')||{}).value; if(!ym){ showToast('เลือกเดือนก่อนครับ'); return; }
@@ -20315,6 +20327,12 @@ function _salPrint(ym, items, total){
 async function _salFetchRounds(){
   try{ var rows=await sbFetchAll('gyt_expense_closings','?status=eq.salary&select=doc_no,items,total&order=doc_no.desc'); _salRoundsCache=rows||[]; }catch(e){ _salRoundsCache=[]; }
   return _salRoundsCache;
+}
+function _salMonthCount(pr){   // จำนวนเดือนในช่วงที่เลือก (ไว้คูณเงินเดือนฐาน)
+  if(!pr) return 1;
+  if(pr.months) return pr.months.size||1;
+  if(pr.from && pr.to){ return Math.max(1, (pr.to.getFullYear()-pr.from.getFullYear())*12 + (pr.to.getMonth()-pr.from.getMonth()) + 1); }
+  return 1;
 }
 function _salMapForPr(pr){
   var map={}; if(!_salRoundsCache || !pr) return map;
