@@ -19681,7 +19681,7 @@ function _dashRenderPL(pr){
   var tRev=0,tCost=0,tProf=0,nLoss=0,nNoRev=0,noBillCost=0,noBillTrips=0;
   rows.forEach(function(r){ if(r.hasRev){ tRev+=r.rev; tCost+=r.cost; tProf+=r.profit; if(r.profit<0)nLoss++; } else { nNoRev++; noBillCost+=r.cost; noBillTrips+=r.trips; } });
   var mg=tRev>0?(tProf/tRev*100):0;
-  var kpi='<div class="dfin-kpis" style="margin-bottom:12px">'+
+  var kpi='<div class="dfin-kpis" style="margin-bottom:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'+
     '<div class="dfin-kpi"><div class="dfin-lab">💰 รายได้รวม (บิล)</div><div class="dfin-val">฿'+f(tRev)+'</div></div>'+
     '<div class="dfin-kpi"><div class="dfin-lab">💸 ต้นทุนรวม</div><div class="dfin-val">฿'+f(tCost)+'</div></div>'+
     '<div class="dfin-kpi"><div class="dfin-lab">'+(tProf>=0?'📈 กำไรสุทธิ':'📉 ขาดทุนสุทธิ')+'</div><div class="dfin-val" style="color:'+(tProf>=0?'#16A34A':'#DC2626')+'">'+(tProf>=0?'+':'')+'฿'+f(tProf)+'</div><div class="dfin-foot">margin '+mg.toFixed(1)+'%</div></div>'+
