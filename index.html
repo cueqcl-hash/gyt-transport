@@ -26130,7 +26130,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.225';
+const APP_VERSION = '2026.04.29.226';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -31193,6 +31193,13 @@ function _bl_receiptCoLabel(code){
   var co = _BL_RECEIPT_CO[code] || 'GY';
   return co === 'JT' ? 'จีวายที' : 'กรีน เยลโล่';
 }
+// 🆕 v226 — บิลเก่าที่ import ครั้งแรกถูกตั้ง status='paid' เหมาทุกใบ (paid_date=bill_date เป๊ะทุกบิล, paid_note ทั่วไป) โดยไม่ได้เช็คไฟล์รับชำระจริงเลย
+// ต่างจากบิลที่ verify แล้วจริง (created_by=claude-import-* + update_paid.ps1 จับคู่จากไฟล์รับชำระ) — ป้ายนี้เตือนว่าอันไหนยังไม่ยืนยัน
+function _bl_isUnverifiedPaid(b){ return b.status_changed_by === 'EXCEL-IMPORT'; }
+function _bl_unverifiedBadge(b){
+  if(!_bl_isUnverifiedPaid(b)) return '';
+  return '<div style="margin-top:3px"><span style="background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:700;white-space:nowrap" data-tip="สถานะจ่ายแล้วมาจาก import ครั้งแรกที่เหมาทุกบิล ไม่ได้เช็คไฟล์รับชำระจริง">⚠️ ไม่ยืนยัน</span></div>';
+}
 function _bl_receiptCell(receiptNo, code, emptyLabel, big){
   if(!receiptNo) return '<span style="color:var(--text-3);font-size:'+(big?'11px':'10.5px')+'">'+emptyLabel+'</span>';
   var pad = big ? '3px 10px' : '2px 8px', fs = big ? '11.5px' : '10.5px', fw = big ? '700' : '600';
@@ -31222,7 +31229,7 @@ function billingRenderPaid(){
       '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-2)">'+_bl_date(b.bill_date)+'</td>'+
       '<td style="padding:8px 10px;border-bottom:1px solid var(--border)">'+_bl_esc(snap.name||'—')+'</td>'+
       '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:700;color:#065F46">'+_bl_fmt(b.net_amt)+'</td>'+
-      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">'+_bl_date(b.paid_date)+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">'+_bl_date(b.paid_date)+_bl_unverifiedBadge(b)+'</td>'+
       '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-2)">'+_bl_esc(b.paid_note||'—')+'</td>'+
       '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+receiptCell+'</td>'+
       '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+
@@ -31264,7 +31271,7 @@ function billingRenderReceipt(){
       '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--green-d);font-weight:600">'+_bl_esc(b.bill_no)+'</td>'+
       '<td style="padding:8px 10px;border-bottom:1px solid var(--border)">'+_bl_esc(snap.name||'—')+'</td>'+
       '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-weight:700">'+_bl_fmt(b.net_amt)+'</td>'+
-      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">'+_bl_date(b.paid_date)+'</td>'+
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">'+_bl_date(b.paid_date)+_bl_unverifiedBadge(b)+'</td>'+
       '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+receiptCell+'</td>'+
       '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">'+printedCell+'</td>'+
       '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">'+
