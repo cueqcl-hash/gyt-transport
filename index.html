@@ -21353,8 +21353,8 @@ function _rateScoreRows(size, sh, cuCode, oTok, dTok, rTok){
     if((r.trips||0) >= 3) score += 1;
     if(score >= 4) out.push({row:r, score:score});
   }
-  // v183 — score ก่อน, แล้ว as_of ใหม่สุด (ราคาล่าสุดชนะ), แล้วค่อย trips
-  out.sort(function(a,b){ return (b.score - a.score) || String(b.row.as_of||'').localeCompare(String(a.row.as_of||'')) || ((b.row.trips||0) - (a.row.trips||0)); });
+  // 🆕 v230 — พี่ขอให้ชิปบนสุด = อัปเดตล่าสุดเสมอ ไล่เก่าลงไป (เดิม score นำ as_of เป็นแค่ตัวเทียบรอง ทำให้บางทีราคาเก่าคะแนนสูงกว่าดันขึ้นก่อนราคาใหม่). ใช้ as_of นำก่อน, score/trips เป็นตัวเทียบรองตอน as_of เท่ากัน
+  out.sort(function(a,b){ return String(b.row.as_of||'').localeCompare(String(a.row.as_of||'')) || (b.score - a.score) || ((b.row.trips||0) - (a.row.trips||0)); });
   return out;
 }
 function _rateSuggest(shipper, customer, origin, dest, returnyard, ctype){
@@ -26299,7 +26299,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.229';
+const APP_VERSION = '2026.04.29.230';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
