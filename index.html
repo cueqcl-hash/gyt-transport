@@ -21139,6 +21139,14 @@ async function _rateLoad(){
   } catch(e){ console.warn('[rates] load failed:', e.message); _rateDB = _rateDB || []; }
   finally { _rateLoading = false; }
 }
+// 🆕 v229 — line_items.date เก็บเป็น " DD/ MM/ YYYY" (พ.ศ., มีช่องว่างคั่น) ไม่ใช่ ISO
+//   ไม่แปลงก่อน → new Date() parse ไม่ออก → as_of โชว์เป็นสตริงเพี้ยนๆ (บั๊กเดิมตั้งแต่ v183 ที่พึ่งมาเจอตอนแก้ v228)
+function _rateParseThaiDate(s){
+  var m = String(s||'').match(/(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4})/);
+  if(!m) return '';
+  var dd=+m[1], mm=+m[2], yyyy=+m[3]; if(yyyy>2400) yyyy-=543;
+  return yyyy+'-'+String(mm).padStart(2,'0')+'-'+String(dd).padStart(2,'0');
+}
 // 🆕 v183 — ผสมราคาจากบิลจริง (gyt_billings) เข้า _rateDB แบบสด
 //   ราคาเปลี่ยน = จุดใหม่ (as_of ใหม่ → ชนะตอนจัดอันดับ) · ราคาเท่าเดิม = รวม trips (ไม่ลบของเก่า)
 async function _rateMergeLiveBills(){
@@ -21152,11 +21160,20 @@ async function _rateMergeLiveBills(){
       var curShipper = '';
       (b.line_items || []).forEach(function(it){
         var desc = String(it.desc||'').trim();
-        var sm = desc.match(/^ค่าขนส่ง\s*[:：]\s*(.+)/);   // บรรทัดหัว shipper
+        // 🆕 v229 — บิลฟอร์มอังกฤษ (KGM/APT/UNITHAI ฯลฯ) หัวข้อ shipper คือ "TRANSPORTATION CHARGE : X" ไม่ใช่ "ค่าขนส่ง:"
+        var sm = desc.match(/^(?:ค่าขนส่ง|TRANSPORTATION\s+CHARGE)\s*[:：]\s*(.+)/i);   // บรรทัดหัว shipper
         if(sm){ curShipper = sm[1].trim(); return; }
         var freight = Number(it.amt_freight)||0;
+        // 🆕 v229 — บิลฟอร์มอังกฤษเก็บราคาขนส่งไว้ใน amt_total ทั้งหมด (amt_freight=0 เสมอ) → เดิม bill-live merge มองไม่เห็นราคาพวกนี้เลยสักบิล ราคาแนะนำเลยค้างที่ใบเสนอราคาเก่าตลอด (พี่แจ้ง JOB-4540-01)
+        //   ยอมใช้ amt_total แทนได้เฉพาะเมื่อบรรทัดหน้าตาเหมือน "ต้นทาง - ปลายทาง" จริงๆ (มี " - " คั่น) ไม่งั้นค่าธรรมเนียมย่อยอื่น (ค่ายกตู้/ค่าย้ายตู้/REPAIR/OVERTIME ฯลฯ ที่ enumerate ไม่หมด) จะหลุดเข้ามาปนเป็นราคาเส้นทางผิดๆ
+        if(freight <= 0){
+          var tot = Number(it.amt_total)||0;
+          var looksLikeRoute = /\S\s-\s\S/.test(desc);
+          var isSurchargeLabel = /^(advanced|lift\s*(on|off)\s*charge|place\s+of\s+return|retune\s+container\s+charge|pick[\s-]?up|gate\s+charge|handling\s+charge|admission\s+fee|order\s+no|job\s+no|invoice\s+no|container\s+no|repair|overtime|clean\s*&\s*repair|other\b)/i.test(desc);
+          if(tot > 0 && looksLikeRoute && !isSurchargeLabel){ freight = tot; }
+        }
         if(freight <= 0) return;                            // เอาเฉพาะบรรทัดค่าขนส่ง
-        if(/^(ค่าคืนตู้|ค่าลงของ|รวม|หัก|บวก|เบอร์ตู้|ลานคืนตู้|ค่าเสียเวลา)/.test(desc)) return;
+        if(/^(ค่าคืนตู้|ค่าลงของ|ค่าผ่านท่า|ค่ายกตู้|ค่ารับตู้|ค่าย้ายตู้|ค่าต่อระยะ|ค่าล่วงเวลา|ค่าเพิ่ม|ค่าแรงงาน|ค่าคนงาน|ค่าบริการ|รวม|หัก|บวก|เบอร์ตู้|ลานคืนตู้|ค่าเสียเวลา)/.test(desc)) return;
         var per = null, pm = desc.match(/@\s*([\d,]+(?:\.\d+)?)/);
         if(pm){ per = parseFloat(pm[1].replace(/,/g,'')); }
         var qm = String(it.container_size||'').match(/[xX*]\s*(\d+)/); var qty = qm ? parseInt(qm[1],10) : 1;
@@ -21164,7 +21181,7 @@ async function _rateMergeLiveBills(){
         if(!per || per<=0) return;
         var route = desc.replace(/\(\s*@.*$/,'').replace(/\[.*$/,'').trim();   // ตัด "( @ .. )" / "[ .. ]" ท้าย
         var size = _rateSizeFromType(it.container_size) || (String(it.container_size||'').indexOf('40')>=0 ? "40'" : "20'");
-        var asof = it.date || b.bill_date || '';
+        var asof = _rateParseThaiDate(it.date) || b.bill_date || '';
         var key = (curShipper||cust)+'|'+route+'|'+size+'|'+Math.round(per);
         if(!agg[key]){ agg[key] = {shipper:(curShipper||null), agent:cust, origin:null, dest:null, route_text:route, size:size, price:per, trips:0, source_type:'bill-live', as_of:asof, fuel_tiers:null}; }
         var a = agg[key]; a.trips++; if(String(asof) > String(a.as_of)) a.as_of = asof;
@@ -26278,7 +26295,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.228';
+const APP_VERSION = '2026.04.29.229';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
