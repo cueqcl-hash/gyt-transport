@@ -21201,6 +21201,61 @@ function _rateFuelAdj(row){
   } catch(e){ return null; }
 }
 function _rateNorm(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
+// 🆕 v227 — ชื่อลูกค้าใน gyt_customer_rates.agent มักเป็นไทย แต่ gyt_jobs.customer มักเป็นอังกฤษ
+// เทียบ substring ตรงๆ ไม่มีทางแมตช์ (เช่น "k.g.m." ไม่มีทางเจอใน "เค.จี.เอ็ม เซอร์วิส") → คะแนนตรงลูกค้าเลยไม่ติด แล้วหลุดไปโชว์ราคาลูกค้าอื่นแทน (เคส JOB-4543-01 KGM โผล่เป็น SEBC)
+// แก้ด้วยตัวแปลงชื่อ→รหัสกลาง ครอบทั้ง 2 ภาษา แล้วเทียบที่ "รหัส" แทนสตริงดิบ
+var _RATE_CUST_KW = [
+  ['KGM', ['เค.จี.เอ็ม','k.g.m','kgm']],
+  ['APT', ['เอพีที','เอ.พี.ที','เอพีที โชว์เฟรท','apt']],
+  ['UNITHA', ['ยูไนเต็ด','ยูนิไทย','unithai','unitha','united thai']],
+  ['ARKLK', ['เอ.อาร์.เค','ครรชิต','a.r.k']],
+  ['DIAM', ['ไดมอน','diamond']],
+  ['TOKO', ['ทาโก','toko']],
+  ['SEBC', ['ซีเบค','sebc']],
+  ['TE', ['ทีเอส','ts express']],
+  ['NW', ['เอ็น แอนด์','n&w','n & w','u - freight','u-freight']],
+  ['VFRD', ['วี-เฟรน','วีเฟรน','v-friend','vfriend']],
+  ['KTT', ['เค.ที','ktt']],
+  ['TRTL', ['ไทยทราโฟ','thai trafo']],
+  ['KPS', ['เค.พี.เอส','k.p.s','kps']],
+  ['SHIP', ['ชิป มาสเตอร','ship master']],
+  ['INFO', ['อินโฟแซท','infosat']],
+  ['AQUA', ['อควา','aqua shipping']],
+  ['ROJ', ['โรจนชัย','โรจน์ชัย']],
+  ['INTE', ['อินทีลัค','intelac']],
+  ['FREIGHT', ['เฟรท คอนเน็กท','freight connect']],
+  ['PILOT', ['ไพลอต','pilot transport']],
+  ['PTA', ['พี.ที. แอร์','pt air','p.t. air']],
+  ['BRIL', ['บริลเลี่ยนท','brilliant']],
+  ['STAR', ['สตาร์','star oversea']],
+  ['CPS', ['ซีพีเอส','cps shipping']],
+  ['ASIAATL', ['เอเชีย แอตแลนติก']],
+  ['THAIRAT', ['ไทยรัฐ โลจิสติ']],
+  ['WORLD', ['เวิลด์','world link']],
+  ['SNL', ['snl']],
+  ['PROMPT', ['พร้อมท์','prompt']],
+  ['TNWTF', ['ธนทวี']],
+  ['KTTRADE', ['k.t trading']],
+];
+function _rateCustCode(name){
+  var n = _rateNorm(name);
+  if(!n) return '';
+  for(var i=0;i<_RATE_CUST_KW.length;i++){
+    var kws = _RATE_CUST_KW[i][1];
+    for(var k=0;k<kws.length;k++){ if(n.indexOf(kws[k])>=0) return _RATE_CUST_KW[i][0]; }
+  }
+  return '';
+}
+// 🆕 v227 — ข้อความ Shipper/ตัวแทน/วันที่ โชว์ใต้ชิปราคาเลย ไม่ต้องรอ hover (พี่ใช้เวลาเยอะไล่ hover ทีละอัน)
+function _rateSubLabel(r){
+  var parts = [];
+  if(r.shipper) parts.push('Shipper: '+String(r.shipper).slice(0,20));
+  if(r.agent) parts.push('ตัวแทน: '+String(r.agent).slice(0,18));
+  if(r.as_of) parts.push(r.as_of);
+  if(r.trips) parts.push('วิ่ง '+r.trips+' เที่ยว');
+  if(!parts.length) return '';
+  return '<div style="font-size:9.5px;color:#6B7280;margin-top:1px;line-height:1.35;max-width:210px;white-space:normal">'+escapeHtml(parts.join(' · '))+'</div>';
+}
 // 🆕 v161 — พจนานุกรมชื่อท่า/สถานที่ (ไทย ↔ รหัสในใบเสนอ/บิล)
 var _RATE_ALIAS = [
   ['pat','ท่าเรือกรุงเทพ','คลองเตย','การท่าเรือ','ท่าเรือ กทท'],
@@ -21245,16 +21300,19 @@ function _rateSizeFallback(size){
   if(size === "ขนส่งสิบล้อ") return ["20'"];
   return [];
 }
-function _rateScoreRows(size, sh, cuKey, oTok, dTok, rTok){
+function _rateScoreRows(size, sh, cuCode, oTok, dTok, rTok){
   var out = [];
   for(var i=0;i<_rateDB.length;i++){
     var r = _rateDB[i];
     if(size && r.size !== size) continue;
+    var rCode = _rateCustCode(r.agent);
+    // 🆕 v227 — รู้รหัสลูกค้าทั้ง 2 ฝั่งแน่ชัดแล้วไม่ตรงกัน = คนละลูกค้าแน่นอน ตัดทิ้งเลย กันราคาลูกค้าอื่นหลุดมาเป็นช่องหลัก (ถ้าฝั่งใดฝั่งหนึ่งยังไม่รู้จัก ปล่อยผ่านไปให้ shipper/route ตัดสินแทนเหมือนเดิม)
+    if(cuCode && rCode && cuCode !== rCode) continue;
     var score = 0;
-    var rsh = _rateNorm(r.shipper), rag = _rateNorm(r.agent);
+    var rsh = _rateNorm(r.shipper);
     var routeBlob = _rateNorm(r.origin) + ' ' + _rateNorm(r.dest) + ' ' + _rateNorm(r.route_text);
     if(sh && rsh && (rsh.indexOf(sh)>=0 || sh.indexOf(rsh)>=0)) score += 4;
-    if(cuKey && rag && cuKey.length>=2 && rag.indexOf(cuKey)>=0) score += 2;
+    if(cuCode && rCode && cuCode === rCode) score += 5;   // 🆕 v227 — ตรงลูกค้าแน่นอน (เดิม +2 จาก substring ที่พังข้ามภาษา)
     // match แบบแยกคำ + alias: ปลายทาง (+3 สูงสุด), ลานคืน (+1), ต้นทาง (+1)
     var dHit=0, oHit=0, rHit=0;
     for(var t=0;t<dTok.length;t++){ if(routeBlob.indexOf(dTok[t])>=0){ dHit++; } }
@@ -21277,17 +21335,17 @@ function _rateScoreRows(size, sh, cuKey, oTok, dTok, rTok){
 function _rateSuggest(shipper, customer, origin, dest, returnyard, ctype){
   if(!_rateDB || !_rateDB.length) return [];
   var size = _rateSizeFromType(ctype);
-  var sh = _rateNorm(shipper), cu = _rateNorm(customer);
-  var cuKey = cu.split(' ')[0];
+  var sh = _rateNorm(shipper);
+  var cuCode = _rateCustCode(customer);   // 🆕 v227 — รหัสลูกค้า แทน cuKey (substring แรกที่พังข้ามภาษาไทย/อังกฤษ)
   // ตัดคำบริษัทห้อยท้ายของ shipper (co.,ltd ฯลฯ) ให้ match ง่ายขึ้น
   sh = sh.replace(/\(.*?\)/g,'').replace(/co\.?,?\s*ltd\.?|company|limited|จำกัด|บริษัท|\(มหาชน\)/g,'').trim();
   var oTok = _rateTokens(origin), dTok = _rateTokens(dest), rTok = _rateTokens(returnyard);
-  var out = _rateScoreRows(size, sh, cuKey, oTok, dTok, rTok);
+  var out = _rateScoreRows(size, sh, cuCode, oTok, dTok, rTok);
   // 🆕 v161 — หมวดตรงไม่เจอ → ลองหมวดใกล้เคียง (ชิปจะติดป้ายหมวดให้เห็น)
   if(!out.length && size){
     var fbs = _rateSizeFallback(size);
     for(var f=0; f<fbs.length && out.length<3; f++){
-      out = out.concat(_rateScoreRows(fbs[f], sh, cuKey, oTok, dTok, rTok));
+      out = out.concat(_rateScoreRows(fbs[f], sh, cuCode, oTok, dTok, rTok));
     }
     out.forEach(function(s){ s.fallback = true; });
   }
@@ -21322,14 +21380,14 @@ function _rateRefSimilar(origin, dest, ret, ctype, ownShipper, ownCustomer){
   var oTok=_rateTokens(origin), dTok=_rateTokens(dest), rTok=_rateTokens(ret);
   if(!dTok.length && !oTok.length && !rTok.length) return [];
   var osh=_rateNorm(ownShipper).replace(/\(.*?\)/g,'').replace(/co\.?,?\s*ltd\.?|company|limited|จำกัด|บริษัท|\(มหาชน\)/g,'').trim();
-  var ocu=(_rateNorm(ownCustomer).split(' ')[0])||'';
+  var ocuCode=_rateCustCode(ownCustomer);   // 🆕 v227 — รหัสลูกค้า แทน ocu substring (เดิมพัง Thai/Eng ข้ามภาษา ทำให้ลูกค้าตัวเองหลุดไปอยู่ช่อง "ลูกค้าอื่น")
   var out=[];
   for(var i=0;i<_rateDB.length;i++){
     var r=_rateDB[i];
     if(sizes.length && sizes.indexOf(r.size)<0) continue;
-    var rsh=_rateNorm(r.shipper), rag=_rateNorm(r.agent);
+    var rsh=_rateNorm(r.shipper);
     if(osh && rsh && (rsh.indexOf(osh)>=0 || osh.indexOf(rsh)>=0)) continue;   // ตัด shipper ตัวเอง
-    if(ocu && ocu.length>=2 && rag && rag.indexOf(ocu)>=0) continue;           // ตัดลูกค้าตัวเอง
+    if(ocuCode && _rateCustCode(r.agent) === ocuCode) continue;               // ตัดลูกค้าตัวเอง (รหัส แทน substring)
     var blob=_rateNorm(r.origin)+' '+_rateNorm(r.dest)+' '+_rateNorm(r.route_text);
     var dHit=0; for(var t=0;t<dTok.length;t++){ if(blob.indexOf(dTok[t])>=0) dHit++; }
     var oHit=0; for(var t2=0;t2<oTok.length;t2++){ if(blob.indexOf(oTok[t2])>=0){ oHit=1; break; } }
@@ -21392,8 +21450,10 @@ function rateHintRefresh(prefix){
         ref.map(function(r){
           var route=(r.origin&&r.dest)?(r.origin+'→'+r.dest):(r.route_text||''); if(route.length>32) route=route.slice(0,32)+'…';
           var ag=String(r.agent||r.shipper||''); var agShort=ag.length>14?ag.slice(0,14)+'…':ag;
-          return '<button type="button" class="rate-chip" data-price="'+r.price+'" data-prefix="'+prefix+'" title="ราคาอ้างอิงจาก '+escapeHtml(ag)+' ('+escapeHtml(r.size)+(r.as_of?(', '+r.as_of):'')+(r.trips?(', วิ่ง '+r.trips+' เที่ยว'):'')+')" '+
-            'style="margin:2px 4px 2px 0;padding:3px 9px;border-radius:12px;border:1px dashed #9CA3AF;background:#F3F4F6;color:#374151;font-size:11.5px;font-weight:700;cursor:pointer">📍 '+Number(r.price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#6B7280">'+escapeHtml(route)+' · '+escapeHtml(agShort)+'</span></button>';
+          return '<span style="display:inline-block;vertical-align:top;margin:2px 6px 8px 0">'+
+            '<button type="button" class="rate-chip" data-price="'+r.price+'" data-prefix="'+prefix+'" title="ราคาอ้างอิงจาก '+escapeHtml(ag)+' ('+escapeHtml(r.size)+(r.as_of?(', '+r.as_of):'')+(r.trips?(', วิ่ง '+r.trips+' เที่ยว'):'')+')" '+
+            'style="margin:0;padding:3px 9px;border-radius:12px;border:1px dashed #9CA3AF;background:#F3F4F6;color:#374151;font-size:11.5px;font-weight:700;cursor:pointer">📍 '+Number(r.price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#6B7280">'+escapeHtml(route)+'</span></button>'+
+            _rateSubLabel(r)+'</span>';
         }).join('');
       box.querySelectorAll('.rate-chip').forEach(function(btn){
         btn.onclick=function(){ var inp=document.getElementById(btn.dataset.prefix+'-price'); if(inp){ inp.value=btn.dataset.price; ratePriceCheck(btn.dataset.prefix); } };
@@ -21415,9 +21475,11 @@ function rateHintRefresh(prefix){
     var sizeTag = s.fallback ? '<span style="background:#FEF3C7;color:#92400E;padding:0 5px;border-radius:7px;font-size:10px;margin-right:3px">'+escapeHtml(r.size)+'</span>' : '';
     var extra = adj ? (' ⛽'+adj.oil) : '';
     var tip = (r.shipper?('Shipper: '+r.shipper+' | '):'')+(r.agent?('ตัวแทน: '+r.agent+' | '):'')+srcLabel+(r.as_of?(' '+r.as_of):'')+(r.trips?(' | วิ่ง '+r.trips+' เที่ยว'):'')+(adj?(' | ขั้นน้ำมัน '+adj.tier+' ฿/L'):'');
-    return '<button type="button" class="rate-chip" data-price="'+price+'" data-prefix="'+prefix+'" title="'+escapeHtml(tip)+'" '+
-      'style="margin:2px 4px 2px 0;padding:3px 9px;border-radius:12px;border:1px solid #10B981;background:#ECFDF5;color:#065F46;font-size:11.5px;font-weight:700;cursor:pointer">'+
-      sizeTag+(r.source_type==='quote'?'📋':'🧾')+' '+Number(price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#047857">'+escapeHtml(route)+extra+'</span></button>';
+    return '<span style="display:inline-block;vertical-align:top;margin:2px 6px 8px 0">'+
+      '<button type="button" class="rate-chip" data-price="'+price+'" data-prefix="'+prefix+'" title="'+escapeHtml(tip)+'" '+
+      'style="margin:0;padding:3px 9px;border-radius:12px;border:1px solid #10B981;background:#ECFDF5;color:#065F46;font-size:11.5px;font-weight:700;cursor:pointer">'+
+      sizeTag+(r.source_type==='quote'?'📋':'🧾')+' '+Number(price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#047857">'+escapeHtml(route)+extra+'</span></button>'+
+      _rateSubLabel(r)+'</span>';
   }).join('');
   // 🆕 v184 — ราคาลูกค้าอื่น เส้นใกล้เคียง (ขึ้นตู้/เปิดบรรจุ/ปลายทาง คล้ายกัน) — แสดงต่อท้ายเป็นอ้างอิง
   try{
@@ -21429,8 +21491,10 @@ function rateHintRefresh(prefix){
         _refs.map(function(r){
           var route=(r.origin&&r.dest)?(r.origin+'→'+r.dest):(r.route_text||''); if(route.length>32) route=route.slice(0,32)+'…';
           var ag=String(r.agent||r.shipper||''); var agShort=ag.length>14?ag.slice(0,14)+'…':ag;
-          return '<button type="button" class="rate-chip" data-price="'+r.price+'" data-prefix="'+prefix+'" title="ราคาอ้างอิงจาก '+escapeHtml(ag)+' ('+escapeHtml(r.size)+(r.as_of?(', '+r.as_of):'')+(r.trips?(', วิ่ง '+r.trips+' เที่ยว'):'')+')" '+
-            'style="margin:2px 4px 2px 0;padding:3px 9px;border-radius:12px;border:1px dashed #9CA3AF;background:#F3F4F6;color:#374151;font-size:11.5px;font-weight:700;cursor:pointer">📍 '+Number(r.price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#6B7280">'+escapeHtml(route)+' · '+escapeHtml(agShort)+'</span></button>';
+          return '<span style="display:inline-block;vertical-align:top;margin:2px 6px 8px 0">'+
+            '<button type="button" class="rate-chip" data-price="'+r.price+'" data-prefix="'+prefix+'" title="ราคาอ้างอิงจาก '+escapeHtml(ag)+' ('+escapeHtml(r.size)+(r.as_of?(', '+r.as_of):'')+(r.trips?(', วิ่ง '+r.trips+' เที่ยว'):'')+')" '+
+            'style="margin:0;padding:3px 9px;border-radius:12px;border:1px dashed #9CA3AF;background:#F3F4F6;color:#374151;font-size:11.5px;font-weight:700;cursor:pointer">📍 '+Number(r.price).toLocaleString('th-TH')+' <span style="font-weight:400;color:#6B7280">'+escapeHtml(route)+'</span></button>'+
+            _rateSubLabel(r)+'</span>';
         }).join('');
     }
   }catch(e){ console.warn('[rates] ref-similar', e.message); }
@@ -26210,7 +26274,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.226';
+const APP_VERSION = '2026.04.29.227';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
