@@ -19355,6 +19355,12 @@ function _dashEnsureFinData(){
     if(_plTollByJob===null){   // 🆕 เฟส 1: ค่าทางด่วนต่องาน (ผูก job_id) สำหรับ P&L
       tasks.push(sbFetchAll('gyt_toll_logs','?select=job_id,amount').then(function(r){ var m={}; (r||[]).forEach(function(t){ if(t&&t.job_id!=null) m[t.job_id]=(m[t.job_id]||0)+(parseFloat(t.amount)||0); }); _plTollByJob=m; }).catch(function(e){ _plTollByJob={}; }));
     }
+    if(_dashCustCodeToName===null){   // 🆕 map รหัสลูกค้าในบิล (STAR/APT) → ชื่อเต็ม (ตรงกับ job.customer) — บิลเก็บชื่อไทย งานเป็นอังกฤษ ต้อง bridge ผ่านรหัส
+      tasks.push(sbFetchAll('gyt_customers','?select=code,name').then(function(r){ var m={}; (r||[]).forEach(function(c){ if(c&&c.code!=null) m[(''+c.code).trim()]=c.name; }); _dashCustCodeToName=m; }).catch(function(e){ _dashCustCodeToName={}; }));
+    }
+    if(_dashJobsAll===null){   // 🆕 โหลดงานครบทุกใบสำหรับ P&L (ไม่พึ่ง global jobs ที่อาจยังโหลดไม่ครบตอน dashboard render)
+      tasks.push(sbFetchAll('gyt_jobs','?select=id,customer,plate,driver,startdate,status,costs&order=startdate.desc').then(function(r){ _dashJobsAll=r||[]; }).catch(function(e){ _dashJobsAll=[]; }));
+    }
     if(tasks.length) await Promise.all(tasks);
   })();
   return _dashFinDataPromise;
@@ -19627,7 +19633,7 @@ function _dashRenderDrivers(pr){
     '</tbody></table></div><div style="font-size:11px;color:var(--text-3);margin-top:6px">แสดงครบทุกคน '+byT.length+' คน · "เงินเดือน" = ฐานตามประเภทรถ (สิบล้อ 5,000 / เทลเลอร์ 5,500) × '+_salMonths+' เดือนในช่วง (ไม่ใช่ยอดโอนจริงที่มีค่าทางด่วนปน) · รายรับรวม = เบิก + เงินเดือน · "รายได้" รอ import ราคา</div>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลคนขับในช่วงนี้</div>';
 }
 
-var _plTollByJob=null;
+var _plTollByJob=null, _dashCustCodeToName=null, _dashJobsAll=null;
 // 💹 เฟส 1 — กำไร/ขาดทุนรายลูกค้า (หารอยรั่ว)
 //   รายได้ = บิลจริง (net + หัก ณ ที่จ่าย) รวมต่อลูกค้าในช่วง
 //   ต้นทุน = ค่าแรง(เบิก) + น้ำมัน(ค่าน้ำมันรถทั้งเดือน ÷ เที่ยว) + ทางด่วน + ยกตู้/ย้าย/อื่นๆ
@@ -19635,13 +19641,14 @@ var _plTollByJob=null;
 function _dashRenderPL(pr){
   var el=document.getElementById('dpl-body'); if(!el) return;
   if(typeof _dashCanSeeFinance==='function' && !_dashCanSeeFinance()){ el.innerHTML=''; return; }
-  var JB=(typeof jobs!=='undefined'&&jobs)?jobs:[];
+  var JB=(_dashJobsAll&&_dashJobsAll.length)?_dashJobsAll:((typeof jobs!=='undefined'&&jobs)?jobs:[]);
+  var C2N=_dashCustCodeToName||{};
   var np=function(p){ var m=String(p||'').match(/\d{2,3}-\d{4}/); return m?m[0]:String(p||'').trim(); };
   var f=function(v){ return _dashFmt(Math.round(v||0)); };
-  // 1) รายได้ต่อลูกค้า (บิลจริง net + หัก ณ ที่จ่าย)
+  // 1) รายได้ต่อลูกค้า (บิลจริง net + หัก ณ ที่จ่าย) — key ด้วย "ชื่อเต็ม" ผ่านรหัสลูกค้า (บิลชื่อไทย งานอังกฤษ)
   var BL=(typeof _BL_BILLS!=='undefined'&&_BL_BILLS)?_BL_BILLS:[];
   var rev={};
-  BL.forEach(function(b){ if(!b||!_dashInPr(b.bill_date,pr))return; var nm=(((b.customer_snapshot&&b.customer_snapshot.name)||b.customer_code||'(ไม่ระบุ)')+'').trim(); rev[nm]=(rev[nm]||0)+(parseFloat(b.net_amt)||0)+(parseFloat(b.wht_amt)||0); });
+  BL.forEach(function(b){ if(!b||!_dashInPr(b.bill_date,pr))return; var code=(b.customer_code!=null)?(''+b.customer_code).trim():''; var nm=((C2N[code])||(b.customer_snapshot&&b.customer_snapshot.name)||code||'(ไม่ระบุ)').trim(); rev[nm]=(rev[nm]||0)+(parseFloat(b.net_amt)||0)+(parseFloat(b.wht_amt)||0); });
   // 2) น้ำมัน+เที่ยว ต่อรถ/เดือน → เฉลี่ยต่อเที่ยว
   var FL=(typeof _finFuelLogs!=='undefined'&&_finFuelLogs)?_finFuelLogs:[];
   var tFuel={}, tTrip={};
