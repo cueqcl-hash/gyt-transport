@@ -19642,13 +19642,17 @@ function _dashRenderPL(pr){
   var el=document.getElementById('dpl-body'); if(!el) return;
   if(typeof _dashCanSeeFinance==='function' && !_dashCanSeeFinance()){ el.innerHTML=''; return; }
   var JB=(_dashJobsAll&&_dashJobsAll.length)?_dashJobsAll:((typeof jobs!=='undefined'&&jobs)?jobs:[]);
-  var C2N=_dashCustCodeToName||{}, T2N=_dashCustTaxToName||{};
+  var C2N=_dashCustCodeToName||{}, T2N=_dashCustTaxToName||{}, CL=Object.keys(C2N);
   var np=function(p){ var m=String(p||'').match(/\d{2,3}-\d{4}/); return m?m[0]:String(p||'').trim(); };
   var f=function(v){ return _dashFmt(Math.round(v||0)); };
-  // 1) รายได้ต่อลูกค้า (บิลจริง net + หัก ณ ที่จ่าย) — key ด้วย "ชื่อเต็ม" ที่ตรงกับ job.customer: tax_id → code → ชื่อในบิล
+  // 1) รายได้ต่อลูกค้า (บิลจริง net + หัก ณ ที่จ่าย) — key ด้วย "ชื่อเต็ม" ที่ตรงกับ job.customer: tax_id → code ตรง → code prefix (WORLD→WORLDLINK) → ชื่อในบิล
   var BL=(typeof _BL_BILLS!=='undefined'&&_BL_BILLS)?_BL_BILLS:[];
   var rev={};
-  BL.forEach(function(b){ if(!b||!_dashInPr(b.bill_date,pr))return; var snap=b.customer_snapshot||{}; var tax=(snap.tax_id!=null)?(''+snap.tax_id).replace(/\D/g,''):''; var code=(b.customer_code!=null)?(''+b.customer_code).trim():''; var nm=((tax&&T2N[tax])||C2N[code]||snap.name||code||'(ไม่ระบุ)').trim(); rev[nm]=(rev[nm]||0)+(parseFloat(b.net_amt)||0)+(parseFloat(b.wht_amt)||0); });
+  BL.forEach(function(b){ if(!b||!_dashInPr(b.bill_date,pr))return; var snap=b.customer_snapshot||{}; var tax=(snap.tax_id!=null)?(''+snap.tax_id).replace(/\D/g,''):''; var code=(b.customer_code!=null)?(''+b.customer_code).trim():'';
+    var nm=(tax&&T2N[tax])||C2N[code]||'';
+    if(!nm && code.length>=3){ var hit='',cnt=0; for(var i=0;i<CL.length;i++){ var gc=CL[i]; if(gc.indexOf(code)===0||code.indexOf(gc)===0){ hit=C2N[gc]; cnt++; } } if(cnt===1) nm=hit; }   // prefix ไม่กำกวมเท่านั้น
+    nm=(nm||snap.name||code||'(ไม่ระบุ)').trim();
+    rev[nm]=(rev[nm]||0)+(parseFloat(b.net_amt)||0)+(parseFloat(b.wht_amt)||0); });
   // 2) น้ำมัน+เที่ยว ต่อรถ/เดือน → เฉลี่ยต่อเที่ยว
   var FL=(typeof _finFuelLogs!=='undefined'&&_finFuelLogs)?_finFuelLogs:[];
   var tFuel={}, tTrip={};
@@ -19695,7 +19699,7 @@ function _dashRenderPL(pr){
         '<td style="text-align:right;font-weight:800;color:'+col+'">'+(r.hasRev?((r.profit>=0?'+':'')+'฿'+f(r.profit)):'<span style="color:#9CA3AF">—</span>')+'</td>'+
         '<td style="text-align:right;color:'+col+'">'+(pc!=null?((pc>=0?'+':'')+pc.toFixed(0)+'%'):'—')+'</td></tr>';
     }).join('')+'</tbody></table></div>';
-  var note='<div style="font-size:11px;color:var(--text-3);margin-top:8px;line-height:1.6">📌 <b>เฟส 1 (ประมาณการ):</b> รายได้ = บิลจริง (net + หัก ณ ที่จ่าย) รวมต่อลูกค้าในช่วง · น้ำมัน = ค่าน้ำมันรถคันนั้นทั้งเดือน ÷ จำนวนเที่ยว · <b style="color:#DC2626">หัก</b> ค่ารับตู้/คืนตู้/ผ่านท่า (สำรองจ่ายแทนลูกค้า) ออกแล้ว · ลูกค้า "(ยังไม่มีบิล)" = จับคู่ชื่อบิลไม่เจอ/ยังไม่วางบิล → ยังไม่คิดกำไร</div>';
+  var note='<div style="font-size:11px;color:var(--text-3);margin-top:8px;line-height:1.6">📌 <b>เฟส 1 (ประมาณการ):</b> รายได้ = บิลจริง (net + หัก ณ ที่จ่าย) รวมต่อลูกค้าในช่วง · น้ำมัน = ค่าน้ำมันรถคันนั้นทั้งเดือน ÷ จำนวนเที่ยว · <b style="color:#DC2626">หัก</b> ค่ารับตู้/คืนตู้/ผ่านท่า (สำรองจ่ายแทนลูกค้า) ออกแล้ว · ลูกค้า "(ยังไม่มีบิล)" = เดือนนี้ยังไม่ได้วางบิล (เครดิต 30 วัน จะมาเดือนถัดไป) หรือจ่ายสด/รถร่วมไม่มีบิล → ยังไม่คิดกำไร</div>';
   el.innerHTML=kpi+tbl+note;
 }
 
