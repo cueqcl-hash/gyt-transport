@@ -19356,7 +19356,7 @@ function _dashEnsureFinData(){
       tasks.push(sbFetchAll('gyt_toll_logs','?select=job_id,amount').then(function(r){ var m={}; (r||[]).forEach(function(t){ if(t&&t.job_id!=null) m[t.job_id]=(m[t.job_id]||0)+(parseFloat(t.amount)||0); }); _plTollByJob=m; }).catch(function(e){ _plTollByJob={}; }));
     }
     if(_dashCustCodeToName===null){   // 🆕 bridge บิล↔งาน: บิลเก็บชื่อไทย+รหัสของระบบบิล (WORLD/TOKO) ที่ไม่ตรง gyt_customers → ใช้ tax_id เป็นหลัก, code สำรอง
-      tasks.push(sbFetchAll('gyt_customers','?select=code,name,taxid').then(function(r){ var m={},t={}; (r||[]).forEach(function(c){ if(!c)return; if(c.code!=null) m[(''+c.code).trim()]=c.name; if(c.taxid!=null&&(''+c.taxid).trim()) t[(''+c.taxid).replace(/\D/g,'')]=c.name; }); _dashCustCodeToName=m; _dashCustTaxToName=t; }).catch(function(e){ _dashCustCodeToName={}; _dashCustTaxToName={}; }));
+      tasks.push(sbFetchAll('gyt_customers','?select=code,name,taxid').then(function(r){ var m={},t={},n={}; (r||[]).forEach(function(c){ if(!c)return; if(c.code!=null) m[(''+c.code).trim()]=c.name; if(c.taxid!=null&&(''+c.taxid).trim()) t[(''+c.taxid).replace(/\D/g,'')]=c.name; if(c.name){ var k=_custNorm(c.name); if(k) n[k]=c.name; } }); _dashCustCodeToName=m; _dashCustTaxToName=t; _dashCustNormToName=n; }).catch(function(e){ _dashCustCodeToName={}; _dashCustTaxToName={}; _dashCustNormToName={}; }));
     }
     if(_dashJobsAll===null){   // 🆕 โหลดงานครบทุกใบสำหรับ P&L (ไม่พึ่ง global jobs ที่อาจยังโหลดไม่ครบตอน dashboard render)
       tasks.push(sbFetchAll('gyt_jobs','?select=id,customer,plate,driver,startdate,status,costs&order=startdate.desc').then(function(r){ _dashJobsAll=r||[]; }).catch(function(e){ _dashJobsAll=[]; }));
@@ -19633,7 +19633,9 @@ function _dashRenderDrivers(pr){
     '</tbody></table></div><div style="font-size:11px;color:var(--text-3);margin-top:6px">แสดงครบทุกคน '+byT.length+' คน · "เงินเดือน" = ฐานตามประเภทรถ (สิบล้อ 5,000 / เทลเลอร์ 5,500) × '+_salMonths+' เดือนในช่วง (ไม่ใช่ยอดโอนจริงที่มีค่าทางด่วนปน) · รายรับรวม = เบิก + เงินเดือน · "รายได้" รอ import ราคา</div>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลคนขับในช่วงนี้</div>';
 }
 
-var _plTollByJob=null, _dashCustCodeToName=null, _dashCustTaxToName=null, _dashJobsAll=null;
+var _plTollByJob=null, _dashCustCodeToName=null, _dashCustTaxToName=null, _dashCustNormToName=null, _dashJobsAll=null;
+// รวมชื่อลูกค้าให้เป็นมาตรฐาน: ตัด (HEAD OFFICE)/(สำนักงานใหญ่)/(สาขา..) + จุด/คอมม่า/ช่องว่างซ้ำ + ตัวพิมพ์ใหญ่ → ใช้เทียบว่าเป็นเจ้าเดียวกัน
+function _custNorm(s){ return (''+(s||'')).replace(/\([^)]*\)/g,'').replace(/HEAD OFFICE/ig,'').replace(/สำนักงานใหญ่/g,'').replace(/สาขา\S*/g,'').replace(/[.,]/g,'').replace(/\s+/g,' ').trim().toUpperCase(); }
 // 💹 เฟส 1 — กำไร/ขาดทุนรายลูกค้า (หารอยรั่ว)
 //   รายได้ = บิลจริง (net + หัก ณ ที่จ่าย) รวมต่อลูกค้าในช่วง
 //   ต้นทุน = ค่าแรง(เบิก) + น้ำมัน(ค่าน้ำมันรถทั้งเดือน ÷ เที่ยว) + ทางด่วน + ยกตู้/ย้าย/อื่นๆ
@@ -19642,7 +19644,8 @@ function _dashRenderPL(pr){
   var el=document.getElementById('dpl-body'); if(!el) return;
   if(typeof _dashCanSeeFinance==='function' && !_dashCanSeeFinance()){ el.innerHTML=''; return; }
   var JB=(_dashJobsAll&&_dashJobsAll.length)?_dashJobsAll:((typeof jobs!=='undefined'&&jobs)?jobs:[]);
-  var C2N=_dashCustCodeToName||{}, T2N=_dashCustTaxToName||{}, CL=Object.keys(C2N);
+  var C2N=_dashCustCodeToName||{}, T2N=_dashCustTaxToName||{}, N2N=_dashCustNormToName||{}, CL=Object.keys(C2N);
+  var canon=function(x){ x=(''+(x||'')).trim(); return (N2N[_custNorm(x)])||x; };   // รวมชื่อ→ชื่อมาตรฐานในทะเบียนลูกค้า
   var np=function(p){ var m=String(p||'').match(/\d{2,3}-\d{4}/); return m?m[0]:String(p||'').trim(); };
   var f=function(v){ return _dashFmt(Math.round(v||0)); };
   // 1) รายได้ต่อลูกค้า (บิลจริง net + หัก ณ ที่จ่าย) — key ด้วย "ชื่อเต็ม" ที่ตรงกับ job.customer: tax_id → code ตรง → code prefix (WORLD→WORLDLINK) → ชื่อในบิล
@@ -19651,7 +19654,7 @@ function _dashRenderPL(pr){
   BL.forEach(function(b){ if(!b||!_dashInPr(b.bill_date,pr))return; var snap=b.customer_snapshot||{}; var tax=(snap.tax_id!=null)?(''+snap.tax_id).replace(/\D/g,''):''; var code=(b.customer_code!=null)?(''+b.customer_code).trim():'';
     var nm=(tax&&T2N[tax])||C2N[code]||'';
     if(!nm && code.length>=3){ var hit='',cnt=0; for(var i=0;i<CL.length;i++){ var gc=CL[i]; if(gc.indexOf(code)===0||code.indexOf(gc)===0){ hit=C2N[gc]; cnt++; } } if(cnt===1) nm=hit; }   // prefix ไม่กำกวมเท่านั้น
-    nm=(nm||snap.name||code||'(ไม่ระบุ)').trim();
+    nm=canon((nm||snap.name||code||'(ไม่ระบุ)').trim());
     rev[nm]=(rev[nm]||0)+(parseFloat(b.net_amt)||0)+(parseFloat(b.wht_amt)||0); });
   // 2) น้ำมัน+เที่ยว ต่อรถ/เดือน → เฉลี่ยต่อเที่ยว
   var FL=(typeof _finFuelLogs!=='undefined'&&_finFuelLogs)?_finFuelLogs:[];
@@ -19662,7 +19665,7 @@ function _dashRenderPL(pr){
   var cust={};
   JB.forEach(function(j){
     if(!j||j.status==='ยกเลิก'||!_dashInPr(j.startdate,pr))return;
-    var nm=((j.customer||'(ไม่ระบุ)')+'').trim(), jc=j.costs||{}, p=np(j.plate), m=String(j.startdate).slice(0,7);
+    var nm=canon(((j.customer||'(ไม่ระบุ)')+'').trim()), jc=j.costs||{}, p=np(j.plate), m=String(j.startdate).slice(0,7);
     var c=cust[nm]||(cust[nm]={trips:0,labor:0,fuel:0,toll:0,other:0});
     c.trips++;
     c.labor += (typeof _dashTrip==='function')?_dashTrip(j):(parseFloat(jc.tripAmtConfirmed||jc.tripAmt)||0);
@@ -19675,14 +19678,15 @@ function _dashRenderPL(pr){
   var rows=Object.keys(cust).map(function(nm){ var c=cust[nm], cost=c.labor+c.fuel+c.toll+c.other, hasRev=(rev[nm]!=null), r=rev[nm]||0; return {nm:nm,trips:c.trips,rev:r,hasRev:hasRev,labor:c.labor,fuel:c.fuel,toll:c.toll,other:c.other,cost:cost,profit:r-cost}; });
   rows.sort(function(a,b){ if(a.hasRev!==b.hasRev)return a.hasRev?-1:1; return a.profit-b.profit; });
   if(!rows.length){ el.innerHTML='<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลในช่วงนี้</div>'; return; }
-  var tRev=0,tCost=0,tProf=0,nLoss=0,nNoRev=0;
-  rows.forEach(function(r){ if(r.hasRev){ tRev+=r.rev; tCost+=r.cost; tProf+=r.profit; if(r.profit<0)nLoss++; } else nNoRev++; });
+  var tRev=0,tCost=0,tProf=0,nLoss=0,nNoRev=0,noBillCost=0,noBillTrips=0;
+  rows.forEach(function(r){ if(r.hasRev){ tRev+=r.rev; tCost+=r.cost; tProf+=r.profit; if(r.profit<0)nLoss++; } else { nNoRev++; noBillCost+=r.cost; noBillTrips+=r.trips; } });
   var mg=tRev>0?(tProf/tRev*100):0;
-  var kpi='<div class="dfin-kpis" style="margin-bottom:12px">'+
+  var kpi='<div class="dfin-kpis" style="margin-bottom:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'+
     '<div class="dfin-kpi"><div class="dfin-lab">💰 รายได้รวม (บิล)</div><div class="dfin-val">฿'+f(tRev)+'</div></div>'+
     '<div class="dfin-kpi"><div class="dfin-lab">💸 ต้นทุนรวม</div><div class="dfin-val">฿'+f(tCost)+'</div></div>'+
     '<div class="dfin-kpi"><div class="dfin-lab">'+(tProf>=0?'📈 กำไรสุทธิ':'📉 ขาดทุนสุทธิ')+'</div><div class="dfin-val" style="color:'+(tProf>=0?'#16A34A':'#DC2626')+'">'+(tProf>=0?'+':'')+'฿'+f(tProf)+'</div><div class="dfin-foot">margin '+mg.toFixed(1)+'%</div></div>'+
     '<div class="dfin-kpi"><div class="dfin-lab">🚨 ลูกค้าขาดทุน</div><div class="dfin-val" style="color:'+(nLoss?'#DC2626':'#16A34A')+'">'+nLoss+' <small>ราย</small></div>'+(nNoRev?'<div class="dfin-foot">'+nNoRev+' รายยังไม่จับคู่บิล</div>':'')+'</div>'+
+    '<div class="dfin-kpi"><div class="dfin-lab">🧾 งานยังไม่มีบิล</div><div class="dfin-val" style="color:#D97706">฿'+f(noBillCost)+'</div><div class="dfin-foot">'+noBillTrips+' งาน · '+nNoRev+' เจ้า — เช็กว่าลืมวางบิล?</div></div>'+
     '</div>';
   var tbl='<div style="max-height:460px;overflow-y:auto"><table class="dfleet-tbl"><thead><tr><th>ลูกค้า</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">รายได้</th><th style="text-align:right">ค่าแรง</th><th style="text-align:right">น้ำมัน</th><th style="text-align:right">ทางด่วน</th><th style="text-align:right">อื่นๆ</th><th style="text-align:right">ต้นทุนรวม</th><th style="text-align:right">กำไร/ขาดทุน</th><th style="text-align:right">%</th></tr></thead><tbody>'+
     rows.map(function(r){
