@@ -19356,7 +19356,7 @@ function _dashEnsureFinData(){
       tasks.push(sbFetchAll('gyt_toll_logs','?select=job_id,amount').then(function(r){ var m={}; (r||[]).forEach(function(t){ if(t&&t.job_id!=null) m[t.job_id]=(m[t.job_id]||0)+(parseFloat(t.amount)||0); }); _plTollByJob=m; }).catch(function(e){ _plTollByJob={}; }));
     }
     if(_dashCustCodeToName===null){   // 🆕 bridge บิล↔งาน: บิลเก็บชื่อไทย+รหัสของระบบบิล (WORLD/TOKO) ที่ไม่ตรง gyt_customers → ใช้ tax_id เป็นหลัก, code สำรอง
-      tasks.push(sbFetchAll('gyt_customers','?select=code,name,taxid').then(function(r){ var m={},t={},n={}; (r||[]).forEach(function(c){ if(!c)return; if(c.code!=null) m[(''+c.code).trim()]=c.name; if(c.taxid!=null&&(''+c.taxid).trim()) t[(''+c.taxid).replace(/\D/g,'')]=c.name; if(c.name){ var k=_custNorm(c.name); if(k) n[k]=c.name; } }); _dashCustCodeToName=m; _dashCustTaxToName=t; _dashCustNormToName=n; }).catch(function(e){ _dashCustCodeToName={}; _dashCustTaxToName={}; _dashCustNormToName={}; }));
+      tasks.push(sbFetchAll('gyt_customers','?select=code,name,taxid').then(function(r){ var m={},t={},n={}; (r||[]).forEach(function(c){ if(!c)return; if(c.code!=null&&(''+c.code).trim()) m[(''+c.code).trim()]=c.name; if(c.taxid!=null&&(''+c.taxid).trim()) t[(''+c.taxid).replace(/\D/g,'')]=c.name; if(c.name){ var k=_custNorm(c.name); if(k) n[k]=c.name; } }); _dashCustCodeToName=m; _dashCustTaxToName=t; _dashCustNormToName=n; }).catch(function(e){ _dashCustCodeToName={}; _dashCustTaxToName={}; _dashCustNormToName={}; }));
     }
     if(_dashJobsAll===null){   // 🆕 โหลดงานครบทุกใบสำหรับ P&L (ไม่พึ่ง global jobs ที่อาจยังโหลดไม่ครบตอน dashboard render)
       tasks.push(sbFetchAll('gyt_jobs','?select=id,customer,plate,driver,startdate,status,costs&order=startdate.desc').then(function(r){ _dashJobsAll=r||[]; }).catch(function(e){ _dashJobsAll=[]; }));
@@ -19653,7 +19653,7 @@ function _dashRenderPL(pr){
   var rev={};
   BL.forEach(function(b){ if(!b||!_dashInPr(b.bill_date,pr))return; var snap=b.customer_snapshot||{}; var tax=(snap.tax_id!=null)?(''+snap.tax_id).replace(/\D/g,''):''; var code=(b.customer_code!=null)?(''+b.customer_code).trim():'';
     var nm=(tax&&T2N[tax])||C2N[code]||'';
-    if(!nm && code.length>=3){ var hit='',cnt=0; for(var i=0;i<CL.length;i++){ var gc=CL[i]; if(gc.indexOf(code)===0||code.indexOf(gc)===0){ hit=C2N[gc]; cnt++; } } if(cnt===1) nm=hit; }   // prefix ไม่กำกวมเท่านั้น
+    if(!nm && code.length>=3){ var hit='',cnt=0; for(var i=0;i<CL.length;i++){ var gc=CL[i]; if(gc && gc.length>=2 && (gc.indexOf(code)===0||code.indexOf(gc)===0)){ hit=C2N[gc]; cnt++; } } if(cnt===1) nm=hit; }   // prefix ไม่กำกวม + กัน code ว่าง/สั้นเกิน
     nm=canon((nm||snap.name||code||'(ไม่ระบุ)').trim());
     rev[nm]=(rev[nm]||0)+(parseFloat(b.net_amt)||0)+(parseFloat(b.wht_amt)||0); });
   // 2) น้ำมัน+เที่ยว ต่อรถ/เดือน → เฉลี่ยต่อเที่ยว
@@ -26410,7 +26410,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.233';
+const APP_VERSION = '2026.04.29.234';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33198,4 +33198,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v233 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน/หลายตู้/แก้ไข + ปริ้นตรง + รถ<!-- deploy v1 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน+หลายตู้+แก้ไข, ปริ้นตรง, จัดลำดับ รถ/คนขับ เหนือค่าใช้จ่าย -->คนขับเหนือค่าใช้จ่าย -->
+<!-- deploy v234 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน/หลายตู้/แก้ไข + ปริ้นตรง + รถ<!-- deploy v1 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน+หลายตู้+แก้ไข, ปริ้นตรง, จัดลำดับ รถ/คนขับ เหนือค่าใช้จ่าย -->คนขับเหนือค่าใช้จ่าย -->
