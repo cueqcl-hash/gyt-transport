@@ -26410,7 +26410,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.231';
+const APP_VERSION = '2026.04.29.232';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33198,4 +33198,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v220 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน/หลายตู้/แก้ไข + ปริ้นตรง + รถ<!-- deploy v1 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน+หลายตู้+แก้ไข, ปริ้นตรง, จัดลำดับ รถ/คนขับ เหนือค่าใช้จ่าย -->คนขับเหนือค่าใช้จ่าย -->
+<!-- deploy v232 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน/หลายตู้/แก้ไข + ปริ้นตรง + รถ<!-- deploy v1 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน+หลายตู้+แก้ไข, ปริ้นตรง, จัดลำดับ รถ/คนขับ เหนือค่าใช้จ่าย -->คนขับเหนือค่าใช้จ่าย -->
