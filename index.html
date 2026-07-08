@@ -19338,7 +19338,7 @@ function _dashEnsureFinData(){
   _dashFinDataPromise = (async function(){
     var tasks=[];
     if(typeof _BL_BILLS==='undefined' || !_BL_BILLS || !_BL_BILLS.length){
-      tasks.push(sbFetchAll('gyt_billings','?select=*&order=bill_date.desc').then(function(r){ try{ _BL_BILLS=r||[]; }catch(e){ window._BL_BILLS=r||[]; } }).catch(function(e){ console.warn('[dash] billings load', e); }));
+      tasks.push(sbFetchAll('gyt_billings','?select=id,bill_no,bill_date,customer_code,customer_snapshot,net_amt,wht_amt,vat_amt,status&order=bill_date.desc').then(function(r){ try{ _BL_BILLS=r||[]; }catch(e){ window._BL_BILLS=r||[]; } }).catch(function(e){ console.warn('[dash] billings load', e); }));
     }
     if(typeof _finFuelLogs==='undefined' || !_finFuelLogs || !_finFuelLogs.length){
       tasks.push(sbFetchAll('gyt_fuel_logs','?select=*&order=fuel_date.desc').then(function(r){ try{ _finFuelLogs=r||[]; }catch(e){ window._finFuelLogs=r||[]; } }).catch(function(e){ console.warn('[dash] fuel load', e); }));
@@ -26410,7 +26410,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.232';
+const APP_VERSION = '2026.04.29.233';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33198,4 +33198,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v232 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน/หลายตู้/แก้ไข + ปริ้นตรง + รถ<!-- deploy v1 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน+หลายตู้+แก้ไข, ปริ้นตรง, จัดลำดับ รถ/คนขับ เหนือค่าใช้จ่าย -->คนขับเหนือค่าใช้จ่าย -->
+<!-- deploy v233 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน/หลายตู้/แก้ไข + ปริ้นตรง + รถ<!-- deploy v1 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน+หลายตู้+แก้ไข, ปริ้นตรง, จัดลำดับ รถ/คนขับ เหนือค่าใช้จ่าย -->คนขับเหนือค่าใช้จ่าย -->
