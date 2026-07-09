@@ -19803,9 +19803,9 @@ async function _tpEnsureData(){
     // index: เลขตู้ → รายการบิล {bill,t,share,multi,approx}
     _tpContIdx={};
     (_tpBills||[]).forEach(function(b){ if(!b)return; var conts=_tpBillConts(b); if(!conts.length)return; var fr=_tpBillFreight(b); if(!(fr.amt>0))return; var share=fr.amt/conts.length, multi=conts.length>1, t=new Date(b.bill_date).getTime(); conts.forEach(function(c){ (_tpContIdx[c]=_tpContIdx[c]||[]).push({bill:b.bill_no, t:t, share:share, multi:multi, approx:fr.approx}); }); });
-    // index: เลขตู้ → ค่าจ้างรถร่วม
+    // index: เลขตู้ → รายการค่าจ้างรถร่วม [{t,hire,name}] (มีวันที่ กันตู้ซ้ำคนละเที่ยวบวกรวมกัน)
     _tpHireByCont={};
-    (_tpSub||[]).forEach(function(s){ if(!s)return; var c=_tpCont(s.container_no); if(!c)return; var o=_tpHireByCont[c]||(_tpHireByCont[c]={hire:0, name:''}); o.hire+=parseFloat(s.hire_amount)||0; if(!o.name) o.name=s.subcontractor_name||''; });
+    (_tpSub||[]).forEach(function(s){ if(!s)return; var c=_tpCont(s.container_no); if(!c)return; (_tpHireByCont[c]=_tpHireByCont[c]||[]).push({t:_tpSubDate(s.job_date), hire:parseFloat(s.hire_amount)||0, name:s.subcontractor_name||''}); });
     // เฉลี่ยน้ำมันต่อเที่ยว: น้ำมันรถ/เดือน ÷ เที่ยวรถ/เดือน (ทุกงาน)
     var FL=(typeof _finFuelLogs!=='undefined'&&_finFuelLogs)?_finFuelLogs:[];
     _tpFuelByPM={}; _tpTripByPM={};
@@ -19823,6 +19823,17 @@ function _tpRevOf(cont, jobT){
   var pool=win.length?win:e, out=win.length===0;
   var best=pool.slice().sort(function(a,b){ return Math.abs(a.t-jobT)-Math.abs(b.t-jobT); })[0];
   return {rev:best.share, bill:best.bill, multi:!!best.multi, out:out, approx:!!best.approx, none:false};
+}
+
+// job_date รถร่วมเป็น พ.ศ. ("2569-03-13") → ms ค.ศ.
+function _tpSubDate(d){ var m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})/); if(!m) return NaN; var y=+m[1]; if(y>2400) y-=543; return new Date(y, +m[2]-1, +m[3]).getTime(); }
+// ค่าจ้างรถร่วมของตู้นี้ ที่ใกล้วันงานสุด (กันตู้ซ้ำคนละเที่ยว) — คืน record เดียว ไม่บวกรวม
+function _tpHireOf(cont, jobT){
+  var e=cont?_tpHireByCont[cont]:null; if(!e||!e.length) return null;
+  var lo=jobT-20*864e5, hi=jobT+90*864e5;
+  var win=e.filter(function(x){ return !isNaN(x.t) && x.t>=lo && x.t<=hi; });
+  var pool=win.length?win:e;
+  return pool.slice().sort(function(a,b){ return Math.abs(a.t-jobT)-Math.abs(b.t-jobT); })[0];
 }
 
 var _TP_FLAGS={
@@ -19855,7 +19866,7 @@ function _tpCompute(pr){
     else { if(rr.out) flags.push('revout'); if(rr.multi) flags.push('multi'); if(rr.approx) flags.push('approx'); }
     // ต้นทุน
     var realPlate = plate && plate!=='รถร่วม' && /\d{2,3}-\d{4}/.test(plate);
-    var hireRec = cont?_tpHireByCont[cont]:null;
+    var hireRec = cont?_tpHireOf(cont, jobT):null;
     var isSub = (plate==='รถร่วม') || (!realPlate && !!hireRec);
     var labor=0,fuel=0,toll=0,other=0,hire=0,cost=0,truck;
     if(isSub){
@@ -26715,7 +26726,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.239';
+const APP_VERSION = '2026.04.29.240';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33503,4 +33514,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v239 STAGING — P&L รายเที่ยว: เพิ่มตัวกรอง 📉 เฉพาะขาดทุน -->
+<!-- deploy v240 STAGING — P&L รายเที่ยว: แก้บั๊กค่าจ้างรถร่วม ตู้ซ้ำคนละเที่ยวถูกบวกรวม → จับตามวันงาน (window -20..+90) -->
