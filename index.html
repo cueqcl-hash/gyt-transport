@@ -993,6 +993,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text-2);cursor:pointer;white-space:nowrap">
                 <input id="tp-frev" type="checkbox" onchange="_tpRenderView()"> เฉพาะที่จับบิลได้
               </label>
+              <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#DC2626;font-weight:600;cursor:pointer;white-space:nowrap">
+                <input id="tp-floss" type="checkbox" onchange="_tpRenderView()"> 📉 เฉพาะขาดทุน
+              </label>
             </div>
             <div id="tp-body"><div style="color:var(--text-3);font-size:13px;padding:24px 0">⏳ กำลังโหลด…</div></div>
           </div>
@@ -19951,10 +19954,12 @@ function _tpRenderView(){
   var ft=(document.getElementById('tp-ftruck')||{}).value||'';
   var onlyFlag=!!(document.getElementById('tp-fflag')||{}).checked;
   var onlyRev=!!(document.getElementById('tp-frev')||{}).checked;
+  var onlyLoss=!!(document.getElementById('tp-floss')||{}).checked;
   var view=rows.filter(function(r){
     if(ft && r.truck!==ft) return false;
     if(onlyFlag && !_tpHardFlags(r.flags).length) return false;
     if(onlyRev && !r.hasRev) return false;
+    if(onlyLoss && !(r.hasRev && r.profit<0)) return false;
     if(q){ var hay=(r.id+' '+r.customer+' '+r.shipper+' '+r.cont+' '+r.contRaw+' '+r.plate+' '+r.route).toLowerCase(); if(hay.indexOf(q)<0) return false; }
     return true;
   });
@@ -26710,7 +26715,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.238';
+const APP_VERSION = '2026.04.29.239';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33498,4 +33503,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v238 STAGING — P&L รายเที่ยว: แยกธง 2 ระดับ (เข้ม=ข้อมูลขาด นับ KPI/กรอง · จาง 🔀≈=ประมาณ ถ้าต้นทุนครบ=ผ่าน) -->
+<!-- deploy v239 STAGING — P&L รายเที่ยว: เพิ่มตัวกรอง 📉 เฉพาะขาดทุน -->
