@@ -960,6 +960,50 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
       </div>
 
+      <!-- 🆕 เฟส1 — กำไร/ขาดทุนรายเที่ยว (P&L ต่อเที่ยวงาน) -->
+      <div id="pg-tripprofit" class="screen">
+        <div id="tp-wrap" style="display:none">
+          <div class="dfin-bar">
+            <div>
+              <div class="dfin-title">💹 กำไร/ขาดทุนรายเที่ยว</div>
+              <div class="dfin-sub">รายได้จับจาก <b>เลขตู้</b> ในบิลจริง − ต้นทุนต่อเที่ยว (รถบริษัท: ค่าแรง+น้ำมัน+ทางด่วน · รถร่วม: ค่าจ้าง) · 🚩 = ข้อมูลยังไม่ครบ</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <div class="dfin-modes">
+                <button class="dfin-mbtn active" id="tp-mode-month" onclick="_tpSetMode('month')">📅 รายเดือน</button>
+                <button class="dfin-mbtn" id="tp-mode-year" onclick="_tpSetMode('year')">🗓️ รายปี</button>
+              </div>
+              <div id="tp-period-ctrl"></div>
+            </div>
+          </div>
+
+          <div id="tp-kpis" style="margin-bottom:12px"></div>
+
+          <div class="dfin-card">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">
+              <input id="tp-q" type="text" placeholder="🔍 ค้นหา JOB / ลูกค้า / เลขตู้ / ทะเบียน" oninput="_tpRenderView()" style="flex:1;min-width:200px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+              <select id="tp-ftruck" onchange="_tpRenderView()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+                <option value="">รถทั้งหมด</option>
+                <option value="gyt">🚛 รถบริษัท</option>
+                <option value="sub">🚚 รถร่วม</option>
+              </select>
+              <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text-2);cursor:pointer;white-space:nowrap">
+                <input id="tp-fflag" type="checkbox" onchange="_tpRenderView()"> 🚩 เฉพาะที่มีธง
+              </label>
+              <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text-2);cursor:pointer;white-space:nowrap">
+                <input id="tp-frev" type="checkbox" onchange="_tpRenderView()"> เฉพาะที่จับบิลได้
+              </label>
+            </div>
+            <div id="tp-body"><div style="color:var(--text-3);font-size:13px;padding:24px 0">⏳ กำลังโหลด…</div></div>
+          </div>
+        </div>
+        <div id="tp-noaccess" style="display:none;text-align:center;padding:64px 20px;color:var(--text-3)">
+          <div style="font-size:40px;margin-bottom:10px">💹</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-2)">กำไร/ขาดทุนรายเที่ยว</div>
+          <div style="font-size:13px;margin-top:6px">เฉพาะผู้บริหาร</div>
+        </div>
+      </div>
+
       <!-- 🆕 ปิดรอบค่าใช้จ่าย (คนโอน) -->
       <div id="pg-closing" class="screen">
         <style>
@@ -5763,6 +5807,7 @@ function initApp(){
     {id:'inspection',icon:'✅',label:'ตรวจสภาพรถ',          perm:'view_inspection'},   // Phase 1A
     {id:'subcontractors',icon:'🚚',label:'รถร่วม',        perm:'manage_billing'}, // 🆕 v181 — รถร่วม (น้าปุ้ม)
     {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
+    {id:'tripprofit',icon:'💹',label:'กำไร/ขาดทุนรายเที่ยว', perm:'dashboard'}, // 🆕 เฟส1 — P&L ต่อเที่ยวงาน (จับเลขตู้→บิล, แยกรถร่วม, ธงข้อมูลไม่ครบ) · gate ด้วย _dashCanSeeFinance
     {id:'cartrack', icon:'🛰️',label:'Dashboard Cartrack', perm:'dashboard'}, // 🆕 v193 — รายงาน GPS Cartrack แยกจากการเงิน (ความปลอดภัย/น้ำมัน/น้ำมันหาย)
   ];
   const visibleNav = ALL_NAV.filter(function(n){
@@ -5836,7 +5881,7 @@ function goPage(id, opts){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('pg-'+id)?.classList.add('active');
   document.getElementById('nav-'+id)?.classList.add('active');
-  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ',receipts:'บันทึกใบเสร็จเข้าออฟฟิศ',finance:'การเงิน',billing:'ใบวางบิล (น้าปุ้ม)',payouts:'ค่าใช้จ่ายคนรถ',closing:'ปิดรอบค่าใช้จ่าย',reconcile:'รวมค่าใช้จ่าย (ปิดบัญชี)',subcontractors:'รถร่วม (น้าปุ้ม)',cartrack:'Dashboard Cartrack'};
+  const titles={dashboard:'Dashboard ภาพรวม',jobs:'ตารางงาน',users:'จัดการ User',maintenance:'ซ่อมบำรุงรถ',inspection:'ตรวจสภาพรถ',receipts:'บันทึกใบเสร็จเข้าออฟฟิศ',finance:'การเงิน',billing:'ใบวางบิล (น้าปุ้ม)',payouts:'ค่าใช้จ่ายคนรถ',closing:'ปิดรอบค่าใช้จ่าย',reconcile:'รวมค่าใช้จ่าย (ปิดบัญชี)',subcontractors:'รถร่วม (น้าปุ้ม)',tripprofit:'กำไร/ขาดทุนรายเที่ยว',cartrack:'Dashboard Cartrack'};
   document.getElementById('topbar-title').textContent=titles[id]||'';
   const badge=document.getElementById('topbar-badge');
   if(id==='jobs'){badge.style.display='block';badge.textContent='Green Yello Transport';}
@@ -5850,6 +5895,7 @@ function goPage(id, opts){
   if(id==='closing'  && typeof ecInit==='function') ecInit();  // 🆕 ปิดรอบค่าใช้จ่าย
   if(id==='reconcile'&& typeof rcInit==='function') rcInit();  // 🆕 รวม+กระทบยอดค่าใช้จ่าย
   if(id==='subcontractors' && typeof rrInit==='function') rrInit();  // 🆕 v181 — รถร่วม
+  if(id==='tripprofit' && typeof renderTripPL==='function') renderTripPL();  // 🆕 เฟส1 — P&L รายเที่ยว
   if(id==='cartrack' && typeof renderCartrackDash==='function') renderCartrackDash();  // 🆕 v193 — Dashboard Cartrack
   // อัปเดตการซ่อน/แสดงปุ่มตาม perms (สำหรับหน้าใหม่ที่เพิ่งเปิด)
   if(typeof applyPermsToUI === 'function') setTimeout(applyPermsToUI, 0);
@@ -19707,6 +19753,250 @@ function _dashRenderPL(pr){
   el.innerHTML=kpi+tbl+note;
 }
 
+// ============================================================
+// 💹 กำไร/ขาดทุนรายเที่ยว (per-trip P&L) — เฟส 1
+//   รายได้ = จับ "เลขตู้" ในบิลจริง (line_items) → แบ่งค่าขนส่งต่อตู้
+//   ต้นทุน = รถบริษัท(ค่าแรง+น้ำมันเฉลี่ย+ทางด่วน+อื่นๆ) · รถร่วม(ค่าจ้าง hire_amount จับด้วยเลขตู้)
+//   🚩 ธง = ข้อมูลยังไม่ครบ (ไม่มีเลขตู้ / จับบิลไม่ได้ / รถร่วมไม่มีค่าจ้าง / ยังไม่ลงค่าแรง)
+// ============================================================
+var _tpJobs=null, _tpBills=null, _tpSub=null, _tpDataPromise=null;
+var _tpContIdx=null, _tpHireByCont=null, _tpFuelByPM=null, _tpTripByPM=null;
+var _tpMode='month';
+var _tpSort={key:'date', dir:-1};   // dir 1=น้อย→มาก, -1=มาก→น้อย
+var _tpRows=[];
+
+function _tpNP(p){ var m=String(p||'').match(/\d{2,3}-\d{4}/); return m?m[0]:String(p||'').trim(); }
+// เลขตู้ ISO (4 อักษร + 7 ตัวเลข) ตัวแรกจากข้อความ → คีย์มาตรฐาน
+function _tpCont(x){ var s=String(x==null?'':x).toUpperCase().replace(/[^A-Z0-9]/g,''); var m=s.match(/[A-Z]{4}\d{7}/); return m?m[0]:''; }
+// เลขตู้ "ทุกตัว" ในบิล — เอาจากบรรทัด "เบอร์ตู้/CONTAINER NO" ก่อน ถ้าไม่มี fallback ทั้งบิล
+function _tpBillConts(b){
+  var li=(b&&b.line_items)||[], hit={}, order=[];
+  var pick=function(str){ var re=/[A-Z]{4}\d{7}/g, m; while((m=re.exec(String(str||'').toUpperCase()))){ var c=m[0]; if(!hit[c]){ hit[c]=1; order.push(c); } } };
+  var hasTag=false;
+  li.forEach(function(it){ var d=String((it&&it.desc)||''); if(/เบอร์ตู้|CONTAINER\s*NO/i.test(d)){ hasTag=true; pick(d); } });
+  if(!hasTag){ li.forEach(function(it){ pick((it&&it.desc)||''); }); }
+  return order;
+}
+// ค่าธรรมเนียม/สำรองจ่าย (ไม่ใช่ค่าขนส่ง) — ตัดออกตอนหาค่าขนส่งบิลฟอร์มอังกฤษ
+var _TP_CHARGE_RE=/คืนตู้|รับตู้|ย้ายตู้|ผ่านท่า|ยกตู้|ค่าปรับ|ค่าธรรมเนียม|ล้างตู้|ตรวจ|GATE|HANDLING|LIFT|ADVANCE|REPAIR|DETENTION|DEMURRAGE|STORAGE|X-?RAY|SEAL|WASH|CLEAN|WEIGH/i;
+// ค่าขนส่งรวมของบิล — (1) amt_freight ถ้ามี (2) บิลฟอร์มอังกฤษ: sum amt_total ของบรรทัด "ขนส่ง" (ตัดค่าธรรมเนียม) (3) fallback net
+function _tpBillFreight(b){
+  var li=(b&&b.line_items)||[], f=0; li.forEach(function(it){ f+=parseFloat(it&&it.amt_freight)||0; });
+  if(f>0) return {amt:f, approx:false};
+  var f2=0; li.forEach(function(it){ if(!it)return; var amt=parseFloat(it.amt_total)||0; if(amt<=0)return; var d=String(it.desc||''); if(_TP_CHARGE_RE.test(d))return; f2+=amt; });
+  if(f2>0) return {amt:f2, approx:false};
+  var net=parseFloat(b&&b.net_amt)||0; return {amt:net, approx:true};
+}
+
+async function _tpEnsureData(){
+  if(_tpDataPromise) return _tpDataPromise;
+  _tpDataPromise=(async function(){
+    if(typeof _dashEnsureFinData==='function'){ try{ await _dashEnsureFinData(); }catch(e){} }   // fuel/toll/legacy
+    var tasks=[];
+    tasks.push(sbFetchAll('gyt_jobs','?select=id,customer,plate,driver,startdate,status,costs,container,booking,origin,dest,returnyard,type&order=startdate.desc').then(function(r){ _tpJobs=r||[]; }).catch(function(e){ _tpJobs=[]; }));
+    tasks.push(sbFetchAll('gyt_billings','?select=bill_no,bill_date,net_amt,wht_amt,customer_code,line_items&order=bill_date.desc').then(function(r){ _tpBills=r||[]; }).catch(function(e){ _tpBills=[]; }));
+    tasks.push(sbFetchAll('gyt_subcontractor_jobs','?select=container_no,hire_amount,subcontractor_name,customer,job_date,voucher_no').then(function(r){ _tpSub=r||[]; }).catch(function(e){ _tpSub=[]; }));
+    await Promise.all(tasks);
+    // index: เลขตู้ → รายการบิล {bill,t,share,multi,approx}
+    _tpContIdx={};
+    (_tpBills||[]).forEach(function(b){ if(!b)return; var conts=_tpBillConts(b); if(!conts.length)return; var fr=_tpBillFreight(b); if(!(fr.amt>0))return; var share=fr.amt/conts.length, multi=conts.length>1, t=new Date(b.bill_date).getTime(); conts.forEach(function(c){ (_tpContIdx[c]=_tpContIdx[c]||[]).push({bill:b.bill_no, t:t, share:share, multi:multi, approx:fr.approx}); }); });
+    // index: เลขตู้ → ค่าจ้างรถร่วม
+    _tpHireByCont={};
+    (_tpSub||[]).forEach(function(s){ if(!s)return; var c=_tpCont(s.container_no); if(!c)return; var o=_tpHireByCont[c]||(_tpHireByCont[c]={hire:0, name:''}); o.hire+=parseFloat(s.hire_amount)||0; if(!o.name) o.name=s.subcontractor_name||''; });
+    // เฉลี่ยน้ำมันต่อเที่ยว: น้ำมันรถ/เดือน ÷ เที่ยวรถ/เดือน (ทุกงาน)
+    var FL=(typeof _finFuelLogs!=='undefined'&&_finFuelLogs)?_finFuelLogs:[];
+    _tpFuelByPM={}; _tpTripByPM={};
+    FL.forEach(function(x){ if(!x)return; var p=_tpNP(x.plate), m=String(x.fuel_date||'').slice(0,7); if(!p||!m)return; (_tpFuelByPM[p]=_tpFuelByPM[p]||{})[m]=(_tpFuelByPM[p][m]||0)+(parseFloat(x.amount)||0); });
+    (_tpJobs||[]).forEach(function(j){ if(!j||j.status==='ยกเลิก'||!j.startdate)return; var p=_tpNP(j.plate), m=String(j.startdate).slice(0,7); if(!p||!m)return; (_tpTripByPM[p]=_tpTripByPM[p]||{})[m]=(_tpTripByPM[p][m]||0)+1; });
+  })();
+  return _tpDataPromise;
+}
+
+// รายได้จากเลขตู้ (บิลใกล้วันงานสุดในกรอบ [-20,+90] วัน; นอกกรอบ→flag revout)
+function _tpRevOf(cont, jobT){
+  var e=cont?_tpContIdx[cont]:null; if(!e||!e.length) return {rev:0, bill:'', multi:false, out:false, approx:false, none:true};
+  var lo=jobT-20*864e5, hi=jobT+90*864e5;
+  var win=e.filter(function(x){ return !isNaN(x.t) && x.t>=lo && x.t<=hi; });
+  var pool=win.length?win:e, out=win.length===0;
+  var best=pool.slice().sort(function(a,b){ return Math.abs(a.t-jobT)-Math.abs(b.t-jobT); })[0];
+  return {rev:best.share, bill:best.bill, multi:!!best.multi, out:out, approx:!!best.approx, none:false};
+}
+
+var _TP_FLAGS={
+  nocont:{i:'📦', t:'ไม่มีเลขตู้ในใบงาน — จับบิลไม่ได้'},
+  norev:{i:'🧾', t:'มีเลขตู้แต่ยังไม่เจอบิล (อาจยังไม่วางบิล/เครดิต 30 วัน)'},
+  revout:{i:'🕒', t:'เจอบิลแต่คนละช่วงเวลา — อาจเป็นเลขตู้ซ้ำคนละเที่ยว'},
+  multi:{i:'🔀', t:'บิลรวมหลายตู้ — รายได้เฉลี่ยต่อตู้ (ประมาณ)'},
+  approx:{i:'≈', t:'บิลฟอร์มอังกฤษ — ใช้ยอดสุทธิประมาณค่าขนส่ง'},
+  subnohire:{i:'🚚', t:'รถร่วมแต่ยังไม่มีค่าจ้าง (hire_amount)'},
+  nolabor:{i:'💸', t:'รถบริษัทแต่ยังไม่ได้ลงค่าแรงเที่ยว'}
+};
+
+function _tpRoute(j){ var a=[]; if(j.origin)a.push(j.origin); if(j.dest)a.push(j.dest); if(j.returnyard)a.push(j.returnyard); return a.join(' → '); }
+
+function _tpCompute(pr){
+  var JB=_tpJobs||[], rows=[];
+  JB.forEach(function(j){
+    if(!j||j.status==='ยกเลิก'||!_dashInPr(j.startdate,pr))return;
+    var jc=j.costs||{}, plate=(j.plate||'').trim(), jobT=new Date(j.startdate).getTime();
+    var cont=_tpCont(j.container), flags=[];
+    // รายได้
+    var rr=cont?_tpRevOf(cont,jobT):{rev:0,none:true};
+    var revenue=cont?rr.rev:0, hasRev=!!(cont&&!rr.none&&revenue>0);
+    if(!cont) flags.push('nocont');
+    else if(rr.none) flags.push('norev');
+    else { if(rr.out) flags.push('revout'); if(rr.multi) flags.push('multi'); if(rr.approx) flags.push('approx'); }
+    // ต้นทุน
+    var realPlate = plate && plate!=='รถร่วม' && /\d{2,3}-\d{4}/.test(plate);
+    var hireRec = cont?_tpHireByCont[cont]:null;
+    var isSub = (plate==='รถร่วม') || (!realPlate && !!hireRec);
+    var labor=0,fuel=0,toll=0,other=0,hire=0,cost=0,truck;
+    if(isSub){
+      truck='sub'; hire=hireRec?hireRec.hire:0; cost=hire;
+      if(!(hire>0)) flags.push('subnohire');
+    } else {
+      truck='gyt';
+      labor=(typeof _dashTrip==='function')?_dashTrip(j):_dashPickAmt(jc,'trip');
+      var p=_tpNP(plate), m=String(j.startdate).slice(0,7);
+      var tf=(_tpFuelByPM[p]&&_tpFuelByPM[p][m])||0, tt=(_tpTripByPM[p]&&_tpTripByPM[p][m])||0;
+      fuel=(tt>0)?(tf/tt):0;
+      toll=(_plTollByJob&&_plTollByJob[j.id]!=null)?_plTollByJob[j.id]:_dashPickAmt(jc,'toll');
+      other=_dashPickAmt(jc,'box')+_dashPickAmt(jc,'move')+_dashPickAmt(jc,'misc')+_dashPickAmt(jc,'misc2');
+      cost=labor+fuel+toll+other;
+      if(!(labor>0)) flags.push('nolabor');
+    }
+    var profit=revenue-cost, margin=(hasRev&&revenue>0)?(profit/revenue*100):null;
+    rows.push({ id:j.id, t:jobT, date:j.startdate, customer:(j.customer||'').trim(), route:_tpRoute(j),
+      plate:plate, truck:truck, cont:cont, contRaw:(j.container||'').trim(),
+      revenue:revenue, hasRev:hasRev, labor:labor, fuel:fuel, toll:toll, other:other, hire:hire,
+      cost:cost, profit:profit, margin:margin, bill:rr.bill||'', flags:flags });
+  });
+  return rows;
+}
+
+// ---- period control (แยกจาก dashboard) ----
+function _tpBuildPeriodCtrl(){
+  var el=document.getElementById('tp-period-ctrl'); if(!el) return;
+  var now=new Date(), o='';
+  if(_tpMode==='year'){
+    var ys={}; (_tpJobs||[]).forEach(function(j){ if(j&&j.startdate){ var y=String(j.startdate).slice(0,4); if(/^\d{4}$/.test(y)) ys[y]=1; } });
+    var arr=Object.keys(ys).sort().reverse(); if(!arr.length) arr=[String(now.getFullYear())];
+    arr.forEach(function(y){ o+='<option value="'+y+'">ปี '+(+y+543)+'</option>'; });
+    el.innerHTML='<select class="dfin-period" id="tp-year" onchange="renderTripPL()">'+o+'</select>';
+  } else {
+    for(var i=0;i<24;i++){ var d=new Date(now.getFullYear(), now.getMonth()-i, 1); o+='<option value="'+_dashMK(d)+'">'+_dashThaiMonth(d.getMonth()+1)+' '+(d.getFullYear()+543)+'</option>'; }
+    el.innerHTML='<select class="dfin-period" id="tp-month" onchange="renderTripPL()">'+o+'</select>';
+    var dm=document.getElementById('tp-month'), def=(typeof _dashDefaultMonth==='function')?_dashDefaultMonth():'';
+    if(dm&&def) dm.value=def;
+  }
+  el.dataset.mode=_tpMode;
+}
+function _tpPeriod(){
+  var now=new Date();
+  if(_tpMode==='year'){ var y=parseInt((document.getElementById('tp-year')||{}).value||now.getFullYear(),10); return {from:new Date(y,0,1), to:new Date(y,11,31,23,59,59), label:'ปี '+(y+543)}; }
+  var mv=(document.getElementById('tp-month')||{}).value, y2,m2; if(mv){ var p=mv.split('-'); y2=+p[0]; m2=+p[1]-1; } else { y2=now.getFullYear(); m2=now.getMonth(); }
+  return {from:new Date(y2,m2,1), to:new Date(y2,m2+1,0,23,59,59), label:_dashThaiMonth(m2+1)+' '+(y2+543)};
+}
+function _tpSetMode(m){
+  if(_tpMode===m) return;
+  _tpMode=m;
+  var mb=document.getElementById('tp-mode-month'), yb=document.getElementById('tp-mode-year');
+  if(mb) mb.classList.toggle('active', m==='month'); if(yb) yb.classList.toggle('active', m==='year');
+  _tpBuildPeriodCtrl();
+  renderTripPL();
+}
+function _tpSetSort(k){
+  if(_tpSort.key===k){ _tpSort.dir=-_tpSort.dir; } else { _tpSort.key=k; _tpSort.dir=(k==='date')?-1:1; }
+  _tpRenderView();
+}
+
+async function renderTripPL(){
+  var wrap=document.getElementById('tp-wrap'), na=document.getElementById('tp-noaccess'), body=document.getElementById('tp-body');
+  if(typeof _dashCanSeeFinance==='function' && !_dashCanSeeFinance()){ if(wrap)wrap.style.display='none'; if(na)na.style.display='block'; return; }
+  if(na)na.style.display='none'; if(wrap)wrap.style.display='block';
+  if(!body) return;
+  var pc=document.getElementById('tp-period-ctrl');
+  if(pc && pc.dataset.mode!==_tpMode){ _tpBuildPeriodCtrl(); }
+  body.innerHTML='<div style="color:var(--text-3);font-size:13px;padding:24px 0">⏳ กำลังโหลดข้อมูลงาน+บิล…</div>';
+  try{ await _tpEnsureData(); }catch(e){ body.innerHTML='<div style="color:#DC2626;font-size:13px;padding:24px 0">โหลดข้อมูลไม่สำเร็จ</div>'; return; }
+  if(pc && !pc.innerHTML){ _tpBuildPeriodCtrl(); }
+  var pr=_tpPeriod();
+  _tpRows=_tpCompute(pr);
+  _tpRenderView();
+}
+
+function _tpRenderView(){
+  var body=document.getElementById('tp-body'); if(!body) return;
+  var rows=_tpRows||[];
+  var f=function(v){ return _dashFmt(Math.round(v||0)); };
+  // KPI = ทุกเที่ยวในช่วง (ก่อน filter)
+  var tRev=0,tCost=0,tProf=0,nTrip=rows.length,nFlag=0,nLoss=0,nSub=0,nNoRev=0;
+  rows.forEach(function(r){ tRev+=r.revenue; tCost+=r.cost; tProf+=(r.revenue-r.cost); if(r.flags.length)nFlag++; if(r.hasRev&&r.profit<0)nLoss++; if(r.truck==='sub')nSub++; if(!r.hasRev)nNoRev++; });
+  var mg=tRev>0?(tProf/tRev*100):0;
+  var kpiEl=document.getElementById('tp-kpis');
+  if(kpiEl){ kpiEl.innerHTML='<div class="dfin-kpis" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">'+
+    '<div class="dfin-kpi"><div class="dfin-lab">🚚 เที่ยวทั้งหมด</div><div class="dfin-val">'+_dashFmt(nTrip)+'</div><div class="dfin-foot">'+nSub+' เที่ยวรถร่วม</div></div>'+
+    '<div class="dfin-kpi"><div class="dfin-lab">💰 รายได้ (จับบิล)</div><div class="dfin-val">฿'+f(tRev)+'</div><div class="dfin-foot">'+nNoRev+' เที่ยวยังไม่เจอบิล</div></div>'+
+    '<div class="dfin-kpi"><div class="dfin-lab">💸 ต้นทุนรวม</div><div class="dfin-val">฿'+f(tCost)+'</div></div>'+
+    '<div class="dfin-kpi"><div class="dfin-lab">'+(tProf>=0?'📈 กำไรสุทธิ':'📉 ขาดทุนสุทธิ')+'</div><div class="dfin-val" style="color:'+(tProf>=0?'#16A34A':'#DC2626')+'">'+(tProf>=0?'+':'')+'฿'+f(tProf)+'</div><div class="dfin-foot">margin '+mg.toFixed(1)+'%</div></div>'+
+    '<div class="dfin-kpi"><div class="dfin-lab">🚩 เที่ยวติดธง</div><div class="dfin-val" style="color:'+(nFlag?'#D97706':'#16A34A')+'">'+nFlag+'</div><div class="dfin-foot">ข้อมูลยังไม่ครบ</div></div>'+
+    '</div>'; }
+  // filter
+  var q=((document.getElementById('tp-q')||{}).value||'').toLowerCase().trim();
+  var ft=(document.getElementById('tp-ftruck')||{}).value||'';
+  var onlyFlag=!!(document.getElementById('tp-fflag')||{}).checked;
+  var onlyRev=!!(document.getElementById('tp-frev')||{}).checked;
+  var view=rows.filter(function(r){
+    if(ft && r.truck!==ft) return false;
+    if(onlyFlag && !r.flags.length) return false;
+    if(onlyRev && !r.hasRev) return false;
+    if(q){ var hay=(r.id+' '+r.customer+' '+r.cont+' '+r.contRaw+' '+r.plate+' '+r.route).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    return true;
+  });
+  // sort
+  var sk=_tpSort.key, dir=_tpSort.dir;
+  view.sort(function(a,b){
+    if(sk==='customer') return dir*String(a.customer).localeCompare(String(b.customer),'th');
+    var av=(sk==='date')?a.t:a[sk], bv=(sk==='date')?b.t:b[sk];
+    if(av==null)av=-Infinity; if(bv==null)bv=-Infinity;
+    return dir*((av<bv)?-1:(av>bv)?1:0);
+  });
+  if(!view.length){ body.innerHTML='<div style="color:var(--text-3);font-size:13px;padding:20px 0">ไม่มีเที่ยวตามเงื่อนไข</div>'; return; }
+  var arrow=function(k){ return _tpSort.key===k?(_tpSort.dir>0?' ▲':' ▼'):''; };
+  var th=function(k,lab,al){ return '<th style="text-align:'+(al||'left')+';cursor:pointer;white-space:nowrap" onclick="_tpSetSort(\''+k+'\')">'+lab+arrow(k)+'</th>'; };
+  var head='<tr>'+th('date','วันที่')+th('id','JOB')+th('customer','ลูกค้า')+'<th>เส้นทาง</th><th>รถ</th><th>เลขตู้</th>'+
+    th('revenue','รายได้','right')+th('labor','ค่าแรง','right')+th('fuel','น้ำมัน','right')+th('toll','ทางด่วน','right')+
+    '<th style="text-align:right">อื่น/จ้าง</th>'+th('cost','ต้นทุน','right')+th('profit','กำไร/ขาดทุน','right')+th('margin','%','right')+'<th>🚩</th></tr>';
+  var mx=view.length>600?600:view.length;
+  var body2=view.slice(0,mx).map(function(r){
+    var col=!r.hasRev?'#9CA3AF':(r.profit<0?'#DC2626':'#16A34A');
+    var dd=String(r.date).slice(8,10)+'/'+String(r.date).slice(5,7);
+    var flagHtml=r.flags.map(function(fl){ var fi=_TP_FLAGS[fl]||{i:'⚠',t:fl}; return '<span title="'+_finEsc(fi.t)+'" style="cursor:help">'+fi.i+'</span>'; }).join(' ');
+    var truckHtml=r.truck==='sub'?'<span style="color:#7C3AED">🚚 รถร่วม</span>':('🚛 '+_finEsc(r.plate||'—'));
+    var otherHire=r.truck==='sub'?r.hire:r.other;
+    return '<tr>'+
+      '<td style="white-space:nowrap">'+dd+'</td>'+
+      '<td style="white-space:nowrap;font-size:11px;color:var(--text-3)">'+_finEsc(r.id)+'</td>'+
+      '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+_finEsc(r.customer)+'">'+_finEsc(r.customer||'—')+'</td>'+
+      '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-3)" title="'+_finEsc(r.route)+'">'+_finEsc(r.route||'—')+'</td>'+
+      '<td style="white-space:nowrap;font-size:12px">'+truckHtml+'</td>'+
+      '<td style="white-space:nowrap;font-family:var(--mono);font-size:11px">'+_finEsc(r.cont||r.contRaw||'—')+'</td>'+
+      '<td style="text-align:right">'+(r.hasRev?'฿'+f(r.revenue):'<span style="color:#9CA3AF">—</span>')+'</td>'+
+      '<td style="text-align:right;color:var(--text-3)">'+(r.truck==='sub'?'—':f(r.labor))+'</td>'+
+      '<td style="text-align:right;color:var(--text-3)">'+(r.truck==='sub'?'—':f(r.fuel))+'</td>'+
+      '<td style="text-align:right;color:var(--text-3)">'+(r.truck==='sub'?'—':f(r.toll))+'</td>'+
+      '<td style="text-align:right;color:var(--text-3)">'+f(otherHire)+'</td>'+
+      '<td style="text-align:right;font-weight:600">฿'+f(r.cost)+'</td>'+
+      '<td style="text-align:right;font-weight:800;color:'+col+'">'+(r.hasRev?((r.profit>=0?'+':'')+'฿'+f(r.profit)):'<span style="color:#9CA3AF">—</span>')+'</td>'+
+      '<td style="text-align:right;color:'+col+'">'+(r.margin!=null?((r.margin>=0?'+':'')+r.margin.toFixed(0)+'%'):'—')+'</td>'+
+      '<td style="white-space:nowrap;font-size:13px">'+(flagHtml||'<span style="color:#16A34A">✓</span>')+'</td>'+
+    '</tr>';
+  }).join('');
+  var cut=view.length>mx?('<div style="font-size:11px;color:#D97706;padding:6px 0">⚠ แสดง '+mx+' จาก '+view.length+' เที่ยว — กรอง/ค้นหาเพื่อให้แคบลง</div>'):'';
+  var note='<div style="font-size:11px;color:var(--text-3);margin-top:8px;line-height:1.6">📌 <b>เฟส 1 (ประมาณการ):</b> รายได้จับจาก<b>เลขตู้</b>ในบิล (ค่าขนส่ง amt_freight; บิลรวมหลายตู้ = เฉลี่ยต่อตู้) จับบิลในกรอบ −20 ถึง +90 วันจากวันงาน · น้ำมัน = ค่าน้ำมันรถทั้งเดือน ÷ จำนวนเที่ยว · ตัดค่ารับตู้/คืนตู้/ผ่านท่า (สำรองจ่าย) ออก · <b>🚩</b> ชี้เมาส์เพื่อดูสาเหตุ (เลขตู้ซ้ำ/ยังไม่วางบิล/รถร่วมยังไม่ลงค่าจ้าง)</div>';
+  body.innerHTML='<div style="overflow-x:auto"><table class="dfleet-tbl" style="min-width:1050px"><thead>'+head+'</thead><tbody>'+body2+'</tbody></table></div>'+cut+note;
+}
+
 // ค่าทางด่วน M-Flow รถส่วนตัวกรรมการ (ตารางแยก gyt_personal_tolls — แสดงอย่างเดียว ไม่นับต้นทุนบริษัท)
 async function renderPersonalTolls(){
   var el=document.getElementById('dfin-personal-tolls');
@@ -26410,7 +26700,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.234';
+const APP_VERSION = '2026.04.29.235';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33198,4 +33488,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v234 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน/หลายตู้/แก้ไข + ปริ้นตรง + รถ<!-- deploy v1 PROD — ย้ายค่าใช้จ่ายเข้าฟอร์มลงงาน+หลายตู้+แก้ไข, ปริ้นตรง, จัดลำดับ รถ/คนขับ เหนือค่าใช้จ่าย -->คนขับเหนือค่าใช้จ่าย -->
+<!-- deploy v235 STAGING — 💹 กำไร/ขาดทุนรายเที่ยว (P&L ต่อเที่ยว): จับเลขตู้→บิลจริง, แยกต้นทุนรถบริษัท/รถร่วม, ธงข้อมูลไม่ครบ, ตาราง filter/sort -->
