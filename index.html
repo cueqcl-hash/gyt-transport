@@ -19821,8 +19821,11 @@ function _tpRevOf(cont, jobT){
   var lo=jobT-20*864e5, hi=jobT+90*864e5;
   var win=e.filter(function(x){ return !isNaN(x.t) && x.t>=lo && x.t<=hi; });
   var pool=win.length?win:e, out=win.length===0;
-  var best=pool.slice().sort(function(a,b){ return Math.abs(a.t-jobT)-Math.abs(b.t-jobT); })[0];
-  return {rev:best.share, bill:best.bill, multi:!!best.multi, out:out, approx:!!best.approx, none:false};
+  var anchor=pool.slice().sort(function(a,b){ return Math.abs(a.t-jobT)-Math.abs(b.t-jobT); })[0];
+  var CL=21*864e5, rev=0, multi=false, approx=false, bills=[];
+  // รวมทุกบิลของตู้นี้ที่ออกใกล้บิลหลัก ±21 วัน (งานเดียวมักวางบิลแยกใบ: บิลหลัก + บิลเสริมค่าเสียเวลา/คืนตู้) แต่กันตู้ซ้ำคนละเที่ยว
+  pool.forEach(function(x){ if(Math.abs(x.t-anchor.t)<=CL){ rev+=x.share; if(x.multi)multi=true; if(x.approx)approx=true; bills.push(x.bill); } });
+  return {rev:rev, bill:bills.join(', '), multi:multi, out:out, approx:approx, none:false, nbill:bills.length};
 }
 
 // job_date รถร่วมเป็น พ.ศ. ("2569-03-13") → ms ค.ศ.
@@ -26726,7 +26729,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.240';
+const APP_VERSION = '2026.04.29.241';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33514,4 +33517,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v240 STAGING — P&L รายเที่ยว: แก้บั๊กค่าจ้างรถร่วม ตู้ซ้ำคนละเที่ยวถูกบวกรวม → จับตามวันงาน (window -20..+90) -->
+<!-- deploy v241 STAGING — P&L รายเที่ยว: รายได้รวมบิลเสริมของตู้เดียวกัน ±21 วัน (บิลหลัก+ค่าเสียเวลา/คืนตู้ออกแยกใบ) กันได้แค่บิลเดียว -->
