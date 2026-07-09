@@ -19763,18 +19763,20 @@ function _dashRenderPL(pr){
 //   🚩 ธง = ข้อมูลยังไม่ครบ (ไม่มีเลขตู้ / จับบิลไม่ได้ / รถร่วมไม่มีค่าจ้าง / ยังไม่ลงค่าแรง)
 // ============================================================
 var _tpJobs=null, _tpBills=null, _tpSub=null, _tpDataPromise=null;
-var _tpContIdx=null, _tpHireByCont=null, _tpFuelByPM=null, _tpTripByPM=null;
+var _tpContIdx=null, _tpBkIdx=null, _tpHireByCont=null, _tpFuelByPM=null, _tpTripByPM=null;
 var _tpMode='month';
 var _tpSort={key:'date', dir:-1};   // dir 1=น้อย→มาก, -1=มาก→น้อย
 var _tpRows=[];
 
 function _tpNP(p){ var m=String(p||'').match(/\d{2,3}-\d{4}/); return m?m[0]:String(p||'').trim(); }
-// เลขตู้ ISO (4 อักษร + 7 ตัวเลข) ตัวแรกจากข้อความ → คีย์มาตรฐาน
-function _tpCont(x){ var s=String(x==null?'':x).toUpperCase().replace(/[^A-Z0-9]/g,''); var m=s.match(/[A-Z]{4}\d{7}/); return m?m[0]:''; }
+// เลขตู้ ISO (4 อักษร + 6-7 ตัวเลข) ตัวแรกจากข้อความ → คีย์มาตรฐาน (หลวมขึ้น รับตู้ 6 หลักด้วย)
+function _tpCont(x){ var s=String(x==null?'':x).toUpperCase().replace(/[^A-Z0-9]/g,''); var m=s.match(/[A-Z]{4}\d{6,7}/); return m?m[0]:''; }
+// normalize Booking No. แบบหลวม (ตัวใหญ่ + ตัดอักขระ) เหมือนหน้าใบวางบิล
+function _tpBk(x){ var s=String(x==null?'':x).toUpperCase().replace(/[^A-Z0-9]/g,''); return s.length>=4?s:''; }
 // เลขตู้ "ทุกตัว" ในบิล — เอาจากบรรทัด "เบอร์ตู้/CONTAINER NO" ก่อน ถ้าไม่มี fallback ทั้งบิล
 function _tpBillConts(b){
   var li=(b&&b.line_items)||[], hit={}, order=[];
-  var pick=function(str){ var re=/[A-Z]{4}\d{7}/g, m; while((m=re.exec(String(str||'').toUpperCase()))){ var c=m[0]; if(!hit[c]){ hit[c]=1; order.push(c); } } };
+  var pick=function(str){ var re=/[A-Z]{4}\d{6,7}/g, m; while((m=re.exec(String(str||'').toUpperCase()))){ var c=m[0]; if(!hit[c]){ hit[c]=1; order.push(c); } } };
   var hasTag=false;
   li.forEach(function(it){ var d=String((it&&it.desc)||''); if(/เบอร์ตู้|CONTAINER\s*NO/i.test(d)){ hasTag=true; pick(d); } });
   if(!hasTag){ li.forEach(function(it){ pick((it&&it.desc)||''); }); }
@@ -19790,6 +19792,12 @@ function _tpBillFreight(b){
   if(f2>0) return {amt:f2, approx:false};
   var net=parseFloat(b&&b.net_amt)||0; return {amt:net, approx:true};
 }
+// Booking No. ทุกตัวในบิล (จากบรรทัด "BOOKING NO : XXX")
+function _tpBillBookings(b){
+  var li=(b&&b.line_items)||[], hit={}, order=[];
+  li.forEach(function(it){ var d=String((it&&it.desc)||''); var m=d.match(/BOOKING\s*(?:NO)?\s*[:.]?\s*([A-Za-z0-9\/\-]+)/i); if(m){ var k=_tpBk(m[1]); if(k && !hit[k]){ hit[k]=1; order.push(k); } } });
+  return order;
+}
 
 async function _tpEnsureData(){
   if(_tpDataPromise) return _tpDataPromise;
@@ -19803,6 +19811,9 @@ async function _tpEnsureData(){
     // index: เลขตู้ → รายการบิล {bill,t,share,multi,approx}
     _tpContIdx={};
     (_tpBills||[]).forEach(function(b){ if(!b)return; var conts=_tpBillConts(b); if(!conts.length)return; var fr=_tpBillFreight(b); if(!(fr.amt>0))return; var share=fr.amt/conts.length, multi=conts.length>1, t=new Date(b.bill_date).getTime(); conts.forEach(function(c){ (_tpContIdx[c]=_tpContIdx[c]||[]).push({bill:b.bill_no, t:t, share:share, multi:multi, approx:fr.approx}); }); });
+    // index: Booking No. → รายการบิล (fallback ตอนเลขตู้ไม่ตรง) · share = ค่าขนส่ง ÷ จำนวนตู้ในบิล (1 ตู้ = 1 เที่ยว)
+    _tpBkIdx={};
+    (_tpBills||[]).forEach(function(b){ if(!b)return; var bks=_tpBillBookings(b); if(!bks.length)return; var fr=_tpBillFreight(b); if(!(fr.amt>0))return; var nc=_tpBillConts(b).length||1, share=fr.amt/nc, multi=nc>1, t=new Date(b.bill_date).getTime(); bks.forEach(function(bk){ (_tpBkIdx[bk]=_tpBkIdx[bk]||[]).push({bill:b.bill_no, t:t, share:share, multi:multi, approx:fr.approx}); }); });
     // index: เลขตู้ → รายการค่าจ้างรถร่วม [{t,hire,name}] (มีวันที่ กันตู้ซ้ำคนละเที่ยวบวกรวมกัน)
     _tpHireByCont={};
     (_tpSub||[]).forEach(function(s){ if(!s)return; var c=_tpCont(s.container_no); if(!c)return; (_tpHireByCont[c]=_tpHireByCont[c]||[]).push({t:_tpSubDate(s.job_date), hire:parseFloat(s.hire_amount)||0, name:s.subcontractor_name||''}); });
@@ -19815,17 +19826,17 @@ async function _tpEnsureData(){
   return _tpDataPromise;
 }
 
-// รายได้จากเลขตู้ (บิลใกล้วันงานสุดในกรอบ [-20,+90] วัน; นอกกรอบ→flag revout)
-function _tpRevOf(cont, jobT){
-  var e=cont?_tpContIdx[cont]:null; if(!e||!e.length) return {rev:0, bill:'', multi:false, out:false, approx:false, none:true};
+// รายได้จาก index (ตู้ หรือ booking): บิลใกล้วันงานสุดในกรอบ [-20,+90] + รวมบิลเสริม ±21 วัน; คืน null ถ้าไม่เจอ
+function _tpRevFromIdx(idx, key, jobT){
+  var e=key?idx[key]:null; if(!e||!e.length) return null;
   var lo=jobT-20*864e5, hi=jobT+90*864e5;
   var win=e.filter(function(x){ return !isNaN(x.t) && x.t>=lo && x.t<=hi; });
   var pool=win.length?win:e, out=win.length===0;
   var anchor=pool.slice().sort(function(a,b){ return Math.abs(a.t-jobT)-Math.abs(b.t-jobT); })[0];
   var CL=21*864e5, rev=0, multi=false, approx=false, bills=[];
-  // รวมทุกบิลของตู้นี้ที่ออกใกล้บิลหลัก ±21 วัน (งานเดียวมักวางบิลแยกใบ: บิลหลัก + บิลเสริมค่าเสียเวลา/คืนตู้) แต่กันตู้ซ้ำคนละเที่ยว
+  // รวมทุกบิลที่ออกใกล้บิลหลัก ±21 วัน (งานเดียวมักวางบิลแยกใบ) แต่กันซ้ำคนละเที่ยว (ห่างเป็นเดือน)
   pool.forEach(function(x){ if(Math.abs(x.t-anchor.t)<=CL){ rev+=x.share; if(x.multi)multi=true; if(x.approx)approx=true; bills.push(x.bill); } });
-  return {rev:rev, bill:bills.join(', '), multi:multi, out:out, approx:approx, none:false, nbill:bills.length};
+  return {rev:rev, bill:bills.join(', '), multi:multi, out:out, approx:approx, nbill:bills.length};
 }
 
 // job_date รถร่วมเป็น พ.ศ. ("2569-03-13") → ms ค.ศ.
@@ -19840,17 +19851,18 @@ function _tpHireOf(cont, jobT){
 }
 
 var _TP_FLAGS={
-  nocont:{i:'📦', t:'ไม่มีเลขตู้ในใบงาน — จับบิลไม่ได้'},
-  norev:{i:'🧾', t:'มีเลขตู้แต่ยังไม่เจอบิล (อาจยังไม่วางบิล/เครดิต 30 วัน)'},
+  nocont:{i:'📦', t:'ไม่มีเลขตู้/Booking ในใบงาน — จับบิลไม่ได้'},
+  norev:{i:'🧾', t:'มีเลขตู้/Booking แต่ยังไม่เจอบิล (อาจยังไม่วางบิล/เครดิต 30 วัน)'},
   revout:{i:'🕒', t:'เจอบิลแต่คนละช่วงเวลา — อาจเป็นเลขตู้ซ้ำคนละเที่ยว'},
   multi:{i:'🔀', t:'บิลรวมหลายตู้ — รายได้เฉลี่ยต่อตู้ (ประมาณ)'},
   approx:{i:'≈', t:'บิลฟอร์มอังกฤษ — ใช้ยอดสุทธิประมาณค่าขนส่ง'},
+  revbk:{i:'🔖', t:'จับบิลด้วย Booking No. (เลขตู้ในใบงานไม่ตรง/ไม่มี)'},
   sub:{i:'🚚', t:'เที่ยวรถร่วม — ควรตรวจสอบค่าจ้าง/รายได้ด้วยตนเอง'},
   subnohire:{i:'❗', t:'รถร่วมแต่ยังไม่มีค่าจ้าง (hire_amount)'},
   nolabor:{i:'💸', t:'รถบริษัทแต่ยังไม่ได้ลงค่าแรงเที่ยว'}
 };
-// ธง "ประมาณ" (soft) — แค่หมายเหตุว่ารายได้เป็นค่าประมาณ ไม่นับว่าติดปัญหา ถ้าต้นทุนครบก็ถือว่าผ่าน
-var _TP_SOFT={multi:1, approx:1};
+// ธง "ประมาณ" (soft) — แค่หมายเหตุ ไม่นับว่าติดปัญหา ถ้าต้นทุนครบก็ถือว่าผ่าน
+var _TP_SOFT={multi:1, approx:1, revbk:1};
 function _tpHardFlags(fl){ return (fl||[]).filter(function(x){ return !_TP_SOFT[x]; }); }
 
 function _tpRoute(j){ var a=[]; if(j.origin)a.push(j.origin); if(j.dest)a.push(j.dest); if(j.returnyard)a.push(j.returnyard); return a.join(' → '); }
@@ -19860,13 +19872,13 @@ function _tpCompute(pr){
   JB.forEach(function(j){
     if(!j||j.status==='ยกเลิก'||!_dashInPr(j.startdate,pr))return;
     var jc=j.costs||{}, plate=(j.plate||'').trim(), jobT=new Date(j.startdate).getTime();
-    var cont=_tpCont(j.container), flags=[];
-    // รายได้
-    var rr=cont?_tpRevOf(cont,jobT):{rev:0,none:true};
-    var revenue=cont?rr.rev:0, hasRev=!!(cont&&!rr.none&&revenue>0);
-    if(!cont) flags.push('nocont');
-    else if(rr.none) flags.push('norev');
-    else { if(rr.out) flags.push('revout'); if(rr.multi) flags.push('multi'); if(rr.approx) flags.push('approx'); }
+    var cont=_tpCont(j.container), bk=_tpBk(j.booking), flags=[];
+    // รายได้: จับด้วยเลขตู้ก่อน → ถ้าไม่เจอ fallback จับด้วย Booking No.
+    var rr=cont?_tpRevFromIdx(_tpContIdx,cont,jobT):null, via='cont';
+    if(!rr && bk){ var rb=_tpRevFromIdx(_tpBkIdx,bk,jobT); if(rb){ rr=rb; via='bk'; } }
+    var revenue=rr?rr.rev:0, hasRev=!!(rr&&revenue>0);
+    if(!rr){ if(!cont && !bk) flags.push('nocont'); else flags.push('norev'); }
+    else { if(rr.out) flags.push('revout'); if(rr.multi) flags.push('multi'); if(rr.approx) flags.push('approx'); if(via==='bk') flags.push('revbk'); }
     // ต้นทุน
     var realPlate = plate && plate!=='รถร่วม' && /\d{2,3}-\d{4}/.test(plate);
     var hireRec = cont?_tpHireOf(cont, jobT):null;
@@ -19891,7 +19903,7 @@ function _tpCompute(pr){
     rows.push({ id:j.id, t:jobT, date:j.startdate, customer:(j.customer||'').trim(), shipper:(j.shipper||'').trim(), route:_tpRoute(j),
       plate:plate, truck:truck, cont:cont, contRaw:(j.container||'').trim(),
       revenue:revenue, hasRev:hasRev, labor:labor, fuel:fuel, toll:toll, other:other, hire:hire,
-      cost:cost, profit:profit, margin:margin, bill:rr.bill||'', flags:flags });
+      cost:cost, profit:profit, margin:margin, bill:(rr&&rr.bill)||'', flags:flags });
   });
   return rows;
 }
@@ -26729,7 +26741,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.241';
+const APP_VERSION = '2026.04.29.242';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33517,4 +33529,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v241 STAGING — P&L รายเที่ยว: รายได้รวมบิลเสริมของตู้เดียวกัน ±21 วัน (บิลหลัก+ค่าเสียเวลา/คืนตู้ออกแยกใบ) กันได้แค่บิลเดียว -->
+<!-- deploy v242 STAGING — P&L รายเที่ยว: จับบิลด้วย Booking No. เป็น fallback ตอนเลขตู้ไม่ตรง + normalize หลวมขึ้น (ตู้ 6-7 หลัก) -->
