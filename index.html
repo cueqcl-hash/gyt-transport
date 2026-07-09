@@ -19828,7 +19828,8 @@ var _TP_FLAGS={
   revout:{i:'🕒', t:'เจอบิลแต่คนละช่วงเวลา — อาจเป็นเลขตู้ซ้ำคนละเที่ยว'},
   multi:{i:'🔀', t:'บิลรวมหลายตู้ — รายได้เฉลี่ยต่อตู้ (ประมาณ)'},
   approx:{i:'≈', t:'บิลฟอร์มอังกฤษ — ใช้ยอดสุทธิประมาณค่าขนส่ง'},
-  subnohire:{i:'🚚', t:'รถร่วมแต่ยังไม่มีค่าจ้าง (hire_amount)'},
+  sub:{i:'🚚', t:'เที่ยวรถร่วม — ควรตรวจสอบค่าจ้าง/รายได้ด้วยตนเอง'},
+  subnohire:{i:'❗', t:'รถร่วมแต่ยังไม่มีค่าจ้าง (hire_amount)'},
   nolabor:{i:'💸', t:'รถบริษัทแต่ยังไม่ได้ลงค่าแรงเที่ยว'}
 };
 
@@ -19853,6 +19854,7 @@ function _tpCompute(pr){
     var labor=0,fuel=0,toll=0,other=0,hire=0,cost=0,truck;
     if(isSub){
       truck='sub'; hire=hireRec?hireRec.hire:0; cost=hire;
+      flags.push('sub');                    // ติดธงรถร่วมทุกเที่ยว — ข้อมูลค่าจ้าง/รายได้ต้องตรวจเอง
       if(!(hire>0)) flags.push('subnohire');
     } else {
       truck='gyt';
@@ -26701,7 +26703,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.236';
+const APP_VERSION = '2026.04.29.237';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33489,4 +33491,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v236 STAGING — P&L รายเที่ยว: เพิ่มคอลัมน์ Shipper (เจ้าของสินค้า) + ค้นหา/เรียงได้ -->
+<!-- deploy v237 STAGING — P&L รายเที่ยว: ติดธง 🚚 รถร่วมทุกเที่ยว (ให้ตรวจค่าจ้าง/รายได้เอง) -->
