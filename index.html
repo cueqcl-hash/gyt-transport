@@ -1295,7 +1295,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
             <button class="drv-tab active" id="drv-tab-all" onclick="setDrvTab('')">ทั้งหมด <span id="drv-cnt-all"></span></button>
             <button class="drv-tab" id="drv-tab-company" onclick="setDrvTab('company')">🟢 คนขับประจำบริษัท <span id="drv-cnt-company"></span></button>
-            <button class="drv-tab" id="drv-tab-outsource_person" onclick="setDrvTab('outsource_person')">🔵 Outsource บุคคล <span id="drv-cnt-outsource_person"></span></button>
+            <button class="drv-tab" id="drv-tab-outsource_person" onclick="setDrvTab('outsource_person')">⚫ พนักงานเก่าออกจากงานแล้ว <span id="drv-cnt-outsource_person"></span></button>
             <button class="drv-tab" id="drv-tab-outsource_biz" onclick="setDrvTab('outsource_biz')">🟡 Outsource บริษัท <span id="drv-cnt-outsource_biz"></span></button>
           </div>
           <input class="ms-search" id="driver-search" placeholder="ค้นหาชื่อ / เบอร์โทร / ทะเบียนรถ..." oninput="renderDriverTable()">
@@ -23513,7 +23513,7 @@ function forceDriverFill(fp,name){
 // ============================
 // DRIVER MANAGEMENT
 // ============================
-var DTYPE_MAP={'company':['dtype-company','คนขับประจำบริษัท'],'outsource_person':['dtype-outsource_person','Outsource บุคคล'],'outsource_biz':['dtype-outsource_biz','Outsource บริษัท']};
+var DTYPE_MAP={'company':['dtype-company','คนขับประจำบริษัท'],'outsource_person':['dtype-outsource_person','พนักงานเก่าออกจากงาน'],'outsource_biz':['dtype-outsource_biz','Outsource บริษัท']};
 var currentDrvTab='';
 function setDrvTab(type){
   currentDrvTab=type;drvPg=1;
@@ -23618,7 +23618,7 @@ function openAddDriver(){
   ['name','phone','idcard','dtype','bank','bankno','license_no','license_type','license_exp','note'].forEach(function(f){
     var el=document.getElementById('drv-'+f);if(el)el.value='';
   });
-  document.getElementById('drv-leave').checked=false;
+  { var _st=document.getElementById('drv-status'); if(_st) _st.value=''; }
   document.getElementById('drv-dtype').value='คนขับรถ';
   document.getElementById('modal-driver').classList.add('open');
 }
@@ -23630,7 +23630,7 @@ function openEditDriver(id){
   ['name','phone','idcard','dtype','bank','bankno','license_no','license_type','license_exp','note'].forEach(function(f){
     var el=document.getElementById('drv-'+f);if(el)el.value=d[f]||'';
   });
-  document.getElementById('drv-leave').checked=!!d.leave;
+  { var _st=document.getElementById('drv-status'); if(_st) _st.value=(d.leave||''); }
   document.getElementById('modal-driver').classList.add('open');
 }
 function saveDriver(){
@@ -23641,13 +23641,13 @@ function saveDriver(){
     name:name,
     phone:document.getElementById('drv-phone').value.trim(),
     idcard:document.getElementById('drv-idcard').value.trim(),
-    dtype:document.getElementById('drv-dtype').value.trim(),
+    dtype:(function(){var st=(document.getElementById('drv-status')||{}).value||'',dt=document.getElementById('drv-dtype').value.trim();return /ออก|ลาออก|เสีย/.test(st)?'outsource_person':dt;})(),  // 🆕 ออกจากงาน/เสียชีวิต → กลุ่มพนักงานเก่า อัตโนมัติ
     bank:document.getElementById('drv-bank').value.trim(),
     bankno:document.getElementById('drv-bankno').value.trim(),
     license_no:document.getElementById('drv-license_no').value.trim(),
     license_type:document.getElementById('drv-license_type').value.trim(),
     license_exp:document.getElementById('drv-license_exp').value.trim(),
-    leave:document.getElementById('drv-leave').checked?'ลางาน':'',
+    leave:(document.getElementById('drv-status')||{}).value||'',
     note:document.getElementById('drv-note').value.trim(),
   };
   if(editDrvID){var i=drivers.findIndex(function(x){return x.id===editDrvID;});drivers[i]=obj;}
@@ -26765,7 +26765,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.247';
+const APP_VERSION = '2026.04.29.248';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -32948,7 +32948,7 @@ async function rcptLoadDoneList(){
     </div>
     <div class="fg-row">
       <div class="fg"><label class="fl">ประเภท</label>
-        <select class="fi" id="drv-dtype"><option value="company">คนขับประจำบริษัท</option><option value="outsource_person">Outsource (บุคคล)</option><option value="outsource_biz">Outsource (บริษัท/ทีม)</option></select>
+        <select class="fi" id="drv-dtype"><option value="company">คนขับประจำบริษัท</option><option value="outsource_person">พนักงานเก่าออกจากงานแล้ว</option><option value="outsource_biz">Outsource (บริษัท/ทีม)</option></select>
       </div>
       <div class="fg"><label class="fl">เลขบัตรประชาชน</label><input class="fi" id="drv-idcard" placeholder="X-XXXX-XXXXX-XX-X"></div>
     </div>
@@ -32962,9 +32962,15 @@ async function rcptLoadDoneList(){
       <div class="fg"><label class="fl">เลขบัญชี</label><input class="fi" id="drv-bankno" placeholder="XXX-X-XXXXX-X"></div>
     </div>
     <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" id="drv-note" placeholder="หมายเหตุเพิ่มเติม"></div>
-    <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
-      <input type="checkbox" id="drv-leave" style="width:16px;height:16px;accent-color:var(--yellow);cursor:pointer">
-      <label for="drv-leave" style="font-size:13px;font-weight:500;cursor:pointer">ลางาน (ไม่แสดงในรายการเลือกคนขับ)</label>
+    <div class="fg" style="margin-top:8px">
+      <label class="fl">สถานะ</label>
+      <select class="fi" id="drv-status">
+        <option value="">🟢 พร้อมงาน</option>
+        <option value="ลางาน">🟡 ลางาน</option>
+        <option value="ออกจากงาน">⚫ ออกจากงาน</option>
+        <option value="เสียชีวิต">⚫ เสียชีวิต</option>
+      </select>
+      <div style="font-size:11px;color:var(--text-3);margin-top:3px">ลางาน/ออกจากงาน/เสียชีวิต = ซ่อนจากรายการเลือกคนขับ · <b>ออกจากงาน/เสียชีวิต → ย้ายเข้ากลุ่ม "พนักงานเก่าออกจากงานแล้ว" อัตโนมัติ</b></div>
     </div>
   </div>
   <div class="modal-foot">
@@ -33553,4 +33559,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v247 STAGING — หน้าคนขับ: ป้ายเทาครอบคลุมสถานะ เสียชีวิต ด้วย (นอกจาก ออกจากงาน/ลาออก) -->
+<!-- deploy v248 STAGING — หน้าคนขับ: repurpose แท็บ Outsourceบุคคล → "พนักงานเก่าออกจากงานแล้ว" + status dropdown (พร้อม/ลา/ออก/เสียชีวิต) auto-ย้ายเข้ากลุ่มพนักงานเก่า -->
