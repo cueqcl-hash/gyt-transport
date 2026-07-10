@@ -23568,7 +23568,7 @@ function renderDriverTable(){
         '<td style="font-size:11px">'+(d.license_type||'—')+'</td>'+
         '<td style="font-size:11px;'+expColor+'">'+(licExp)+'</td>'+
         '<td><span class="'+(DTYPE_MAP[d.dtype]||['',''])[0]+'">'+( DTYPE_MAP[d.dtype]||['—','—'])[1]+'</span></td>'+
-        '<td>'+(d.leave?'<span class="status-leave"'+(/ออก|ลาออก/.test(d.leave)?' style="background:#F3F4F6;color:#6B7280"':'')+'>'+_finEsc(d.leave)+'</span>':'<span class="status-active">พร้อมงาน</span>')+'</td>'+
+        '<td>'+(d.leave?'<span class="status-leave"'+(/ออก|ลาออก|เสีย/.test(d.leave)?' style="background:#F3F4F6;color:#6B7280"':'')+'>'+_finEsc(d.leave)+'</span>':'<span class="status-active">พร้อมงาน</span>')+'</td>'+
         '<td style="display:flex;gap:4px">'+
           '<button class="tbl-action" onclick="openEditDriver('+d.id+')">แก้ไข</button>'+
           '<button class="tbl-action" style="color:var(--red)" onclick="deleteDriver('+d.id+')">ลบ</button>'+
@@ -26765,7 +26765,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.246';
+const APP_VERSION = '2026.04.29.247';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33553,4 +33553,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v246 STAGING — หน้าคนขับ: แสดงสถานะจริง (ออกจากงาน=ป้ายเทา, ลางาน=เดิม) เดิม hardcode ลางาน -->
+<!-- deploy v247 STAGING — หน้าคนขับ: ป้ายเทาครอบคลุมสถานะ เสียชีวิต ด้วย (นอกจาก ออกจากงาน/ลาออก) -->
