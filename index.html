@@ -19572,7 +19572,10 @@ function _dashRenderFleet(pr, FL, MT){
   document.getElementById('dfleet-cpt').innerHTML='฿'+_dashFmt(cpt);
   document.getElementById('dfleet-cpt-t').innerHTML='<span>(น้ำมัน+ซ่อม+เบิก)/เที่ยว</span>';
 
-  var byCost=arr.slice().sort(function(a,b){return b.cost-a.cost;}).slice(0,8);
+  // 🆕 เฉพาะรถบริษัท ประเภท สิบล้อ + หัวลาก — แสดงทุกคัน (ตามคำขอพี่)
+  var _isTruck=function(vt){ return /สิบล้อ|หัวลาก/.test(String(vt||'')); };
+  var truckRows=tractorList.filter(function(t){ return _isTruck(t.vtype); }).map(function(t){ var p=_dashPlateKey(t.plate); var a=agg[p]; var fuel=a?a.fuel:0, maint=a?a.maint:0, trips=a?a.trips:0; return {plate:p||'(?)', vtype:t.vtype, trips:trips, fuel:fuel, maint:maint, cost:fuel+maint}; }).sort(function(a,b){return b.cost-a.cost;});
+  var byCost=truckRows.filter(function(a){return a.cost>0;});   // chart = ทุกคันที่มีต้นทุนในช่วง (ไม่จำกัด top)
   _dashMkChart('dashFleetChart',{type:'bar',data:{labels:byCost.map(function(a){return a.plate;}),datasets:[
     {label:'น้ำมัน',data:byCost.map(function(a){return Math.round(a.fuel);}),backgroundColor:'#DC2626'},
     {label:'ค่าซ่อม',data:byCost.map(function(a){return Math.round(a.maint);}),backgroundColor:'#D97706'}
@@ -19584,14 +19587,10 @@ function _dashRenderFleet(pr, FL, MT){
     return '<div class="dfin-li"><span class="nm">'+_finEsc(t.plate)+'</span><span class="age" style="color:'+col+'">'+t.trips+' เที่ยว</span></div>';
   }).join('') : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ไม่มีข้อมูลรถ</div>';
 
-  var companySet={}; tractorList.forEach(function(t){ var p=_dashPlateKey(t.plate); if(p) companySet[p]=1; });
-  var compRows=arr.filter(function(a){return companySet[a.plate];}).sort(function(a,b){return b.cost-a.cost;});
-  var subRows=arr.filter(function(a){return !companySet[a.plate];}).sort(function(a,b){return b.cost-a.cost;});
-  var byTotal=compRows.concat(subRows).slice(0,20);
-  document.getElementById('dfleet-table').innerHTML = byTotal.length?
+  document.getElementById('dfleet-table').innerHTML = truckRows.length?
     '<table class="dfleet-tbl"><thead><tr><th>ทะเบียน</th><th>ประเภท</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">น้ำมัน</th><th style="text-align:right">ซ่อม</th><th style="text-align:right">รวม (น้ำมัน+ซ่อม)</th></tr></thead><tbody>'+
-    byTotal.map(function(a){ var tag=companySet[a.plate]?'<span style="font-size:10px;background:#D1FAE5;color:#065F46;padding:1px 7px;border-radius:8px;font-weight:700;white-space:nowrap">🏢 บริษัท</span>':'<span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:1px 7px;border-radius:8px;font-weight:700;white-space:nowrap">🤝 ร่วม</span>'; return '<tr><td style="font-weight:700">'+_finEsc(a.plate)+'</td><td>'+tag+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right">฿'+_dashFmt(a.fuel)+'</td><td style="text-align:right">฿'+_dashFmt(a.maint)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">฿'+_dashFmt(a.cost)+'</td></tr>'; }).join('')+
-    '</tbody></table>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลในช่วงนี้</div>';
+    truckRows.map(function(a){ var isHl=/หัวลาก/.test(String(a.vtype||'')); var tag='<span style="font-size:10px;background:'+(isHl?'#DBEAFE;color:#1E40AF':'#FEF3C7;color:#92400E')+';padding:1px 7px;border-radius:8px;font-weight:700;white-space:nowrap">'+(isHl?'🚛 หัวลาก':'🛻 สิบล้อ')+'</span>'; return '<tr'+(a.cost===0?' style="opacity:.55"':'')+'><td style="font-weight:700">'+_finEsc(a.plate)+'</td><td>'+tag+'</td><td style="text-align:right">'+_dashFmt(a.trips)+'</td><td style="text-align:right">฿'+_dashFmt(a.fuel)+'</td><td style="text-align:right">฿'+_dashFmt(a.maint)+'</td><td style="text-align:right;font-weight:700;color:var(--green-d)">฿'+_dashFmt(a.cost)+'</td></tr>'; }).join('')+
+    '</tbody></table><div style="font-size:11px;color:var(--text-3);margin-top:6px">แสดงทุกคัน '+truckRows.length+' คัน (รถสิบล้อ+หัวลาก บริษัท) เรียงต้นทุนมาก→น้อย</div>' : '<div style="color:var(--text-3);font-size:12px;padding:10px 0">ยังไม่มีข้อมูลรถสิบล้อ/หัวลาก</div>';
 }
 
 // เฟส 3 — ลูกค้า & แนวโน้ม: ลูกค้าใหม่/หาย, กระจุกตัวรายได้, ลูกค้าโต/ลด, แนวโน้มเที่ยว
@@ -26758,7 +26757,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.243';
+const APP_VERSION = '2026.04.29.244';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33546,4 +33545,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v243 STAGING — (A) P&L รายเที่ยว fallback จับ ทะเบียน+วันที่ สำหรับงานไม่มีตู้ (ตีรถเปล่า/ของล้วน) กันข้ามลูกค้าด้วยบิลเดียวในกรอบ · (B) รวมชื่อ INFOSAT หลายบริษัทเป็นเจ้าเดียวใน P&L รายลูกค้า -->
+<!-- deploy v244 STAGING — Dashboard: รถกินต้นทุนสูงสุด/ต้นทุนรายคัน แสดงทุกคัน เฉพาะรถสิบล้อ+หัวลาก (filter vtype, ตัด top-8/20) + คอลัมน์ประเภทรถ -->
