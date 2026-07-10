@@ -850,7 +850,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="dfin-kpi k-ar"><div class="dfin-lab">💵 ต้นทุน/เที่ยว</div><div class="dfin-val" id="dfleet-cpt">—</div><div class="dfin-foot" id="dfleet-cpt-t"></div></div>
           </div>
           <div class="dfin-row">
-            <div class="dfin-card"><div class="dfin-ct">รถที่กินต้นทุนสูงสุด (น้ำมัน+ซ่อม)</div><div class="dfin-chart"><canvas id="dashFleetChart"></canvas></div></div>
+            <div class="dfin-card"><div class="dfin-ct">⛽ รถกินน้ำมันสูงสุด</div><div class="dfin-chart"><canvas id="dashFuelChart"></canvas></div></div>
+            <div class="dfin-card"><div class="dfin-ct">🔧 รถค่าซ่อมสูงสุด</div><div class="dfin-chart"><canvas id="dashMaintChart"></canvas></div></div>
+          </div>
+          <div class="dfin-row">
             <div class="dfin-card"><div class="dfin-ct">🅿️ รถใช้งานน้อย (ช่วงนี้)</div><div id="dfleet-idle"></div></div>
           </div>
           <div class="dfin-card" style="margin-bottom:18px"><div class="dfin-ct">💸 ต้นทุนรายคัน <span class="dfin-perlabel">(ช่วงที่เลือก)</span></div><div id="dfleet-table" style="overflow-x:auto"></div></div>
@@ -19575,11 +19578,12 @@ function _dashRenderFleet(pr, FL, MT){
   // 🆕 เฉพาะรถบริษัท ประเภท สิบล้อ + หัวลาก — แสดงทุกคัน (ตามคำขอพี่)
   var _isTruck=function(vt){ return /สิบล้อ|หัวลาก/.test(String(vt||'')); };
   var truckRows=tractorList.filter(function(t){ return _isTruck(t.vtype); }).map(function(t){ var p=_dashPlateKey(t.plate); var a=agg[p]; var fuel=a?a.fuel:0, maint=a?a.maint:0, trips=a?a.trips:0; return {plate:p||'(?)', vtype:t.vtype, trips:trips, fuel:fuel, maint:maint, cost:fuel+maint}; }).sort(function(a,b){return b.cost-a.cost;});
-  var byCost=truckRows.filter(function(a){return a.cost>0;});   // chart = ทุกคันที่มีต้นทุนในช่วง (ไม่จำกัด top)
-  _dashMkChart('dashFleetChart',{type:'bar',data:{labels:byCost.map(function(a){return a.plate;}),datasets:[
-    {label:'น้ำมัน',data:byCost.map(function(a){return Math.round(a.fuel);}),backgroundColor:'#DC2626'},
-    {label:'ค่าซ่อม',data:byCost.map(function(a){return Math.round(a.maint);}),backgroundColor:'#D97706'}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{family:'Sarabun'}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:'Sarabun',size:11}}},y:{stacked:true,ticks:{callback:function(v){return '฿'+_dashFmtM(v);},font:{family:'Sarabun'}},grid:{color:'#f0f0f0'}}}}});
+  // 🆕 แยกน้ำมัน / ซ่อม เป็น 2 กราฟ เรียงตามแต่ละค่า (คนละปัญหา: น้ำมัน=วิ่งเยอะ, ซ่อม=เสียบ่อย)
+  var byFuel=truckRows.filter(function(a){return a.fuel>0;}).slice().sort(function(a,b){return b.fuel-a.fuel;});
+  var byMaint=truckRows.filter(function(a){return a.maint>0;}).slice().sort(function(a,b){return b.maint-a.maint;});
+  var _fleetOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{family:'Sarabun',size:11}}},y:{ticks:{callback:function(v){return '฿'+_dashFmtM(v);},font:{family:'Sarabun'}},grid:{color:'#f0f0f0'}}}};
+  _dashMkChart('dashFuelChart',{type:'bar',data:{labels:byFuel.map(function(a){return a.plate;}),datasets:[{label:'น้ำมัน',data:byFuel.map(function(a){return Math.round(a.fuel);}),backgroundColor:'#DC2626'}]},options:_fleetOpts});
+  _dashMkChart('dashMaintChart',{type:'bar',data:{labels:byMaint.map(function(a){return a.plate;}),datasets:[{label:'ค่าซ่อม',data:byMaint.map(function(a){return Math.round(a.maint);}),backgroundColor:'#D97706'}]},options:_fleetOpts});
 
   var tractorTrips=tractorList.map(function(t){ var p=_dashPlateKey(t.plate); var a=agg[p]; return {plate:p||'(?)',trips:a?a.trips:0}; }).sort(function(a,b){return a.trips-b.trips;}).slice(0,6);
   document.getElementById('dfleet-idle').innerHTML = tractorTrips.length? tractorTrips.map(function(t){
@@ -33549,4 +33553,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v244 STAGING — Dashboard: รถกินต้นทุนสูงสุด/ต้นทุนรายคัน แสดงทุกคัน เฉพาะรถสิบล้อ+หัวลาก (filter vtype, ตัด top-8/20) + คอลัมน์ประเภทรถ -->
+<!-- deploy v245 STAGING — Dashboard: แยกกราฟ รถกินน้ำมันสูงสุด / รถค่าซ่อมสูงสุด (เดิมรวม stacked) เรียงตามแต่ละค่า -->
