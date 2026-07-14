@@ -26779,7 +26779,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.249';
+const APP_VERSION = '2026.04.29.250';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -28023,6 +28023,8 @@ function mtViewMaintenance(id){
   var sh = (repairShops||[]).find(function(x){return x.id === r.shop_id;});
   var isVat = sh && sh.type === 'vat';
   var parts = r.parts_list || [];
+  var partsSum = parts.reduce(function(s,p){return s+(Number(p.amount)||0);},0);
+  var laborCost = Number(r.labor_cost)||0;
   var _esc = function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
   var _fmtMoney = function(v){ var n = Number(v)||0; return n.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}); };
   var _fmtBE = function(iso){ if(!iso) return '—'; try{ var d = new Date(iso); if(isNaN(d.getTime())){ var p2 = String(iso).split('-'); if(p2.length===3){ return p2[2]+'/'+p2[1]+'/'+String(parseInt(p2[0],10)+543).slice(-2);} return iso;} var p=function(n){return String(n).padStart(2,'0');}; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+String(d.getFullYear()+543).slice(-2);}catch(e){return iso;}};
@@ -28115,10 +28117,13 @@ function mtViewMaintenance(id){
       '<div style="overflow-x:auto">'+partsHtml+'</div>'+
       // Totals
       '<div style="margin-top:14px;padding:12px;background:linear-gradient(135deg,#F0FDF4,#DCFCE7);border-radius:6px;border:1px solid var(--green-m)">'+
+        '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-2);margin-bottom:4px"><span>💠 ค่าอะไหล่รวม</span><span style="font-family:var(--mono)">฿'+_fmtMoney(partsSum)+'</span></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-2);margin-bottom:4px"><span>🔧 ค่าแรง</span><span style="font-family:var(--mono)">฿'+_fmtMoney(laborCost)+'</span></div>'+
         (isVat ?
-          '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-2);margin-bottom:4px"><span>ยอดก่อน VAT</span><span style="font-family:var(--mono)">฿'+_fmtMoney(r.amount_before_vat)+'</span></div>'+
-          '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-2);margin-bottom:4px"><span>VAT 7%</span><span style="font-family:var(--mono)">฿'+_fmtMoney(r.vat_amount)+'</span></div>'+
-          '<div style="border-top:1.5px solid var(--green-m);margin:6px 0"></div>' : '')+
+          '<div style="border-top:1px dashed var(--green-m);margin:6px 0"></div>'+
+          '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-2);margin-bottom:4px"><span>ยอดก่อน VAT (อะไหล่+ค่าแรง)</span><span style="font-family:var(--mono)">฿'+_fmtMoney(r.amount_before_vat)+'</span></div>'+
+          '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-2);margin-bottom:4px"><span>VAT 7%</span><span style="font-family:var(--mono)">฿'+_fmtMoney(r.vat_amount)+'</span></div>' : '')+
+        '<div style="border-top:1.5px solid var(--green-m);margin:6px 0"></div>'+
         '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:var(--green-d)"><span>ยอดรวมทั้งสิ้น</span><span style="font-family:var(--mono)">฿'+_fmtMoney(r.total_amount)+'</span></div>'+
       '</div>'+
       (r.note ? '<div style="margin-top:14px;padding:10px;background:#FEF3C7;border-radius:6px;border-left:3px solid #F59E0B"><div style="font-size:11px;color:#92400E;font-weight:700;margin-bottom:4px">📝 หมายเหตุ</div><div style="font-size:12px;color:#78350F;white-space:pre-wrap">'+_esc(r.note)+'</div></div>' : '')+
@@ -28209,6 +28214,7 @@ function _mtOpenMaintenanceInner(id){
   document.getElementById('mm-mileage').value = '';
   document.getElementById('mm-bill-no').value = '';
   document.getElementById('mm-invoice-no').value = '';
+  document.getElementById('mm-labor').value = '';
   document.getElementById('mm-before-vat').value = '';
   document.getElementById('mm-vat').value = '';
   document.getElementById('mm-total').value = '';
@@ -28271,6 +28277,7 @@ function _mtOpenMaintenanceInner(id){
       sSelect.value = r.shop_id||'';
       document.getElementById('mm-bill-no').value = r.bill_no||'';
       document.getElementById('mm-invoice-no').value = r.invoice_no||'';
+      document.getElementById('mm-labor').value = r.labor_cost||'';
       document.getElementById('mm-before-vat').value = r.amount_before_vat||'';
       document.getElementById('mm-vat').value = r.vat_amount||'';
       document.getElementById('mm-total').value = r.total_amount||'';
@@ -28551,21 +28558,24 @@ function mmRecalcAllRows(){
   });
   var grandEl = document.getElementById('mm-parts-grand');
   if(grandEl) grandEl.textContent = _mmFmtMoney(grand);
+  // 🆕 ค่าแรง (แยกจากค่าอะไหล่) → บวกเข้ายอดก่อน VAT + คิด VAT บน (อะไหล่+ค่าแรง)
+  var labor = _mmNum('mm-labor');
+  var beforeEl = document.getElementById('mm-before-vat');
+  var vatEl = document.getElementById('mm-vat');
+  var totalEl = document.getElementById('mm-total');
   // Sync to totals fields
   if(_mmCurrentParts._mode === 'vat'){
-    var beforeEl = document.getElementById('mm-before-vat');
-    var vatEl = document.getElementById('mm-vat');
-    var totalEl = document.getElementById('mm-total');
-    if(beforeEl) beforeEl.value = subTotal.toFixed(2);
-    if(vatEl) vatEl.value = vatSum.toFixed(2);
-    if(totalEl) totalEl.value = grand.toFixed(2);
+    var laborVat = Math.round(labor * 0.07 * 100) / 100;
+    var before = subTotal + labor;
+    var vat = vatSum + laborVat;
+    if(beforeEl) beforeEl.value = before.toFixed(2);
+    if(vatEl) vatEl.value = vat.toFixed(2);
+    if(totalEl) totalEl.value = (before + vat).toFixed(2);
   } else {
-    var totalEl2 = document.getElementById('mm-total');
-    var beforeEl2 = document.getElementById('mm-before-vat');
-    var vatEl2 = document.getElementById('mm-vat');
-    if(totalEl2) totalEl2.value = grand.toFixed(2);
-    if(beforeEl2) beforeEl2.value = grand.toFixed(2);
-    if(vatEl2) vatEl2.value = '';
+    var total = grand + labor;
+    if(totalEl) totalEl.value = total.toFixed(2);
+    if(beforeEl) beforeEl.value = total.toFixed(2);
+    if(vatEl) vatEl.value = '';
   }
 }
 
@@ -28705,7 +28715,7 @@ async function saveMaintenance(){
     invoice_no: (sh && sh.type==='vat') ? document.getElementById('mm-invoice-no').value || null : null,
     service_types: serviceTypes,
     parts_list: partsRows,
-    labor_cost: 0,
+    labor_cost: _mmNum('mm-labor'),
     amount_before_vat: parseFloat(document.getElementById('mm-before-vat').value||0) || 0,
     vat_amount: parseFloat(document.getElementById('mm-vat').value||0) || 0,
     total_amount: total,
@@ -33284,7 +33294,11 @@ async function rcptLoadDoneList(){
     </div>
 
     <div class="fg-row">
-      <div class="fg" style="flex:1"><label class="fl">ยอดก่อน VAT</label><input class="fi" type="number" step="0.01" id="mm-before-vat" oninput="mmCalcVAT()" placeholder="0.00"></div>
+      <div class="fg" style="flex:1"><label class="fl">🔧 ค่าแรง (บาท) — แยกจากค่าอะไหล่</label><input class="fi" type="number" step="0.01" id="mm-labor" oninput="mmRecalcAllRows()" placeholder="0.00"></div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg" style="flex:1"><label class="fl">ยอดก่อน VAT (อะไหล่+ค่าแรง)</label><input class="fi" type="number" step="0.01" id="mm-before-vat" oninput="mmCalcVAT()" placeholder="0.00"></div>
       <div class="fg" style="flex:1"><label class="fl">VAT 7%</label><input class="fi" type="number" step="0.01" id="mm-vat" placeholder="0.00"></div>
       <div class="fg" style="flex:1"><label class="fl">ยอดรวม (บาท)</label><input class="fi" type="number" step="0.01" id="mm-total" oninput="mmCalcReverseVAT()" placeholder="0.00" style="font-weight:700;color:var(--red)"></div>
     </div>
