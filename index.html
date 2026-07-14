@@ -24638,15 +24638,29 @@ async function fetchOilPrice() {
   // Returns {OilDateNow, OilPriceDate, OilPriceTime, OilList:"[{OilName,PriceToday,...}]"} (OilList is JSON string)
   try {
     var srcUrl = 'https://oil-price.bangchak.co.th/ApiOilPrice2/th';
-    var proxyUrl = 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(srcUrl);
-    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var timer = ctrl ? setTimeout(function(){ctrl.abort();}, 10000) : null;
-    var r = await fetch(proxyUrl, ctrl ? {signal: ctrl.signal} : {});
-    if(timer) clearTimeout(timer);
-    if(!r.ok) throw new Error('proxy HTTP '+r.status);
-    var data = await r.json();
-    var first = Array.isArray(data) ? data[0] : data;
-    if(!first || !first.OilList) throw new Error('ไม่มี OilList ใน response');
+    var enc = encodeURIComponent(srcUrl);
+    // 🆕 หลาย CORS proxy สำรอง — codetabs เดิมล่มบ่อย (522) ลองทีละตัวจนได้ข้อมูล
+    var proxies = [
+      'https://corsproxy.io/?url=' + enc,
+      'https://api.allorigins.win/raw?url=' + enc,
+      'https://api.codetabs.com/v1/proxy/?quest=' + enc,
+      'https://thingproxy.freeboard.io/fetch/' + srcUrl
+    ];
+    var first = null, lastErr = '';
+    for(var _pi=0; _pi<proxies.length && !first; _pi++){
+      try {
+        var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        var timer = ctrl ? setTimeout(function(){ if(ctrl) ctrl.abort(); }, 8000) : null;
+        var r = await fetch(proxies[_pi], ctrl ? {signal: ctrl.signal} : {});
+        if(timer) clearTimeout(timer);
+        if(!r.ok){ lastErr = 'proxy'+(_pi+1)+' HTTP '+r.status; continue; }
+        var txt = await r.text();
+        var data = JSON.parse(txt);
+        var f = Array.isArray(data) ? data[0] : data;
+        if(f && f.OilList){ first = f; } else { lastErr = 'proxy'+(_pi+1)+' ไม่มี OilList'; }
+      } catch(e){ lastErr = 'proxy'+(_pi+1)+' '+((e && e.message) ? e.message : e); }
+    }
+    if(!first) throw new Error(lastErr || 'ทุก proxy ล่ม');
     var oilList = typeof first.OilList === 'string' ? JSON.parse(first.OilList) : first.OilList;
     if(!Array.isArray(oilList)) throw new Error('OilList format ผิด');
     // Find ไฮดีเซล (Hi-Diesel S)
@@ -33593,4 +33607,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v248 STAGING — หน้าคนขับ: repurpose แท็บ Outsourceบุคคล → "พนักงานเก่าออกจากงานแล้ว" + status dropdown (พร้อม/ลา/ออก/เสียชีวิต) auto-ย้ายเข้ากลุ่มพนักงานเก่า -->
+<!-- deploy v249 STAGING — แก้ดึงราคาน้ำมันบางจากไฮดีเซล: proxy codetabs ล่ม → ใช้หลาย proxy สำรอง (corsproxy/allorigins/codetabs/thingproxy) ลองทีละตัว -->
