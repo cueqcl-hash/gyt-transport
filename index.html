@@ -24688,6 +24688,7 @@ async function fetchOilPrice() {
     var enc = encodeURIComponent(srcUrl);
     // 🆕 หลาย CORS proxy สำรอง — ลองทีละตัวจนได้ข้อมูล (เรียงตัวที่ทดสอบแล้วใช้ได้ก่อน; corsproxy.io ต้องเสียเงินแล้ว, codetabs/thingproxy ล่มบ่อย)
     var proxies = [
+      '/api/oil',                                              // 🆕 serverless function ของเราเอง (same-origin, เสถียรสุด) — ลองก่อน
       'https://cors.eu.org/' + srcUrl,
       'https://test.cors.workers.dev/?' + srcUrl,
       'https://proxy.cors.sh/' + srcUrl,
@@ -33669,4 +33670,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v250 STAGING — ดึงราคาน้ำมันบางจาก: เปลี่ยน proxy เป็นตัวที่ทดสอบแล้วใช้ได้จริง (cors.eu.org/cors.workers.dev/cors.sh) — corsproxy.io เสียเงินแล้ว -->
+<!-- deploy v251 STAGING — ดึงราคาน้ำมันบางจาก: เพิ่ม serverless function /api/oil (same-origin เสถียร ไม่พึ่ง proxy ภายนอก) ลองก่อน แล้ว fallback proxy -->
