@@ -24639,12 +24639,13 @@ async function fetchOilPrice() {
   try {
     var srcUrl = 'https://oil-price.bangchak.co.th/ApiOilPrice2/th';
     var enc = encodeURIComponent(srcUrl);
-    // 🆕 หลาย CORS proxy สำรอง — codetabs เดิมล่มบ่อย (522) ลองทีละตัวจนได้ข้อมูล
+    // 🆕 หลาย CORS proxy สำรอง — ลองทีละตัวจนได้ข้อมูล (เรียงตัวที่ทดสอบแล้วใช้ได้ก่อน; corsproxy.io ต้องเสียเงินแล้ว, codetabs/thingproxy ล่มบ่อย)
     var proxies = [
-      'https://corsproxy.io/?url=' + enc,
+      'https://cors.eu.org/' + srcUrl,
+      'https://test.cors.workers.dev/?' + srcUrl,
+      'https://proxy.cors.sh/' + srcUrl,
       'https://api.allorigins.win/raw?url=' + enc,
-      'https://api.codetabs.com/v1/proxy/?quest=' + enc,
-      'https://thingproxy.freeboard.io/fetch/' + srcUrl
+      'https://api.codetabs.com/v1/proxy/?quest=' + enc
     ];
     var first = null, lastErr = '';
     for(var _pi=0; _pi<proxies.length && !first; _pi++){
@@ -33621,4 +33622,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v249 STAGING — แก้ดึงราคาน้ำมันบางจากไฮดีเซล: proxy codetabs ล่ม → ใช้หลาย proxy สำรอง (corsproxy/allorigins/codetabs/thingproxy) ลองทีละตัว -->
+<!-- deploy v250 STAGING — ดึงราคาน้ำมันบางจาก: เปลี่ยน proxy เป็นตัวที่ทดสอบแล้วใช้ได้จริง (cors.eu.org/cors.workers.dev/cors.sh) — corsproxy.io เสียเงินแล้ว -->
