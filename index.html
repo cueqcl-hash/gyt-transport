@@ -1078,6 +1078,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div style="margin-top:14px;font-weight:700;color:var(--green-d);font-size:13.5px">📋 ประวัติรอบเงินเดือน</div>
             <div id="sal-list"><div style="color:var(--text-3);font-size:13px;padding:8px 0">กำลังโหลด...</div></div>
           </div>
+          <!-- 🆕 🏦 ค่างวดรถ (ผ่อนไฟแนนซ์) — คำนวณอัตโนมัติจากสัญญาเช่าซื้อ -->
+          <div class="ec-card" id="veh-fin-card">
+            <div class="ec-head"><span>🏦 ค่างวดรถ (ผ่อนไฟแนนซ์)</span><span class="pn" id="veh-fin-sum">—</span></div>
+            <div style="overflow-x:auto"><div id="veh-fin-body" style="font-size:13px;color:var(--text-3)">กำลังโหลด...</div></div>
+            <div style="font-size:11.5px;color:var(--text-3);margin-top:8px">คำนวณจากสัญญาเช่าซื้อ (ค่างวด × จำนวนงวด นับจากงวดแรก) — วันหมดงวด/ยอดคงเหลือ อัปเดตตามวันที่ปัจจุบันอัตโนมัติ</div>
+          </div>
         </div>
       </div>
 
@@ -20450,6 +20456,47 @@ function ecInit(){
   ecLoadList();
   _ecInitDraft();   // 🆕 ตรวจร่างค้าง (กู้คืน) + เปิด auto-save
   try{ if(typeof salInit==='function') salInit(); }catch(_se){}   // 🆕 💵 เงินเดือนคนขับ (เฉพาะ PISOLN)
+  try{ renderVehicleFinance(); }catch(_ve){}   // 🆕 🏦 ค่างวดรถ (ผ่อนไฟแนนซ์)
+}
+
+// 🆕 🏦 ค่างวดรถ (ผ่อนไฟแนนซ์) — ข้อมูลสัญญาเช่าซื้อ (เพิ่มคันใหม่ได้ที่นี่)
+var VEHICLE_FINANCE = [
+  {plate:'69-4325',  bank:'ทิสโก้', contract:'6661181', chassis:'MNKFL8JN1XHX11542', monthly:52048, n:36, payDay:5,  firstDue:'2023-08-05'},
+  {plate:'700-4687', bank:'ทิสโก้', contract:'6821065', chassis:'MNKFL8JN1XHX11631', monthly:50334, n:36, payDay:10, firstDue:'2024-08-10'}
+];
+function _vfAddMonths(iso, m){ var p=iso.split('-'); var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2])); d.setMonth(d.getMonth()+m); return d; }
+function _vfBE(d){ var pad=function(n){return String(n).padStart(2,'0');}; return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+(d.getFullYear()+543); }
+function _vfMoney(n){ return (Number(n)||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function renderVehicleFinance(){
+  var body=document.getElementById('veh-fin-body'); if(!body) return;
+  var today=new Date(); var monthlyDueNow=0, activeCnt=0;
+  var rows=VEHICLE_FINANCE.map(function(f){
+    var fp=f.firstDue.split('-'); var first=new Date(parseInt(fp[0]),parseInt(fp[1])-1,parseInt(fp[2]));
+    var elapsed=(today.getFullYear()-first.getFullYear())*12 + (today.getMonth()-first.getMonth());
+    var due=elapsed + (today.getDate()>=f.payDay ? 1 : 0);
+    var paid=Math.max(0, Math.min(due, f.n));
+    var remain=f.n - paid;
+    var endD=_vfAddMonths(f.firstDue, f.n-1);
+    var nextD=remain>0 ? _vfAddMonths(f.firstDue, paid) : null;
+    var remainAmt=remain*f.monthly;
+    if(remain>0){ monthlyDueNow+=f.monthly; activeCnt++; }
+    var done=remain<=0;
+    return '<tr'+(done?' style="opacity:.55"':'')+'>'+
+      '<td><strong>'+f.plate+'</strong><div style="font-size:10px;color:var(--text-3)">'+f.bank+' · '+f.contract+'</div></td>'+
+      '<td class="r" style="font-family:var(--mono);font-weight:700">฿'+_vfMoney(f.monthly)+'</td>'+
+      '<td style="text-align:center">'+paid+' / '+f.n+'</td>'+
+      '<td style="text-align:center">'+(done?'—':('<strong>'+remain+'</strong> งวด'))+'</td>'+
+      '<td class="r" style="font-family:var(--mono)">'+(done?'—':('฿'+_vfMoney(remainAmt)))+'</td>'+
+      '<td style="text-align:center;font-size:12px">'+(nextD?_vfBE(nextD):'—')+'</td>'+
+      '<td style="text-align:center;font-size:12px">'+_vfBE(endD)+'</td>'+
+      '<td style="text-align:center">'+(done?'<span style="background:#DCFCE7;color:#166534;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">✅ ครบแล้ว</span>':'<span style="background:#DBEAFE;color:#1E40AF;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">🔵 กำลังผ่อน</span>')+'</td>'+
+    '</tr>';
+  }).join('');
+  body.innerHTML='<table class="ec-tbl" style="min-width:820px"><thead><tr>'+
+    '<th>ทะเบียน / สัญญา</th><th class="r">ค่างวด/เดือน</th><th style="text-align:center">งวดที่จ่าย</th><th style="text-align:center">เหลือ</th><th class="r">ยอดคงเหลือ</th><th style="text-align:center">งวดถัดไป</th><th style="text-align:center">หมดงวด</th><th style="text-align:center">สถานะ</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table>';
+  var sum=document.getElementById('veh-fin-sum');
+  if(sum) sum.innerHTML='ต้องโอนเดือนนี้รวม <b>฿'+_vfMoney(monthlyDueNow)+'</b> ('+activeCnt+' คันที่ยังผ่อน)';
 }
 var _ecTypes=['รับตู้','คืนตู้','ค่าเที่ยว','ทางด่วน','ค่าซ่อม','อื่นๆ'];  // ค่าเริ่มต้น
 // 🆕 ประเภท = combobox (พิมพ์เองได้ + จำค่าที่เคยกรอกผ่าน localStorage)
@@ -26780,7 +26827,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.250';
+const APP_VERSION = '2026.04.29.251';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
