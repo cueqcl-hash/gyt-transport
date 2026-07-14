@@ -26765,7 +26765,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.248';
+const APP_VERSION = '2026.04.29.249';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -27689,12 +27689,21 @@ let mtCurrentTab = 'shops';
 
 // Default service types (used when no DB intervals are present yet)
 const DEFAULT_INTERVALS = [
-  {service_type:'น้ำมันเครื่อง',     interval_km:10000, interval_months:6},
-  {service_type:'กรองน้ำมันเครื่อง', interval_km:10000, interval_months:6},
-  {service_type:'กรองอากาศ',         interval_km:30000, interval_months:12},
-  {service_type:'กรองดีเซล',         interval_km:20000, interval_months:12},
-  {service_type:'ตรวจเบรค',          interval_km:30000, interval_months:null},
-  {service_type:'ยาง',               interval_km:80000, interval_months:null},
+  // เครื่องยนต์/ระบบส่งกำลัง — เฉพาะหัวลาก + รถสิบล้อ (หางไม่มีเครื่องยนต์)
+  {service_type:'น้ำมันเครื่อง',     interval_km:10000, interval_months:6,   classes:['tractor','truck10']},
+  {service_type:'กรองน้ำมันเครื่อง', interval_km:10000, interval_months:6,   classes:['tractor','truck10']},
+  {service_type:'กรองอากาศ',         interval_km:30000, interval_months:12,  classes:['tractor','truck10']},
+  {service_type:'กรองดีเซล',         interval_km:20000, interval_months:12,  classes:['tractor','truck10']},
+  {service_type:'น้ำมันเกียร์/เฟืองท้าย', interval_km:60000, interval_months:24, classes:['tractor','truck10']},
+  // ทั่วไป — ทุกประเภท (รวมหาง)
+  {service_type:'ตรวจเบรค',          interval_km:30000, interval_months:null, classes:['tractor','truck10','trailer']},
+  {service_type:'ยาง',               interval_km:80000, interval_months:null, classes:['tractor','truck10','trailer']},
+  {service_type:'อัดจาระบี',         interval_km:20000, interval_months:3,   classes:['tractor','truck10','trailer']},
+  // เฉพาะหางเทลเลอร์ (ระบบล้อ/เบรก/ช่วงล่าง — ไม่มีเครื่องยนต์)
+  {service_type:'ลูกปืนล้อ/ตลับลูกปืน', interval_km:100000, interval_months:12, classes:['trailer']},
+  {service_type:'ผ้าเบรค/ปรับเบรค',  interval_km:40000,  interval_months:12,  classes:['trailer']},
+  {service_type:'แหนบ/สลัก/บูช',     interval_km:null,   interval_months:12,  classes:['trailer']},
+  {service_type:'ระบบลม/สายลม',      interval_km:null,   interval_months:12,  classes:['trailer']},
 ];
 
 // ── Tab switching ──
@@ -27873,6 +27882,12 @@ const SERVICE_TYPES = [
   'ตรวจเบรค',
   'ผ้าเบรค',
   'ยาง',
+  'น้ำมันเกียร์/เฟืองท้าย',
+  'อัดจาระบี',
+  'ลูกปืนล้อ/ตลับลูกปืน',
+  'ผ้าเบรค/ปรับเบรค',
+  'แหนบ/สลัก/บูช',
+  'ระบบลม/สายลม',
   'คลัทช์',
   'แบตเตอรี่',
   'ซ่อมเครื่องยนต์',
@@ -29537,8 +29552,10 @@ function _calcServiceStatus(vehicle, serviceType, currentKm, todayDate){
   if(!interval) return null;
 
   // Find latest maintenance with this service type
+  // (บันทึกซ่อมเก็บ vehicle_type เป็น tractor/trailer เท่านั้น — สิบล้อ(truck10) map เป็น tractor)
+  var _recType = (vehicle.vehicle_type==='trailer') ? 'trailer' : 'tractor';
   var records = (maintenanceRecords||[]).filter(function(r){
-    return r.vehicle_id===vehicle.id && r.vehicle_type===vehicle.vehicle_type
+    return r.vehicle_id===vehicle.id && r.vehicle_type===_recType
       && (r.service_types||[]).indexOf(serviceType) >= 0;
   });
   records.sort(function(a,b){return (b.service_date||'').localeCompare(a.service_date||'');});
@@ -29598,15 +29615,19 @@ function _calcServiceStatus(vehicle, serviceType, currentKm, todayDate){
 function calculateAlerts(){
   var allVehicles = (typeof getAllVehicles === 'function') ? getAllVehicles() : [];
   var todayDate = new Date().toISOString().slice(0,10);
-  var serviceTypes = (DEFAULT_INTERVALS||[]).map(function(x){return x.service_type;});
-
   var result = [];
   allVehicles.forEach(function(v){
+    var _recType = (v.vehicle_type==='trailer') ? 'trailer' : 'tractor';
     // Get current km from latest maintenance record (any service)
     var allRecs = (maintenanceRecords||[]).filter(function(r){
-      return r.vehicle_id===v.id && r.vehicle_type===v.vehicle_type;
+      return r.vehicle_id===v.id && r.vehicle_type===_recType;
     });
     var currentKm = allRecs.length ? Math.max.apply(null, allRecs.map(function(r){return r.mileage||0;})) : null;
+
+    // เฉพาะรายการที่ใช้กับประเภทรถคันนี้ (หาง=ไม่มีเครื่องยนต์ จึงไม่มีน้ำมันเครื่อง/กรอง)
+    var serviceTypes = (DEFAULT_INTERVALS||[]).filter(function(x){
+      return !x.classes || x.classes.indexOf(v.vehicle_type) >= 0;
+    }).map(function(x){return x.service_type;});
 
     var services = serviceTypes.map(function(st){
       return _calcServiceStatus(v, st, currentKm, todayDate);
@@ -29670,7 +29691,7 @@ function renderAlerts(){
     return (order[a.worstStatus]||3) - (order[b.worstStatus]||3);
   });
 
-  listEl.innerHTML = filtered.map(function(a){
+  function _alertCardHtml(a){
     var v = a.vehicle;
     var typeIcon = v.vehicle_type==='truck10'?'🚛' : v.vehicle_type==='tractor'?'🚜' : '🚚';
     var typeLabel = v.vehicle_type==='truck10'?'รถสิบล้อ' : v.vehicle_type==='tractor'?'หัวลาก' : 'หางเทลเลอร์';
@@ -29690,6 +29711,19 @@ function renderAlerts(){
         '</div>';
       }).join('') + '</div>' +
     '</div>';
+  }
+  // แยกแสดงเป็น 3 กลุ่มตามประเภทรถ: หัวลาก / รถสิบล้อ / หางเทลเลอร์
+  var _alertGroups = [
+    {key:'tractor', icon:'🚜', label:'หัวลาก'},
+    {key:'truck10', icon:'🚛', label:'รถสิบล้อ'},
+    {key:'trailer', icon:'🚚', label:'หางเทลเลอร์'}
+  ];
+  listEl.innerHTML = _alertGroups.map(function(g){
+    var items = filtered.filter(function(a){return a.vehicle.vehicle_type===g.key;});
+    if(!items.length) return '';
+    var head = '<div style="margin:22px 0 10px;font-size:16px;font-weight:800;padding-bottom:6px;border-bottom:2px solid var(--border)">' +
+      g.icon + ' ' + g.label + ' <span style="font-weight:500;color:var(--text-3);font-size:13px">(' + items.length + ' คัน)</span></div>';
+    return head + items.map(_alertCardHtml).join('');
   }).join('');
 
   // Update sidebar badge
