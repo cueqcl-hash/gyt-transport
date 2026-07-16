@@ -19775,7 +19775,7 @@ function _dashRenderPL(pr){
 //   🚩 ธง = ข้อมูลยังไม่ครบ (ไม่มีเลขตู้ / จับบิลไม่ได้ / รถร่วมไม่มีค่าจ้าง / ยังไม่ลงค่าแรง)
 // ============================================================
 var _tpJobs=null, _tpBills=null, _tpSub=null, _tpDataPromise=null;
-var _tpContIdx=null, _tpBkIdx=null, _tpPlateIdx=null, _tpHireByCont=null, _tpFuelByPM=null, _tpTripByPM=null;
+var _tpContIdx=null, _tpBkIdx=null, _tpPlateIdx=null, _tpHireByCont=null, _tpFuelByPM=null, _tpTripByPM=null, _tpLaborRef=null;
 var _tpMode='month';
 var _tpSort={key:'date', dir:-1};   // dir 1=น้อย→มาก, -1=มาก→น้อย
 var _tpRows=[];
@@ -19837,6 +19837,12 @@ async function _tpEnsureData(){
     _tpFuelByPM={}; _tpTripByPM={};
     FL.forEach(function(x){ if(!x)return; var p=_tpNP(x.plate), m=String(x.fuel_date||'').slice(0,7); if(!p||!m)return; (_tpFuelByPM[p]=_tpFuelByPM[p]||{})[m]=(_tpFuelByPM[p][m]||0)+(parseFloat(x.amount)||0); });
     (_tpJobs||[]).forEach(function(j){ if(!j||j.status==='ยกเลิก'||!j.startdate)return; var p=_tpNP(j.plate), m=String(j.startdate).slice(0,7); if(!p||!m)return; (_tpTripByPM[p]=_tpTripByPM[p]||{})[m]=(_tpTripByPM[p][m]||0)+1; });
+    // 🆕 อ้างอิงค่าแรง: งานรถบริษัทที่มีค่าแรง → key(shipper+เส้นทาง) → ค่าแรงที่พบบ่อยสุด(mode) สำหรับประมาณงานที่ยังไม่ลงค่าแรง
+    _tpLaborRef={}; var _lref={};
+    (_tpJobs||[]).forEach(function(j){ if(!j||j.status==='ยกเลิก')return; var pl=(j.plate||'').trim(); if(!(pl && pl!=='รถร่วม' && /\d{2,3}-\d{4}/.test(pl)))return;
+      var lab=(typeof _dashTrip==='function')?_dashTrip(j):_dashPickAmt(j.costs||{},'trip'); if(!(lab>0))return;
+      var k=_tpLaborKey(j); if(!k)return; var b=_lref[k]||(_lref[k]={cnt:{},samp:{}}); b.cnt[lab]=(b.cnt[lab]||0)+1; if(!b.samp[lab])b.samp[lab]=j.id; });
+    Object.keys(_lref).forEach(function(k){ var b=_lref[k],best=0,bc=-1; Object.keys(b.cnt).forEach(function(v){ if(b.cnt[v]>bc){ bc=b.cnt[v]; best=parseFloat(v); } }); _tpLaborRef[k]={labor:best,from:b.samp[best]}; });
   })();
   return _tpDataPromise;
 }
@@ -19883,13 +19889,16 @@ var _TP_FLAGS={
   revplate:{i:'🪪', t:'จับบิลด้วยทะเบียนรถ+วันที่ (งานไม่มีตู้ เช่น ตีรถเปล่าไปรับของ)'},
   sub:{i:'🚚', t:'เที่ยวรถร่วม — ควรตรวจสอบค่าจ้าง/รายได้ด้วยตนเอง'},
   subnohire:{i:'❗', t:'รถร่วมแต่ยังไม่มีค่าจ้าง (hire_amount)'},
-  nolabor:{i:'💸', t:'รถบริษัทแต่ยังไม่ได้ลงค่าแรงเที่ยว'}
+  nolabor:{i:'💸', t:'รถบริษัทแต่ยังไม่ได้ลงค่าแรงเที่ยว'},
+  laborest:{i:'🧮', t:'ค่าแรงประมาณ — ดึงจากงาน shipper+เส้นทางเดียวกัน (ยังไม่ได้ลงจริง)'}
 };
 // ธง "ประมาณ" (soft) — แค่หมายเหตุ ไม่นับว่าติดปัญหา ถ้าต้นทุนครบก็ถือว่าผ่าน
-var _TP_SOFT={multi:1, approx:1, revbk:1, revplate:1};
+var _TP_SOFT={multi:1, approx:1, revbk:1, revplate:1, laborest:1};
 function _tpHardFlags(fl){ return (fl||[]).filter(function(x){ return !_TP_SOFT[x]; }); }
 
 function _tpRoute(j){ var a=[]; if(j.origin)a.push(j.origin); if(j.dest)a.push(j.dest); if(j.returnyard)a.push(j.returnyard); return a.join(' → '); }
+// key อ้างอิงค่าแรง: shipper (เจ้าเดียวกันเท่านั้น) + เส้นทาง (ต้นทาง|เปิดบรรจุ|ปลายทาง) — ต้อง shipper ไม่ว่าง
+function _tpLaborKey(j){ if(!j)return ''; var sh=_custNorm(j.shipper||''); if(!sh)return ''; var rn=function(x){ return (''+(x||'')).replace(/\s+/g,' ').trim().toUpperCase(); }; return sh+'||'+rn(j.origin)+'|'+rn(j.dest)+'|'+rn(j.returnyard); }
 
 function _tpCompute(pr){
   var JB=_tpJobs||[], rows=[];
@@ -19909,7 +19918,7 @@ function _tpCompute(pr){
     var realPlate = plate && plate!=='รถร่วม' && /\d{2,3}-\d{4}/.test(plate);
     var hireRec = cont?_tpHireOf(cont, jobT):null;
     var isSub = (plate==='รถร่วม') || (!realPlate && !!hireRec);
-    var labor=0,fuel=0,toll=0,other=0,hire=0,cost=0,truck;
+    var labor=0,fuel=0,toll=0,other=0,hire=0,cost=0,truck,laborEst=false,laborFrom='';
     if(isSub){
       truck='sub'; hire=hireRec?hireRec.hire:0; cost=hire;
       flags.push('sub');                    // ติดธงรถร่วมทุกเที่ยว — ข้อมูลค่าจ้าง/รายได้ต้องตรวจเอง
@@ -19917,18 +19926,19 @@ function _tpCompute(pr){
     } else {
       truck='gyt';
       labor=(typeof _dashTrip==='function')?_dashTrip(j):_dashPickAmt(jc,'trip');
+      if(!(labor>0)){ var _lk=_tpLaborKey(j), _lr=_lk?_tpLaborRef[_lk]:null; if(_lr&&_lr.labor>0){ labor=_lr.labor; laborEst=true; laborFrom=_lr.from; } }   // 🆕 ประมาณค่าแรงจากงาน shipper+เส้นทางเดียวกัน
       var p=_tpNP(plate), m=String(j.startdate).slice(0,7);
       var tf=(_tpFuelByPM[p]&&_tpFuelByPM[p][m])||0, tt=(_tpTripByPM[p]&&_tpTripByPM[p][m])||0;
       fuel=(tt>0)?(tf/tt):0;
       toll=(_plTollByJob&&_plTollByJob[j.id]!=null)?_plTollByJob[j.id]:_dashPickAmt(jc,'toll');
       other=_dashPickAmt(jc,'box')+_dashPickAmt(jc,'move')+_dashPickAmt(jc,'misc')+_dashPickAmt(jc,'misc2');
       cost=labor+fuel+toll+other;
-      if(!(labor>0)) flags.push('nolabor');
+      if(!(labor>0)) flags.push('nolabor'); else if(laborEst) flags.push('laborest');
     }
     var profit=revenue-cost, margin=(hasRev&&revenue>0)?(profit/revenue*100):null;
     rows.push({ id:j.id, t:jobT, date:j.startdate, customer:(j.customer||'').trim(), shipper:(j.shipper||'').trim(), route:_tpRoute(j),
       plate:plate, truck:truck, cont:cont, contRaw:(j.container||'').trim(),
-      revenue:revenue, hasRev:hasRev, labor:labor, fuel:fuel, toll:toll, other:other, hire:hire,
+      revenue:revenue, hasRev:hasRev, labor:labor, laborEst:laborEst, laborFrom:laborFrom, fuel:fuel, toll:toll, other:other, hire:hire,
       cost:cost, profit:profit, margin:margin, bill:(rr&&rr.bill)||'', flags:flags });
   });
   return rows;
@@ -20049,7 +20059,7 @@ function _tpRenderView(){
       '<td style="white-space:nowrap;font-size:12px">'+truckHtml+'</td>'+
       '<td style="white-space:nowrap;font-family:var(--mono);font-size:11px">'+_finEsc(r.cont||r.contRaw||'—')+'</td>'+
       '<td style="text-align:right">'+(r.hasRev?'฿'+f(r.revenue):'<span style="color:#9CA3AF">—</span>')+'</td>'+
-      '<td style="text-align:right;color:var(--text-3)">'+(r.truck==='sub'?'—':f(r.labor))+'</td>'+
+      '<td style="text-align:right;color:var(--text-3)">'+(r.truck==='sub'?'—':((r.laborEst?'<span title="ค่าแรงประมาณจากงาน shipper+เส้นทางเดียวกัน ('+_finEsc(r.laborFrom||'')+')" style="color:#7C3AED;cursor:help">≈</span>':'')+f(r.labor)))+'</td>'+
       '<td style="text-align:right;color:var(--text-3)">'+(r.truck==='sub'?'—':f(r.fuel))+'</td>'+
       '<td style="text-align:right;color:var(--text-3)">'+(r.truck==='sub'?'—':f(r.toll))+'</td>'+
       '<td style="text-align:right;color:var(--text-3)">'+f(otherHire)+'</td>'+
@@ -20060,7 +20070,7 @@ function _tpRenderView(){
     '</tr>';
   }).join('');
   var cut=view.length>mx?('<div style="font-size:11px;color:#D97706;padding:6px 0">⚠ แสดง '+mx+' จาก '+view.length+' เที่ยว — กรอง/ค้นหาเพื่อให้แคบลง</div>'):'';
-  var note='<div style="font-size:11px;color:var(--text-3);margin-top:8px;line-height:1.6">📌 <b>เฟส 1 (ประมาณการ):</b> รายได้จับจาก<b>เลขตู้</b>ในบิล (ค่าขนส่ง amt_freight; บิลรวมหลายตู้ = เฉลี่ยต่อตู้) จับบิลในกรอบ −20 ถึง +90 วันจากวันงาน · น้ำมัน = ค่าน้ำมันรถทั้งเดือน ÷ จำนวนเที่ยว · ตัดค่ารับตู้/คืนตู้/ผ่านท่า (สำรองจ่าย) ออก<br>🚩 <b>ธง 2 ระดับ:</b> ธง<b>เข้ม</b> = ข้อมูลขาด/ต้องแก้ (📦 ไม่มีเลขตู้ · 🧾 ยังไม่เจอบิล · 🕒 เลขตู้ซ้ำ · 💸 ยังไม่ลงค่าแรง · ❗ รถร่วมไม่มีค่าจ้าง · 🚚 รถร่วม) — นับใน KPI/ตัวกรอง · ธง<b>จาง</b> (🔀 บิลหลายตู้เฉลี่ย · ≈ บิลอังกฤษประมาณ) = แค่หมายเหตุรายได้ประมาณ ถ้าต้นทุนครบ = <b style="color:#16A34A">✓ ผ่าน</b> · ชี้เมาส์ดูคำอธิบายแต่ละธง</div>';
+  var note='<div style="font-size:11px;color:var(--text-3);margin-top:8px;line-height:1.6">📌 <b>เฟส 1 (ประมาณการ):</b> รายได้จับจาก<b>เลขตู้</b>ในบิล (ค่าขนส่ง amt_freight; บิลรวมหลายตู้ = เฉลี่ยต่อตู้) จับบิลในกรอบ −20 ถึง +90 วันจากวันงาน · น้ำมัน = ค่าน้ำมันรถทั้งเดือน ÷ จำนวนเที่ยว · ตัดค่ารับตู้/คืนตู้/ผ่านท่า (สำรองจ่าย) ออก<br>🚩 <b>ธง 2 ระดับ:</b> ธง<b>เข้ม</b> = ข้อมูลขาด/ต้องแก้ (📦 ไม่มีเลขตู้ · 🧾 ยังไม่เจอบิล · 🕒 เลขตู้ซ้ำ · 💸 ยังไม่ลงค่าแรง · ❗ รถร่วมไม่มีค่าจ้าง · 🚚 รถร่วม) — นับใน KPI/ตัวกรอง · ธง<b>จาง</b> (🔀 บิลหลายตู้เฉลี่ย · ≈ บิลอังกฤษประมาณ · 🔖 จับด้วยBooking · 🪪 จับด้วยทะเบียน · 🧮 ค่าแรงประมาณจากงาน shipper+เส้นทางเดียวกัน) = แค่หมายเหตุประมาณ ถ้าต้นทุนครบ = <b style="color:#16A34A">✓ ผ่าน</b> · ชี้เมาส์ดูคำอธิบายแต่ละธง</div>';
   body.innerHTML='<div style="overflow-x:auto"><table class="dfleet-tbl" style="min-width:1180px"><thead>'+head+'</thead><tbody>'+body2+'</tbody></table></div>'+cut+note;
 }
 
@@ -26828,7 +26838,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.252';
+const APP_VERSION = '2026.04.29.253';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33670,4 +33680,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v252 STAGING — /api/oil ใช้ raw http response method (ไม่พึ่ง helper Vercel) กัน function พลาด -->
+<!-- deploy v253 STAGING — P&L รายเที่ยว: ประมาณค่าแรงจากงาน shipper+เส้นทางเดียวกัน (mode) → ธง 🧮 จาง ลดธง 💸 ~529 งาน -->
