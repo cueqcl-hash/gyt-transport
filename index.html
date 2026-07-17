@@ -1084,6 +1084,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div style="overflow-x:auto"><div id="veh-fin-body" style="font-size:13px;color:var(--text-3)">กำลังโหลด...</div></div>
             <div style="font-size:11.5px;color:var(--text-3);margin-top:8px">คำนวณจากสัญญาเช่าซื้อ (ค่างวด × จำนวนงวด นับจากงวดแรก) — วันหมดงวด/ยอดคงเหลือ อัปเดตตามวันที่ปัจจุบันอัตโนมัติ</div>
           </div>
+          <!-- 🆕 🏢 ค่าใช้จ่ายประจำเดือน (fixed cost เช่น ค่าเช่าลาน) -->
+          <div class="ec-card" id="fixed-cost-card">
+            <div class="ec-head"><span>🏢 ค่าใช้จ่ายประจำเดือน</span><span class="pn" id="fixed-cost-sum">—</span></div>
+            <div style="overflow-x:auto"><div id="fixed-cost-body" style="font-size:13px;color:var(--text-3)">กำลังโหลด...</div></div>
+            <div style="font-size:11.5px;color:var(--text-3);margin-top:8px">รายจ่ายคงที่ที่ต้องจ่ายทุกเดือน (ค่าเช่า ฯลฯ) — เพิ่ม/แก้รายการแจ้ง Code ได้เลย</div>
+          </div>
         </div>
       </div>
 
@@ -20467,6 +20473,7 @@ function ecInit(){
   _ecInitDraft();   // 🆕 ตรวจร่างค้าง (กู้คืน) + เปิด auto-save
   try{ if(typeof salInit==='function') salInit(); }catch(_se){}   // 🆕 💵 เงินเดือนคนขับ (เฉพาะ PISOLN)
   try{ renderVehicleFinance(); }catch(_ve){}   // 🆕 🏦 ค่างวดรถ (ผ่อนไฟแนนซ์)
+  try{ renderMonthlyFixed(); }catch(_mf){}     // 🆕 🏢 ค่าใช้จ่ายประจำเดือน (ค่าเช่าลาน ฯลฯ)
 }
 
 // 🆕 🏦 ค่างวดรถ (ผ่อนไฟแนนซ์) — ข้อมูลสัญญาเช่าซื้อ (เพิ่มคันใหม่ได้ที่นี่)
@@ -20507,6 +20514,28 @@ function renderVehicleFinance(){
     '</tr></thead><tbody>'+rows+'</tbody></table>';
   var sum=document.getElementById('veh-fin-sum');
   if(sum) sum.innerHTML='ต้องโอนเดือนนี้รวม <b>฿'+_vfMoney(monthlyDueNow)+'</b> ('+activeCnt+' คันที่ยังผ่อน)';
+}
+
+// 🆕 🏢 ค่าใช้จ่ายประจำเดือน (fixed cost) — เพิ่มรายการใหม่ได้ที่นี่
+var MONTHLY_FIXED = [
+  {name:'ค่าเช่าลานจอดรถเทรลเลอร์', place:'ซ.กิ่งแก้ว 29/2', monthly:53200}
+];
+function renderMonthlyFixed(){
+  var body=document.getElementById('fixed-cost-body'); if(!body) return;
+  var total=0;
+  var rows=MONTHLY_FIXED.map(function(f){
+    total+=f.monthly;
+    return '<tr>'+
+      '<td><strong>'+f.name+'</strong></td>'+
+      '<td style="font-size:12px;color:var(--text-2)">'+(f.place||'—')+'</td>'+
+      '<td class="r" style="font-family:var(--mono);font-weight:700">฿'+_vfMoney(f.monthly)+'</td>'+
+    '</tr>';
+  }).join('');
+  body.innerHTML='<table class="ec-tbl" style="min-width:520px"><thead><tr>'+
+    '<th>รายการ</th><th>สถานที่ / รายละเอียด</th><th class="r">ยอด/เดือน</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table>';
+  var sum2=document.getElementById('fixed-cost-sum');
+  if(sum2) sum2.innerHTML='รวม <b>฿'+_vfMoney(total)+'</b> /เดือน ('+MONTHLY_FIXED.length+' รายการ)';
 }
 var _ecTypes=['รับตู้','คืนตู้','ค่าเที่ยว','ทางด่วน','ค่าซ่อม','อื่นๆ'];  // ค่าเริ่มต้น
 // 🆕 ประเภท = combobox (พิมพ์เองได้ + จำค่าที่เคยกรอกผ่าน localStorage)
@@ -26838,7 +26867,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.253';
+const APP_VERSION = '2026.04.29.254';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
