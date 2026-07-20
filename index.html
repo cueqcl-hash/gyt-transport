@@ -2479,6 +2479,335 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       }
       </script>
 
+      <!-- 🚗 รถยนต์ส่วนตัวกรรมการ — พ.ร.บ./ประกันภัย/ภาษี + ค่าซ่อม (v254) -->
+      <div id="pg-personalcars" class="screen">
+        <style>
+          .pv-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+          .pv-stat{background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 14px;border-left:4px solid var(--green)}
+          .pv-stat.over{border-left-color:#DC2626}.pv-stat.urgent{border-left-color:#F59E0B}.pv-stat.soon{border-left-color:#EAB308}
+          .pv-stat-label{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+          .pv-stat-value{font-size:22px;font-weight:700;color:var(--text-1);margin-top:4px;font-family:var(--mono)}
+          .pv-bar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+          .pv-chip{border:1px solid var(--border);background:#fff;border-radius:20px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--text-1)}
+          .pv-chip.on{background:var(--green);border-color:var(--green);color:#fff}
+          .pv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+          .pv-card{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+          .pv-card.alert{border-color:#DC2626}
+          .pv-head{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--border);cursor:pointer}
+          .pv-head:hover{background:#F9FAFB}
+          .pv-plate{background:#123A6B;color:#fff;border-radius:5px;padding:5px 9px;font-weight:700;font-size:13px;white-space:nowrap;font-family:var(--mono)}
+          .pv-card.alert .pv-plate{background:#DC2626}
+          .pv-nm{font-weight:600;color:var(--text-1);font-size:14px;line-height:1.25}
+          .pv-nm small{display:block;font-weight:400;color:var(--text-3);font-size:11px}
+          .pv-doc{display:flex;align-items:center;gap:9px;padding:8px 13px;border-top:1px solid #F1F3F5}
+          .pv-doc:first-of-type{border-top:none}
+          .pv-dl{width:66px;flex:none;font-size:12.5px;color:var(--text-3)}
+          .pv-dd{flex:1;font-size:12.5px;font-family:var(--mono)}
+          .pv-dn{flex:none;text-align:right;min-width:74px}
+          .pv-dn b{font-size:17px;font-weight:700;line-height:1;font-family:var(--mono)}
+          .pv-dn span{display:block;font-size:10px}
+          .pv-over b,.pv-over span{color:#DC2626}.pv-urgent b,.pv-urgent span{color:#D97706}
+          .pv-soon b,.pv-soon span{color:#A16207}.pv-ok b,.pv-ok span{color:#059669}.pv-unk b,.pv-unk span{color:var(--text-3)}
+          .pv-hint{padding:6px 13px;background:#FEF3C7;color:#92400E;font-size:11.5px;border-top:1px solid #FDE68A}
+          .pv-foot{padding:8px 13px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap}
+          .pv-tbl{width:100%;border-collapse:collapse;font-size:13px}
+          .pv-tbl th{background:#F3F4F6;text-align:left;padding:7px 10px;font-size:11.5px;color:var(--text-3);font-weight:600}
+          .pv-tbl td{padding:7px 10px;border-top:1px solid #F1F3F5;font-family:var(--mono);font-size:12.5px}
+          .pv-empty{background:#fff;border:1px dashed var(--border);border-radius:10px;padding:36px 20px;text-align:center;color:var(--text-3)}
+        </style>
+
+        <div id="pv-body">
+          <div class="pv-empty">กำลังโหลด…</div>
+        </div>
+
+      </div>
+
+      <!-- MODAL: ต่ออายุเอกสารรถส่วนตัว -->
+      <div class="modal-overlay" id="modal-pv-doc">
+        <div class="modal modal-sm">
+          <div class="modal-head">
+            <div><div class="modal-title" id="pv-doc-title">ต่ออายุเอกสาร</div></div>
+            <button class="close-x" onclick="closeModal('modal-pv-doc')">×</button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="pv-doc-veh"><input type="hidden" id="pv-doc-type">
+            <div class="fg"><label class="fl">วันหมดอายุใหม่ *</label><input type="date" class="fi" id="pv-doc-exp"></div>
+            <div class="fg-row">
+              <div class="fg"><label class="fl">ค่าใช้จ่าย (บาท)</label><input type="number" step="0.01" class="fi" id="pv-doc-amt" placeholder="เช่น 1900"></div>
+              <div class="fg"><label class="fl">บริษัทประกัน / ขนส่ง</label><input type="text" class="fi" id="pv-doc-prov"></div>
+            </div>
+            <div class="fg"><label class="fl">หมายเหตุ</label><input type="text" class="fi" id="pv-doc-note"></div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('modal-pv-doc')">ยกเลิก</button>
+            <button class="btn btn-green" onclick="pvSaveDoc()">บันทึก</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: ค่าซ่อมรถส่วนตัว -->
+      <div class="modal-overlay" id="modal-pv-exp">
+        <div class="modal modal-sm">
+          <div class="modal-head">
+            <div><div class="modal-title">เพิ่มค่าซ่อม / บำรุงรักษา</div></div>
+            <button class="close-x" onclick="closeModal('modal-pv-exp')">×</button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="pv-exp-veh">
+            <div class="fg-row">
+              <div class="fg"><label class="fl">วันที่ *</label><input type="date" class="fi" id="pv-exp-date"></div>
+              <div class="fg"><label class="fl">หมวด</label><select class="fi" id="pv-exp-cat">
+                <option>ซ่อม</option><option>เช็คระยะ</option><option>ยาง</option><option>ประกันเคลม</option><option>อื่นๆ</option>
+              </select></div>
+            </div>
+            <div class="fg"><label class="fl">อู่ / ศูนย์บริการ</label><input type="text" class="fi" id="pv-exp-vendor"></div>
+            <div class="fg-row">
+              <div class="fg"><label class="fl">ยอดเงิน (บาท) *</label><input type="number" step="0.01" class="fi" id="pv-exp-amt"></div>
+              <div class="fg"><label class="fl">เลขไมล์ (กม.)</label><input type="number" class="fi" id="pv-exp-km"></div>
+            </div>
+            <div class="fg"><label class="fl">รายละเอียด</label><input type="text" class="fi" id="pv-exp-detail"></div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('modal-pv-exp')">ยกเลิก</button>
+            <button class="btn btn-green" onclick="pvSaveExp()">บันทึก</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: รายละเอียดรถส่วนตัว -->
+      <div class="modal-overlay" id="modal-pv-veh">
+        <div class="modal">
+          <div class="modal-head">
+            <div><div class="modal-title">รายละเอียดรถ</div></div>
+            <button class="close-x" onclick="closeModal('modal-pv-veh')">×</button>
+          </div>
+          <div class="modal-body" id="pv-veh-body"></div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('modal-pv-veh')">ปิด</button>
+          </div>
+        </div>
+      </div>
+      <script>
+      // ===== รถส่วนตัวกรรมการ (pv*) — แยกขาดจากรถบริษัท ไม่เข้า Dashboard/P&L =====
+      var _pvVeh=null,_pvDocs=null,_pvExp=null,_pvLoaded=false,_pvFilter='all';
+      var PV_TYPES=['พ.ร.บ.','ภาษี','ประกันภัย'];
+      function pvInit(){ if(!_pvLoaded){ pvLoad(); } else { pvRender(); } }
+      async function pvLoad(){
+        var v=await sbFetch('gyt_personal_vehicles','GET',null,'?order=id');
+        if(v===null){
+          document.getElementById('pv-body').innerHTML='<div class="pv-empty"><b>ยังไม่ได้สร้างตารางในฐานข้อมูล</b><br><br>ให้รันไฟล์ <code>personal_vehicles_setup.sql</code> ใน Supabase → SQL Editor ครั้งเดียว<br>แล้วกลับมาเปิดหน้านี้ใหม่</div>';
+          return;
+        }
+        _pvVeh=v||[];
+        _pvDocs=(await sbFetch('gyt_personal_vehicle_docs','GET',null,'?order=expiry_date.desc'))||[];
+        _pvExp=(await sbFetch('gyt_personal_vehicle_expenses','GET',null,'?order=exp_date.desc'))||[];
+        _pvLoaded=true; pvRender();
+      }
+      function pvDays(iso){ if(!iso) return null; var t=new Date(); t.setHours(0,0,0,0); var d=new Date(iso+'T00:00:00'); return Math.round((d-t)/86400000); }
+      function pvStat(n){ if(n===null) return 'unk'; if(n<0) return 'over'; if(n<=30) return 'urgent'; if(n<=90) return 'soon'; return 'ok'; }
+      function pvThai(iso){
+        if(!iso) return '—';
+        var M=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+        var d=new Date(iso+'T00:00:00');
+        return d.getDate()+' '+M[d.getMonth()]+' '+(d.getFullYear()+543);
+      }
+      function pvLatest(vehId,type){
+        var rows=(_pvDocs||[]).filter(function(d){ return d.vehicle_id===vehId && d.doc_type===type; });
+        if(!rows.length) return null;
+        rows.sort(function(a,b){ return (b.expiry_date||'').localeCompare(a.expiry_date||''); });
+        return rows[0];
+      }
+      function pvOverLabel(n){
+        var a=Math.abs(n); if(a>=365) return 'เกิน '+Math.floor(a/365)+' ปี';
+        if(a>=30) return 'เกิน '+Math.floor(a/30)+' เดือน'; return 'เกิน '+a+' วัน';
+      }
+      function pvRender(){
+        if(!_pvVeh){ return; }
+        var act=_pvVeh.filter(function(v){ return v.status!=='sold'; });
+        var cnt={over:0,urgent:0,soon:0,ok:0};
+        act.forEach(function(v){
+          if(v.status==='parked') return;
+          PV_TYPES.forEach(function(t){
+            var d=pvLatest(v.id,t); var s=pvStat(d?pvDays(d.expiry_date):null);
+            if(cnt[s]!==undefined) cnt[s]++;
+          });
+        });
+        var h='<div class="pv-stats">'+
+          '<div class="pv-stat over"><div class="pv-stat-label">เลยกำหนด</div><div class="pv-stat-value">'+cnt.over+'</div></div>'+
+          '<div class="pv-stat urgent"><div class="pv-stat-label">ด่วน ≤30 วัน</div><div class="pv-stat-value">'+cnt.urgent+'</div></div>'+
+          '<div class="pv-stat soon"><div class="pv-stat-label">เตรียมต่อ ≤90 วัน</div><div class="pv-stat-value">'+cnt.soon+'</div></div>'+
+          '<div class="pv-stat"><div class="pv-stat-label">ปกติ</div><div class="pv-stat-value">'+cnt.ok+'</div></div>'+
+          '</div>';
+        h+='<div class="pv-bar">'+
+          ['all|ทั้งหมด','todo|ต้องทำ','พ.ร.บ.|พ.ร.บ.','ภาษี|ภาษี','ประกันภัย|ประกันภัย','exp|ค่าซ่อม'].map(function(c){
+            var p=c.split('|'); return '<button class="pv-chip'+(_pvFilter===p[0]?' on':'')+'" onclick="pvSetFilter(\''+p[0]+'\')">'+p[1]+'</button>';
+          }).join('')+'</div>';
+        if(_pvFilter==='exp'){ document.getElementById('pv-body').innerHTML=h+pvExpTable(); return; }
+        // เรียง: เร่งด่วนก่อน
+        var order={over:0,urgent:1,soon:2,unk:3,ok:4};
+        var list=act.slice().sort(function(a,b){
+          function worst(v){ if(v.status==='parked') return 9; var w=9;
+            PV_TYPES.forEach(function(t){ var d=pvLatest(v.id,t); var s=order[pvStat(d?pvDays(d.expiry_date):null)]; if(s<w) w=s; }); return w; }
+          return worst(a)-worst(b);
+        });
+        var cards=list.map(function(v){ return pvCard(v); }).filter(function(x){ return x; });
+        h+='<div class="pv-grid">'+(cards.length?cards.join(''):'<div class="pv-empty">ไม่มีรายการ</div>')+'</div>';
+        document.getElementById('pv-body').innerHTML=h;
+      }
+      function pvCard(v){
+        var rows='',alert=false,hint='';
+        var types=PV_TYPES.slice();
+        if(_pvFilter==='พ.ร.บ.'||_pvFilter==='ภาษี'||_pvFilter==='ประกันภัย') types=[_pvFilter];
+        // เรียงเอกสารในการ์ดตามความด่วน
+        var order={over:0,urgent:1,soon:2,unk:3,ok:4};
+        types.sort(function(a,b){
+          var da=pvLatest(v.id,a),db=pvLatest(v.id,b);
+          return order[pvStat(da?pvDays(da.expiry_date):null)]-order[pvStat(db?pvDays(db.expiry_date):null)];
+        });
+        var anyTodo=false;
+        types.forEach(function(t){
+          var d=pvLatest(v.id,t); var n=d?pvDays(d.expiry_date):null; var s=pvStat(n);
+          if(v.status!=='parked'&&(s==='over'||s==='urgent')) alert=true;
+          if(s==='over'||s==='urgent'||s==='soon') anyTodo=true;
+          var num=(n===null)?'?':(n<0?n:n), sub=(n===null)?'ไม่มีข้อมูล':(n<0?pvOverLabel(n):(s==='ok'?'ปกติ':'วัน'));
+          rows+='<div class="pv-doc"><span class="pv-dl">'+t+'</span>'+
+            '<span class="pv-dd">'+(d?pvThai(d.expiry_date):'—')+'</span>'+
+            '<span class="pv-dn pv-'+s+'"><b>'+num+'</b><span>'+sub+'</span></span></div>';
+        });
+        if(_pvFilter==='todo'&&!anyTodo) return '';
+        // กฎลูกโซ่: ต้องมี พ.ร.บ. ก่อนต่อภาษี
+        var tax=pvLatest(v.id,'ภาษี'),prb=pvLatest(v.id,'พ.ร.บ.');
+        var tn=tax?pvDays(tax.expiry_date):null, pn=prb?pvDays(prb.expiry_date):null;
+        if(tn!==null&&tn<=90&&(pn===null||pn<0)) hint='⚠ ต้องต่อ <b>พ.ร.บ.</b> ก่อนถึงจะต่อภาษีได้';
+        else if(tn!==null&&tn<0&&tax&&tax.amount) hint='⚠ ภาษีเลยกำหนด — ค่าปรับสะสมประมาณ '+Math.round(Math.abs(tn)/30*0.01*Number(tax.amount)).toLocaleString('th-TH')+' บาท (1%/เดือน)';
+        if(v.note&&/ตรอ\.|ตรวจสภาพ/.test(v.note)) hint=(hint?hint+' · ':'')+'ต้องมีใบตรวจสภาพ (ตรอ.) ก่อนต่อภาษี';
+        return '<div class="pv-card'+(alert?' alert':'')+'">'+
+          '<div class="pv-head" onclick="pvOpenVeh('+v.id+')"><span class="pv-plate">'+_finEsc(v.plate||'')+'</span>'+
+          '<span class="pv-nm">'+_finEsc(v.brand_model||'')+'<small>'+_finEsc(v.status==='parked'?'จอด — ไม่แจ้งเตือน':(v.prev_plate?'เดิม '+v.prev_plate:(v.color||'')))+'</small></span></div>'+
+          rows+(hint?'<div class="pv-hint">'+hint+'</div>':'')+
+          '<div class="pv-foot"><button class="btn btn-sm" onclick="event.stopPropagation();pvRenew('+v.id+')">ต่ออายุแล้ว</button>'+
+          '<button class="btn btn-sm" onclick="event.stopPropagation();pvAddExp('+v.id+')">+ ค่าซ่อม</button></div></div>';
+      }
+      function pvExpTable(){
+        var rows=(_pvExp||[]).slice().sort(function(a,b){ return (b.exp_date||'').localeCompare(a.exp_date||''); });
+        if(!rows.length) return '<div class="pv-empty">ยังไม่มีรายการค่าซ่อม</div>';
+        var tot=rows.reduce(function(s,r){ return s+Number(r.amount||0); },0);
+        var h='<div style="background:#fff;border:1px solid var(--border);border-radius:10px;overflow:auto">'+
+          '<table class="pv-tbl"><thead><tr><th>วันที่</th><th>รถ</th><th>หมวด</th><th>อู่/ศูนย์</th><th>รายละเอียด</th><th style="text-align:right">เลขไมล์</th><th style="text-align:right">ยอดเงิน</th></tr></thead><tbody>';
+        rows.forEach(function(r){
+          var v=(_pvVeh||[]).filter(function(x){return x.id===r.vehicle_id;})[0];
+          h+='<tr><td>'+pvThai(r.exp_date)+'</td><td>'+_finEsc(v?v.plate:'')+'</td><td>'+_finEsc(r.category||'')+'</td>'+
+            '<td>'+_finEsc(r.vendor||'')+'</td><td style="font-family:inherit;white-space:normal;max-width:320px">'+_finEsc(r.detail||'')+'</td>'+
+            '<td style="text-align:right">'+(r.mileage_km?Number(r.mileage_km).toLocaleString('th-TH'):'—')+'</td>'+
+            '<td style="text-align:right">'+Number(r.amount||0).toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>';
+        });
+        h+='</tbody><tfoot><tr><td colspan="6" style="text-align:right;font-weight:700">รวม</td><td style="text-align:right;font-weight:700">'+tot.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr></tfoot></table></div>';
+        return h;
+      }
+      function pvSetFilter(f){ _pvFilter=f; pvRender(); }
+      function pvOpenVeh(id){
+        var v=(_pvVeh||[]).filter(function(x){return x.id===id;})[0]; if(!v) return;
+        var docs=(_pvDocs||[]).filter(function(d){return d.vehicle_id===id;})
+          .sort(function(a,b){ return (b.expiry_date||'').localeCompare(a.expiry_date||''); });
+        var exps=(_pvExp||[]).filter(function(e){return e.vehicle_id===id;})
+          .sort(function(a,b){ return (b.exp_date||'').localeCompare(a.exp_date||''); });
+        var h='<h3 style="margin:0 0 4px">'+_finEsc(v.plate)+' — '+_finEsc(v.brand_model||'')+'</h3>'+
+          '<div style="color:var(--text-3);font-size:12.5px;margin-bottom:14px">'+
+          [v.color,v.vin?'ตัวถัง '+v.vin:'',v.weight_kg?'น้ำหนัก '+v.weight_kg+' กก.':'',v.engine_cc?v.engine_cc+' CC':'',v.prev_plate?'ทะเบียนเดิม '+v.prev_plate:''].filter(Boolean).map(_finEsc).join(' · ')+
+          (v.note?'<br>'+_finEsc(v.note):'')+'</div>';
+        h+='<h4 style="margin:14px 0 6px;font-size:13px">ประวัติเอกสาร</h4>';
+        h+=docs.length?'<div style="overflow:auto"><table class="pv-tbl"><thead><tr><th>ประเภท</th><th>หมดอายุ</th><th style="text-align:right">ค่าใช้จ่าย</th><th>ที่ทำ</th><th>หมายเหตุ</th></tr></thead><tbody>'+
+          docs.map(function(d){ return '<tr><td>'+_finEsc(d.doc_type)+'</td><td>'+pvThai(d.expiry_date)+'</td>'+
+            '<td style="text-align:right">'+(d.amount?Number(d.amount).toLocaleString('th-TH',{minimumFractionDigits:2}):'—')+'</td>'+
+            '<td>'+_finEsc(d.provider||'—')+'</td><td style="font-family:inherit;white-space:normal">'+_finEsc(d.note||'')+'</td></tr>'; }).join('')+
+          '</tbody></table></div>':'<div style="color:var(--text-3);font-size:13px">ยังไม่มี</div>';
+        h+='<h4 style="margin:16px 0 6px;font-size:13px">ค่าซ่อม / บำรุงรักษา</h4>';
+        h+=exps.length?'<div style="overflow:auto"><table class="pv-tbl"><thead><tr><th>วันที่</th><th>หมวด</th><th>อู่/ศูนย์</th><th>รายละเอียด</th><th style="text-align:right">ไมล์</th><th style="text-align:right">ยอด</th></tr></thead><tbody>'+
+          exps.map(function(e){ return '<tr><td>'+pvThai(e.exp_date)+'</td><td>'+_finEsc(e.category||'')+'</td><td>'+_finEsc(e.vendor||'')+'</td>'+
+            '<td style="font-family:inherit;white-space:normal;max-width:260px">'+_finEsc(e.detail||'')+'</td>'+
+            '<td style="text-align:right">'+(e.mileage_km?Number(e.mileage_km).toLocaleString('th-TH'):'—')+'</td>'+
+            '<td style="text-align:right">'+Number(e.amount||0).toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>'; }).join('')+
+          '</tbody></table></div>':'<div style="color:var(--text-3);font-size:13px">ยังไม่มี</div>';
+        document.getElementById('pv-veh-body').innerHTML=h;
+        openModal('modal-pv-veh');
+      }
+      function pvRenew(vehId,type){
+        var v=(_pvVeh||[]).filter(function(x){return x.id===vehId;})[0];
+        if(!type){
+          // เลือกประเภทที่ด่วนสุด
+          var order={over:0,urgent:1,soon:2,unk:3,ok:4},best=null,bw=99;
+          PV_TYPES.forEach(function(t){ var d=pvLatest(vehId,t); var w=order[pvStat(d?pvDays(d.expiry_date):null)]; if(w<bw){bw=w;best=t;} });
+          type=best||'พ.ร.บ.';
+        }
+        document.getElementById('pv-doc-veh').value=vehId;
+        document.getElementById('pv-doc-type').value=type;
+        document.getElementById('pv-doc-title').textContent='ต่ออายุ '+type+' — '+(v?v.plate:'');
+        var cur=pvLatest(vehId,type);
+        var nx=''; if(cur&&cur.expiry_date){ var d=new Date(cur.expiry_date+'T00:00:00'); d.setFullYear(d.getFullYear()+1); nx=d.toISOString().slice(0,10); }
+        document.getElementById('pv-doc-exp').value=nx;
+        document.getElementById('pv-doc-amt').value='';
+        document.getElementById('pv-doc-prov').value=(cur&&cur.provider)||'';
+        document.getElementById('pv-doc-note').value='';
+        openModal('modal-pv-doc');
+      }
+      async function pvSaveDoc(){
+        var exp=document.getElementById('pv-doc-exp').value;
+        if(!exp){ alert('กรุณาใส่วันหมดอายุใหม่'); return; }
+        var row={vehicle_id:Number(document.getElementById('pv-doc-veh').value),
+          doc_type:document.getElementById('pv-doc-type').value, expiry_date:exp,
+          amount:parseFloat(document.getElementById('pv-doc-amt').value)||null,
+          provider:document.getElementById('pv-doc-prov').value.trim()||null,
+          note:document.getElementById('pv-doc-note').value.trim()||null,
+          created_by:(currentUser&&currentUser.username)||'webapp'};
+        var r=await sb.insert('gyt_personal_vehicle_docs',row);
+        if(r===null){ alert('บันทึกไม่สำเร็จ'); return; }
+        closeModal('modal-pv-doc'); _pvLoaded=false; await pvLoad();
+        if(typeof showToast==='function') showToast('บันทึกแล้ว');
+        pvBadge();
+      }
+      function pvAddExp(vehId){
+        document.getElementById('pv-exp-veh').value=vehId;
+        document.getElementById('pv-exp-date').value=new Date().toISOString().slice(0,10);
+        ['pv-exp-vendor','pv-exp-amt','pv-exp-km','pv-exp-detail'].forEach(function(i){ document.getElementById(i).value=''; });
+        openModal('modal-pv-exp');
+      }
+      async function pvSaveExp(){
+        var amt=parseFloat(document.getElementById('pv-exp-amt').value);
+        if(!(amt>0)){ alert('กรุณาใส่ยอดเงิน'); return; }
+        var row={vehicle_id:Number(document.getElementById('pv-exp-veh').value),
+          exp_date:document.getElementById('pv-exp-date').value,
+          category:document.getElementById('pv-exp-cat').value,
+          vendor:document.getElementById('pv-exp-vendor').value.trim()||null,
+          amount:amt, mileage_km:parseFloat(document.getElementById('pv-exp-km').value)||null,
+          detail:document.getElementById('pv-exp-detail').value.trim()||null,
+          created_by:(currentUser&&currentUser.username)||'webapp'};
+        var r=await sb.insert('gyt_personal_vehicle_expenses',row);
+        if(r===null){ alert('บันทึกไม่สำเร็จ'); return; }
+        closeModal('modal-pv-exp'); _pvLoaded=false; await pvLoad();
+        if(typeof showToast==='function') showToast('บันทึกแล้ว');
+      }
+      // badge ตัวเลขแดงบนเมนู
+      async function pvBadge(){
+        try{
+          if(!hasPerm('view_personal_cars')) return;
+          if(!_pvLoaded){
+            var v=await sbFetch('gyt_personal_vehicles','GET',null,'?order=id'); if(v===null) return;
+            _pvVeh=v||[]; _pvDocs=(await sbFetch('gyt_personal_vehicle_docs','GET',null,'?order=expiry_date.desc'))||[];
+            _pvExp=(await sbFetch('gyt_personal_vehicle_expenses','GET',null,'?order=exp_date.desc'))||[]; _pvLoaded=true;
+          }
+          var n=0;
+          (_pvVeh||[]).forEach(function(v){ if(v.status!=='active') return;
+            PV_TYPES.forEach(function(t){ var d=pvLatest(v.id,t); var k=d?pvDays(d.expiry_date):null; if(k!==null&&k<=30) n++; }); });
+          var el=document.getElementById('nav-personalcars'); if(!el) return;
+          var b=el.querySelector('.pv-badge');
+          if(n>0){ if(!b){ b=document.createElement('span'); b.className='pv-badge';
+              b.style.cssText='margin-left:auto;background:#DC2626;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700';
+              el.appendChild(b); } b.textContent=n; }
+          else if(b){ b.remove(); }
+        }catch(e){}
+      }
+      </script>
+
       <!-- MAINTENANCE — Phase 1B (Tabs + อู่ซ่อม + รอบซ่อม) -->
       <div id="pg-maintenance" class="screen">
         <!-- Tabs -->
@@ -5741,6 +6070,8 @@ function hasPerm(p){
   if(p==='manage_closing') return currentUser.role==='supervisor' || ['PISOLN','MOO','TOON','DONUT'].indexOf(currentUser.username)>=0;
   // 🆕 view_closing_sum (รวมค่าใช้จ่ายที่ปิดบัญชี): เห็นเฉพาะ กรรมการ(admin) + PISOLN + DONUT (เท่ากับ gate การเงิน)
   if(p==='view_closing_sum') return (typeof _dashCanSeeFinance==='function') ? _dashCanSeeFinance() : (currentUser.username==='PISOLN'||currentUser.username==='DONUT');
+  // 🆕 view_personal_cars (รถส่วนตัวกรรมการ): เห็นเฉพาะ PISOLN + DONUT + SOMJAI (admin=PISOLN ผ่านบรรทัดบนแล้ว) — ข้อมูลส่วนตัว ไม่ใช่ของบริษัท
+  if(p==='view_personal_cars') return ['PISOLN','DONUT','SOMJAI'].indexOf(currentUser.username)>=0;
   // 🆕 view_cost (คอลัมน์ต้นทุน 7 ช่องในตารางงาน): เห็นได้ทุกคน รวมบัญชี(AOI) — จำกัดเฉพาะ "รวมต้นทุน" (view_cost_total)
   if(p==='view_cost') return true;
   // 🆕 view_cost_total (คอลัมน์รวมต้นทุน): เฉพาะ PISOLN + DONUT + SOMJAI (admin=PISOLN ผ่านบรรทัดบนแล้ว)
@@ -5827,6 +6158,7 @@ function initApp(){
     {id:'dashboard',icon:'▦',label:'Dashboard',          perm:'dashboard'}, // ย้ายมาไว้ล่างสุดตามคำขอผู้ใช้
     {id:'tripprofit',icon:'💹',label:'กำไร/ขาดทุนรายเที่ยว', perm:'dashboard'}, // 🆕 เฟส1 — P&L ต่อเที่ยวงาน (จับเลขตู้→บิล, แยกรถร่วม, ธงข้อมูลไม่ครบ) · gate ด้วย _dashCanSeeFinance
     {id:'cartrack', icon:'🛰️',label:'Dashboard Cartrack', perm:'dashboard'}, // 🆕 v193 — รายงาน GPS Cartrack แยกจากการเงิน (ความปลอดภัย/น้ำมัน/น้ำมันหาย)
+    {id:'personalcars',icon:'🚗',label:'รถส่วนตัวกรรมการ', perm:'view_personal_cars'}, // 🆕 v254 — พ.ร.บ./ภาษี/ประกัน + ค่าซ่อม (PISOLN/DONUT/SOMJAI) แยกขาดจากรถบริษัท
   ];
   const visibleNav = ALL_NAV.filter(function(n){
     if(n.stagingOnly && _onMain) return false;  // ซ่อนบน production
@@ -5842,6 +6174,8 @@ function initApp(){
   setTimeout(function(){ if(typeof initFinance === 'function') initFinance(); }, 200);
   // Phase 3: Update maintenance alert badge (delay so all data is loaded)
   setTimeout(function(){ if(typeof updateMaintenanceBadge==='function') updateMaintenanceBadge(); }, 100);
+  // 🆕 v254 — badge เตือนเอกสารรถส่วนตัวกรรมการ (≤30 วัน/เลยกำหนด)
+  setTimeout(function(){ if(typeof pvBadge==='function') pvBadge(); }, 400);
 
   const note=document.getElementById('jobs-note');
   note.style.display='none';
@@ -5915,6 +6249,7 @@ function goPage(id, opts){
   if(id==='subcontractors' && typeof rrInit==='function') rrInit();  // 🆕 v181 — รถร่วม
   if(id==='tripprofit' && typeof renderTripPL==='function') renderTripPL();  // 🆕 เฟส1 — P&L รายเที่ยว
   if(id==='cartrack' && typeof renderCartrackDash==='function') renderCartrackDash();  // 🆕 v193 — Dashboard Cartrack
+  if(id==='personalcars' && typeof pvInit==='function') pvInit();  // 🆕 v254 — รถส่วนตัวกรรมการ
   // อัปเดตการซ่อน/แสดงปุ่มตาม perms (สำหรับหน้าใหม่ที่เพิ่งเปิด)
   if(typeof applyPermsToUI === 'function') setTimeout(applyPermsToUI, 0);
   // อัปเดต URL ให้ตรงกับหน้าปัจจุบัน → refresh จะอยู่หน้าเดิม + share link ได้
@@ -26873,7 +27208,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.256';
+const APP_VERSION = '2026.04.29.257';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -33715,4 +34050,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v253 STAGING — P&L รายเที่ยว: ประมาณค่าแรงจากงาน shipper+เส้นทางเดียวกัน (mode) → ธง 🧮 จาง ลดธง 💸 ~529 งาน -->
+<!-- deploy v257 STAGING — 🚗 รถส่วนตัวกรรมการ: ทะเบียนเอกสาร พ.ร.บ./ภาษี/ประกัน + ค่าซ่อม + แจ้งเตือนต่ออายุ (PISOLN/DONUT/SOMJAI) -->
