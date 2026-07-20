@@ -20523,7 +20523,8 @@ var MONTHLY_FIXED = [
   {name:'ค่าตำรวจท่าเรือ', place:'', monthly:1000},
   {name:'ค่าตำรวจกิ่งแก้ว', place:'', monthly:1000},
   {name:'ค่ากล่องฝากเอกสาร', place:'ลาน 107', monthly:300},
-  {name:'ค่าเช่าที่จอดรถ', place:'ทะเบียน 62-6044 กท.', monthly:1500}
+  {name:'ค่าเช่าที่จอดรถ', place:'ทะเบียน 62-6044 กท.', monthly:1500},
+  {name:'ค่าบริการ GPS Cartrack', place:'21 คัน × 299 + VAT · หัก ณ ที่จ่าย 3% (188.37) → โอนจริง ฿6,530.16', monthly:6718.53}
 ];
 function renderMonthlyFixed(){
   var body=document.getElementById('fixed-cost-body'); if(!body) return;
@@ -26872,7 +26873,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.255';
+const APP_VERSION = '2026.04.29.256';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
