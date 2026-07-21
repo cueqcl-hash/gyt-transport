@@ -3560,6 +3560,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
     <!-- 🆕 v184 — ราคาขายต่อตู้ ย้ายมาอยู่ใต้หมายเหตุ (กรอกเส้นทางเสร็จแล้วราคาแนะนำแม่นขึ้น) — เห็นเฉพาะ perm view_price -->
     <div class="fg" id="fj-price-wrap" style="display:none"><label class="fl" style="color:#065F46;font-weight:700">💰 ค่าขนส่งต่อตู้/เที่ยว (บาท)</label><input class="fi" id="fj-price" type="number" min="0" step="any" placeholder="เช่น 5500" style="border-color:#10B981;font-weight:700;color:#065F46" onfocus="rateHintRefresh('fj')" oninput="ratePriceCheck('fj')">
+      <input class="fi" id="fj-price-note" type="text" placeholder="ที่มาของราคา เช่น ค่าขนส่ง 4,500 + ค่าตีรถคืนตู้ข้ามวัน 1,000" style="margin-top:6px;border-color:#A7F3D0;font-size:12px;color:#065F46">
       <div id="fj-price-hint" style="margin-top:4px;line-height:1.7"></div>
       <div id="fj-surcharge-hint" style="display:none;margin-top:4px;font-size:11.5px;color:#92400E;background:#FEF3C7;padding:4px 9px;border-radius:6px;font-weight:600"></div>
       <div id="fj-price-warn" style="display:none;margin-top:2px;font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:6px;font-weight:600"></div>
@@ -22523,6 +22524,7 @@ function openAddJob(){
   // 🆕 v158 — ช่องราคาขายต่อตู้ (เฉพาะ perm view_price)
   var fjPw=document.getElementById('fj-price-wrap'); if(fjPw) fjPw.style.display=hasPerm('view_price')?'':'none';
   var fjPr=document.getElementById('fj-price'); if(fjPr) fjPr.value='';
+  var fjPn=document.getElementById('fj-price-note'); if(fjPn) fjPn.value='';   // 🆕 ที่มาของราคา (costs.priceNote)
   // 🆕 v160 — prefetch ราคาฐาน + เคลียร์ hint
   var fjH=document.getElementById('fj-price-hint'); if(fjH) fjH.innerHTML='';
   var fjW=document.getElementById('fj-price-warn'); if(fjW) fjW.style.display='none';
@@ -22596,6 +22598,7 @@ function openEditJob(id){
   // 🆕 v158 — ช่องราคาขายต่อตู้ (เฉพาะ perm view_price)
   var fjPw2=document.getElementById('fj-price-wrap'); if(fjPw2) fjPw2.style.display=hasPerm('view_price')?'':'none';
   var fjPr2=document.getElementById('fj-price'); if(fjPr2) fjPr2.value=(j.costs && j.costs.priceAmt!==undefined && j.costs.priceAmt!==null && j.costs.priceAmt!=='')?j.costs.priceAmt:'';
+  var fjPn2=document.getElementById('fj-price-note'); if(fjPn2) fjPn2.value=(j.costs && j.costs.priceNote!==undefined && j.costs.priceNote!==null)?j.costs.priceNote:'';   // 🆕 ที่มาของราคา (costs.priceNote)
   // 🆕 ค่าใช้จ่าย (ต้นทุน) — โหลดจากงานมาแสดง (แก้ได้)
   var _jc=j.costs||{}; var _sc=function(id,v){var el=document.getElementById(id);if(el)el.value=(v==null?'':v);};
   _sc('fj-cost-trip',_jc.tripAmt); _sc('fj-cost-trip-note',_jc.tripNote);
@@ -22706,6 +22709,15 @@ async function saveJob(){
       obj.costs.priceAmt=parseFloat(_pv);
     } else if(obj.costs && obj.costs.priceAmt!==undefined){
       delete obj.costs.priceAmt;  // เคลียร์ช่อง = ลบราคาออก
+    }
+    // 🆕 ที่มาของราคา (costs.priceNote) — อยู่หลัง perm view_price เหมือน priceAmt
+    // อย่าย้ายไปไว้ใน note ของใบงาน: note ไม่มี perm กั้น ฝ่าย operation จะเห็นราคาทันที
+    var _pnEl=document.getElementById('fj-price-note');
+    var _pnv=_pnEl?String(_pnEl.value).trim():'';
+    if(_pnv!==''){
+      obj.costs.priceNote=_pnv;
+    } else if(obj.costs && obj.costs.priceNote!==undefined){
+      delete obj.costs.priceNote;  // เคลียร์ช่อง = ลบหมายเหตุราคาออก
     }
   }
   // Sync ขึ้น cloud (fire-and-forget; ถ้า offline จะข้ามอัตโนมัติใน syncJobSave)
