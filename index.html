@@ -21653,7 +21653,8 @@ function renderJobs(){
         if(c.id==='note'){
           if(!v) return`<td><span style="color:var(--text-3)">—</span></td>`;
           var esc=String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-          return`<td style="color:#C0392B;font-weight:700;white-space:pre-wrap;line-height:1.35;font-size:12px;padding:6px 8px" title="${esc}">${esc}</td>`;
+          // จำกัด 2 บรรทัด — หมายเหตุยาวแค่ไหนแถวก็ไม่สูงตาม (ข้อความเต็มอยู่ใน title + ฟอร์มแก้ไขใบงาน)
+          return`<td style="padding:6px 8px" title="${esc}"><div style="color:#C0392B;font-weight:700;white-space:pre-wrap;line-height:1.35;font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc}</div></td>`;
         }
         return`<td>${v||'<span style="color:var(--text-3)">—</span>'}</td>`;
       }).join('');
