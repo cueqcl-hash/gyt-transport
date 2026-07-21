@@ -3456,7 +3456,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
     <div class="fg-row">
       <div class="fg"><label class="fl">Carrier Line/Agent</label><div class="sd-wrap"><input class="sd-input" id="fj-carrier" placeholder="พิมพ์หรือเลือก เช่น EVERGREEN..." autocomplete="off" oninput="sdCarrierFilter('fj-carrier')" onfocus="sdCarrierOpen('fj-carrier')" onblur="sdCarrierBlur('fj-carrier')"><span class="sd-arrow">&#9662;</span><div class="sd-list" id="fj-carrier-list"></div></div></div>
-      <div class="fg"><label class="fl">Booking No./B/L</label><input class="fi" id="fj-booking" placeholder="หมายเลข Booking"></div>
+      <div class="fg"><label class="fl">Booking No./B/L</label><input class="fi" id="fj-booking" placeholder="หมายเลข Booking" oninput="_bkgCheckSingle()"><div id="fj-booking-warn" style="display:none;font-size:11.5px;margin-top:3px;line-height:1.35"></div></div>
     </div>
 
     <div class="sec-title" style="margin-top:4px;margin-bottom:12px">วันเวลาปฏิบัติงาน</div>
@@ -22471,6 +22471,31 @@ function _contCheckSingle(){
   warn.innerHTML='<span style="color:#B45309">⚠️ เบอร์ตู้นี้เคยลงแล้ว '+dups.length+' งาน — '+_contEsc(_contDupText(dups))+' · ตรวจว่าไม่ซ้ำก่อนบันทึก</span>';
   inp.style.borderColor='#F59E0B';
 }
+/* ───────────────────────────────────────────────
+   🆕 เตือน Booking ซ้ำ (soft) — ทำตามแบบเดียวกับเบอร์ตู้ซ้ำ
+   booking เดียวหลายตู้เป็นเรื่องปกติ (JOB-xxxx-01/-02/…) จึงเตือนอย่างเดียว ไม่บล็อกการบันทึก
+   ─────────────────────────────────────────────── */
+function _bkgNorm(s){ return String(s==null?'':s).toUpperCase().replace(/[^A-Z0-9]/g,''); }
+function _findBkgDups(booking, excludeId){
+  var key=_bkgNorm(booking); if(!key) return [];
+  if(typeof jobs==='undefined' || !jobs) return [];
+  return jobs.filter(function(j){ return j && _bkgNorm(j.booking)===key && !(excludeId && j.id===excludeId); });
+}
+function _bkgCheckSingle(){
+  var inp=document.getElementById('fj-booking'), warn=document.getElementById('fj-booking-warn');
+  if(!inp||!warn) return;
+  if(!_bkgNorm(inp.value)){ warn.style.display='none'; warn.innerHTML=''; inp.style.borderColor=''; return; }
+  var dups=_findBkgDups(inp.value, editJID);
+  if(!dups.length){ warn.style.display='none'; warn.innerHTML=''; inp.style.borderColor=''; return; }
+  warn.style.display='block';
+  warn.innerHTML='<span style="color:#B45309">⚠️ Booking นี้มีงานแล้ว '+dups.length+' ใบ — '+_contEsc(_contDupText(dups))+'<br>ถ้าเป็น booking หลายตู้ถือว่าปกติ · ถ้าตู้เดียวให้ไปแก้ใบเดิมแทนการสร้างใหม่</span>';
+  inp.style.borderColor='#F59E0B';
+}
+// ── ถามยืนยันตอนกดบันทึก (soft — ยืนยันแล้วลงต่อได้) ──
+function _bkgConfirmSingle(booking, excludeId){
+  var dups=_findBkgDups(booking, excludeId); if(!dups.length) return true;
+  return confirm('⚠️ Booking "'+booking+'" มีงานอยู่แล้ว '+dups.length+' ใบ:\n• '+_contDupList(dups,5).join('\n• ')+'\n\nถ้า booking นี้มีหลายตู้ = ปกติ กดตกลงได้เลย\nถ้ามีตู้เดียว = ควรไปแก้ใบเดิมแทน\n\nยืนยันสร้างใบใหม่?');
+}
 // ── ฟอร์มหลายตู้: เตือนสดทุกแถว (ในใบเดียวกัน=แดง · ซ้ำงานเดิม=เหลือง) ──
 var _contMultiTimer=null;
 function _contCheckMultiDebounced(){ if(_contMultiTimer) clearTimeout(_contMultiTimer); _contMultiTimer=setTimeout(_contCheckMultiAll, 250); }
@@ -22530,6 +22555,8 @@ function openAddJob(){
   var fjH=document.getElementById('fj-price-hint'); if(fjH) fjH.innerHTML='';
   var fjW=document.getElementById('fj-price-warn'); if(fjW) fjW.style.display='none';
   var fcW=document.getElementById('fj-container-warn'); if(fcW){ fcW.style.display='none'; fcW.innerHTML=''; }   // 🆕 เคลียร์คำเตือนเบอร์ตู้ซ้ำ
+  var fbW=document.getElementById('fj-booking-warn'); if(fbW){ fbW.style.display='none'; fbW.innerHTML=''; }   // 🆕 เคลียร์คำเตือน Booking ซ้ำ
+  var fbI=document.getElementById('fj-booking'); if(fbI) fbI.style.borderColor='';
   var fcI=document.getElementById('fj-container'); if(fcI) fcI.style.borderColor='';
   // 🆕 ค่าใช้จ่าย (ต้นทุน) — เคลียร์ + เบิกตั้งต้นตามประเภท (default หัวลาก)
   ['fj-cost-trip-note','fj-cost-box','fj-cost-recv','fj-cost-recv-note','fj-cost-ret','fj-cost-ret-note','fj-cost-port','fj-cost-toll','fj-cost-misc','fj-cost-misc-note','fj-cost-misc2','fj-cost-misc2-note'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
@@ -22616,6 +22643,7 @@ function openEditJob(id){
   if(hasPerm('view_price')) _rateLoad();
   document.getElementById('modal-job').classList.add('open');
   _contCheckSingle();   // 🆕 ถ้าเบอร์ตู้ที่แก้อยู่ซ้ำกับงานอื่น ขึ้นเตือนทันที (ยกเว้นตัวเอง)
+  _bkgCheckSingle();    // 🆕 เช่นเดียวกันกับ Booking No.
   // init datetime picker (DD/MM/YYYY HH:MM 24h)
   setTimeout(function(){
     initDateTimePicker('fj-startdate');
@@ -22673,8 +22701,10 @@ async function saveJob(){
     note:document.getElementById('fj-note').value.trim(),
   };
   if(!_contConfirmSingle(obj.container, editJID)) return;   // 🆕 เตือนเบอร์ตู้ซ้ำ (soft — ยกเลิกได้ ถ้ายืนยันลงต่อ)
+  if(!editJID && !_bkgConfirmSingle(obj.booking, editJID)) return;   // 🆕 เตือน Booking ซ้ำ เฉพาะตอนสร้างใบใหม่
   var __byName=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'ไม่ระบุ';
   var __nowISO=new Date().toISOString();
+  var __isNew=!editJID;   // 🆕 จำไว้ก่อน — ใช้ตัดสินว่าจะเขียน audit log แบบ insert ตอนท้าย
   if(editJID){
     const i=jobs.findIndex(x=>x.id===editJID);
     // 🔧 v158 — แก้บั๊ก: เก็บ costs เดิมไว้เสมอ (เดิม jobs[i]=obj ทับทิ้ง → ราคา/ค่าใช้จ่ายที่บัญชีกรอกหาย)
@@ -22724,6 +22754,20 @@ async function saveJob(){
   // Sync ขึ้น cloud (fire-and-forget; ถ้า offline จะข้ามอัตโนมัติใน syncJobSave)
   if(typeof _onlineMode!=='undefined' && _onlineMode){
     try{ syncJobSave(obj); }catch(e){ console.warn('saveJob sync error:', e); }
+  }
+  // 🆕 audit log ตอนสร้างใบงานใหม่ — เดิมแอปไม่เขียน log ตอน insert เลย สืบย้อนหลังได้แค่ช่อง created_by
+  //    ไม่ใส่ราคา/ค่าใช้จ่ายลงไป: gyt_audit_log ไม่มี perm view_price กั้น จะกลายเป็นทางรั่วของราคา
+  if(__isNew && typeof finAuditLog==='function'){
+    try{
+      finAuditLog('gyt_jobs', obj.id, 'insert', null, {
+        booking:obj.booking||'', carrier:obj.carrier||'',
+        customer:obj.customer||'', shipper:obj.shipper||'',
+        type:obj.type||'', job_type:obj.job_type||'', delivery_type:obj.delivery_type||'',
+        startdate:obj.startdate||'', deliverdate:obj.deliverdate||'',
+        origin:obj.origin||'', dest:obj.dest||'', returnyard:obj.returnyard||'',
+        container:obj.container||'', plate:obj.plate||'', driver:obj.driver||''
+      }, __byName);
+    }catch(e){ console.warn('saveJob audit error:', e); }
   }
   saveLocUrl('fj-origin','fj-origin-url');
   saveLocUrl('fj-dest','fj-dest-url');
