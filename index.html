@@ -22705,8 +22705,10 @@ async function saveJob(){
   var __byName=currentUser?(currentUser.fname+' '+currentUser.lname).trim():'ไม่ระบุ';
   var __nowISO=new Date().toISOString();
   var __isNew=!editJID;   // 🆕 จำไว้ก่อน — ใช้ตัดสินว่าจะเขียน audit log แบบ insert ตอนท้าย
+  var __before=null;      // 🆕 ค่าเดิมของใบงาน เก็บไว้เทียบหาช่องที่เปลี่ยน (ต้องเก็บก่อน jobs[i]=obj ทับ)
   if(editJID){
     const i=jobs.findIndex(x=>x.id===editJID);
+    __before=(i>=0&&jobs[i])?jobs[i]:null;
     // 🔧 v158 — แก้บั๊ก: เก็บ costs เดิมไว้เสมอ (เดิม jobs[i]=obj ทับทิ้ง → ราคา/ค่าใช้จ่ายที่บัญชีกรอกหาย)
     obj.costs=(jobs[i]&&jobs[i].costs)?JSON.parse(JSON.stringify(jobs[i].costs)):undefined;
     // เก็บข้อมูลผู้ลงงานเดิมไว้ + บันทึกผู้แก้ไขล่าสุด
@@ -22768,6 +22770,23 @@ async function saveJob(){
         container:obj.container||'', plate:obj.plate||'', driver:obj.driver||''
       }, __byName);
     }catch(e){ console.warn('saveJob audit error:', e); }
+  }
+  // 🆕 audit log ตอนแก้ไขใบงาน — เก็บเฉพาะช่องที่เปลี่ยนจริง ไม่เก็บทั้งใบ (กัน Activity Log ท่วม)
+  //    เว้น costs ทั้งก้อนไว้: ราคาขายอยู่หลัง perm view_price แต่ gyt_audit_log ไม่มี perm กั้น
+  //    ถ้าเอาราคาลงมาที่นี่ = เปิดทางรั่วให้ฝ่าย operation เห็นราคา
+  if(!__isNew && __before && typeof finAuditLog==='function'){
+    try{
+      var _AF=['startdate','deliverdate','customer','phone','shipper','carrier','booking','container',
+               'type','origin','dest','returnyard','weight','cargo_type','plate','driver',
+               'job_type','delivery_type','status','note'];
+      var _ab={}, _aa={}, _an=0;
+      _AF.forEach(function(k){
+        var _o=(__before[k]==null?'':String(__before[k]));
+        var _n2=(obj[k]==null?'':String(obj[k]));
+        if(_o!==_n2){ _ab[k]=_o; _aa[k]=_n2; _an++; }
+      });
+      if(_an>0) finAuditLog('gyt_jobs', obj.id, 'update', _ab, _aa, __byName);   // ไม่มีอะไรเปลี่ยน = ไม่ต้องเขียน log
+    }catch(e){ console.warn('saveJob audit(update) error:', e); }
   }
   saveLocUrl('fj-origin','fj-origin-url');
   saveLocUrl('fj-dest','fj-dest-url');
