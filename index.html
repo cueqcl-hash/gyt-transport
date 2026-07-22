@@ -27289,7 +27289,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.258';
+const APP_VERSION = '2026.04.29.259';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -30093,11 +30093,22 @@ var _MT_SVC_PATTERNS = {
   'แหนบ/สลัก/บูช':          /แหนบ|สลัก|บูช/,
   'ระบบลม/สายลม':           /ระบบลม|สายลม|ปั๊มลม|หม้อลม/
 };
-function _mtSvcMatch(serviceTypes, serviceType){
-  if(!serviceTypes) return false;
-  var arr = Array.isArray(serviceTypes) ? serviceTypes : [serviceTypes];
-  var joined = arr.join(' | ');
+function _mtSvcMatch(rec, serviceType){
+  if(!rec) return false;
+  var st = rec.service_types;
+  var arr = Array.isArray(st) ? st : (st ? [st] : []);
   if(arr.indexOf(serviceType) >= 0) return true;          // ตรงเป๊ะ (บันทึกผ่าน dropdown ในแอป)
+  var joined = arr.join(' | ');
+  // 🆕 v259 — รวม "รายการอะไหล่" ด้วย: ของจริงมักบันทึกหัวข้อกว้างๆ ("เช็คระยะ"/"เปลี่ยนถ่าย")
+  // แล้วไปเขียนของที่เปลี่ยนจริงไว้ใน parts_list ("น้ำมันเครื่อง Delo", "ไส้กรองน้ำมันเครื่อง")
+  // ค้นเฉพาะ service_types อย่างเดียวจะพลาด 7 รายการ (น้ำมันเครื่อง 12 → 19)
+  // ไม่รวม note เพราะเป็นคำบรรยายอิสระ เสี่ยงจับผิด (เช่นเจอ "ยาง" ในโน้ตเรื่องแหนบหัก)
+  var parts = rec.parts_list;
+  if(Array.isArray(parts)){
+    for(var i=0;i<parts.length;i++){
+      if(parts[i] && parts[i].description) joined += ' | ' + parts[i].description;
+    }
+  }
   var re = _MT_SVC_PATTERNS[serviceType];
   return re ? re.test(joined) : false;                     // จับคำสำคัญ (บันทึกพิมพ์อิสระ/นำเข้าจากใบเสร็จ)
 }
@@ -30116,7 +30127,7 @@ function _calcServiceStatus(vehicle, serviceType, currentKm, todayDate){
   var _recType = (vehicle.vehicle_type==='trailer') ? 'trailer' : 'tractor';
   var records = (maintenanceRecords||[]).filter(function(r){
     return r.vehicle_id===vehicle.id && r.vehicle_type===_recType
-      && _mtSvcMatch(r.service_types, serviceType);
+      && _mtSvcMatch(r, serviceType);
   });
   records.sort(function(a,b){return (b.service_date||'').localeCompare(a.service_date||'');});
   var lastSvc = records[0];
@@ -34167,4 +34178,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v258 STAGING — 🛠 แจ้งเตือนซ่อมบำรุง: จับรายการซ่อมแบบ keyword (เดิมหาตรงเป๊ะ→ไม่เตือนเลยสักคัน) + แยกสถานะ ⚪ ยังไม่เคยบันทึก + กันคำนวณ km มั่วเมื่อไมล์=0 -->
+<!-- deploy v259 STAGING — 🛠 แจ้งเตือนซ่อมบำรุง: ค้นรายการซ่อมใน parts_list ด้วย (น้ำมันเครื่อง 12→19 รายการ) + keyword match + แยกสถานะ ⚪ ยังไม่เคยบันทึก -->
