@@ -2891,6 +2891,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <div class="alert-stat-num" id="alert-stat-soon">0</div>
               <div class="alert-stat-label">🟡 ใกล้ครบ</div>
             </div>
+            <div class="alert-stat" style="border-left-color:#9CA3AF">
+              <div class="alert-stat-num" id="alert-stat-unknown" style="color:#6B7280">0</div>
+              <div class="alert-stat-label">⚪ ไม่เคยบันทึก</div>
+            </div>
             <div class="alert-stat ok">
               <div class="alert-stat-num" id="alert-stat-ok">0</div>
               <div class="alert-stat-label">🟢 ปกติ</div>
@@ -2905,6 +2909,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
                 <option value="overdue">🔴 เกินกำหนดเท่านั้น</option>
                 <option value="soon">🟡 ใกล้ครบเท่านั้น</option>
                 <option value="needs_action">🔴🟡 ต้องดำเนินการ</option>
+                <option value="unknown">⚪ ยังไม่เคยบันทึกซ่อม</option>
               </select>
             </div>
             <div id="alerts-list">
@@ -27284,7 +27289,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.257';
+const APP_VERSION = '2026.04.29.258';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -30070,6 +30075,32 @@ async function loadDriverPayoutsFromCloud(){
 // ════════════════════════════════════════════════════════════════════════
 
 // Calculate alert status for one service type per vehicle
+// 🆕 v258 — จับคู่ "รายการซ่อม" กับรอบบำรุงรักษาแบบยืดหยุ่น
+// ปัญหาเดิม: บันทึกซ่อมพิมพ์อิสระ ("เปลี่ยนน้ำมันเครื่อง", "เปลี่ยนถ่ายน้ำมันเครื่อง",
+// "อะไหล่: น้ำมันเครื่อง (6 กล.)") แต่โค้ดหาแบบตรงตัวเป๊ะ ('น้ำมันเครื่อง') → ไม่เจอเลย
+// → ทุกคันขึ้น "ไม่เคยซ่อม" → ไม่มีแจ้งเตือนสักคัน. แก้เป็นจับคำสำคัญ (keyword)
+var _MT_SVC_PATTERNS = {
+  'น้ำมันเครื่อง':          /น้ำมันเครื่อง/,
+  'กรองน้ำมันเครื่อง':      /กรอง(น้ำมัน)?เครื่อง/,
+  'กรองอากาศ':              /กรองอากาศ/,
+  'กรองดีเซล':              /กรอง(ดีเซล|โซล่า|โซลา|เชื้อเพลิง)/,
+  'น้ำมันเกียร์/เฟืองท้าย': /น้ำมันเกียร์|เฟืองท้าย/,   // "ยกเกียร์" = ซ่อมเกียร์ ไม่ใช่เปลี่ยนน้ำมัน จึงไม่จับคำว่า เกียร์ เดี่ยวๆ
+  'ตรวจเบรค':               /เบร[กค]/,
+  'ยาง':                    /ยาง/,
+  'อัดจาระบี':              /จาระบี|จารบี/,
+  'ลูกปืนล้อ/ตลับลูกปืน':   /ลูกปืน/,
+  'ผ้าเบรค/ปรับเบรค':       /ผ้าเบร[กค]|ปรับเบร[กค]/,
+  'แหนบ/สลัก/บูช':          /แหนบ|สลัก|บูช/,
+  'ระบบลม/สายลม':           /ระบบลม|สายลม|ปั๊มลม|หม้อลม/
+};
+function _mtSvcMatch(serviceTypes, serviceType){
+  if(!serviceTypes) return false;
+  var arr = Array.isArray(serviceTypes) ? serviceTypes : [serviceTypes];
+  var joined = arr.join(' | ');
+  if(arr.indexOf(serviceType) >= 0) return true;          // ตรงเป๊ะ (บันทึกผ่าน dropdown ในแอป)
+  var re = _MT_SVC_PATTERNS[serviceType];
+  return re ? re.test(joined) : false;                     // จับคำสำคัญ (บันทึกพิมพ์อิสระ/นำเข้าจากใบเสร็จ)
+}
 function _calcServiceStatus(vehicle, serviceType, currentKm, todayDate){
   // Find interval (global vehicle_id=0)
   var interval = (maintenanceIntervals||[]).find(function(x){
@@ -30085,7 +30116,7 @@ function _calcServiceStatus(vehicle, serviceType, currentKm, todayDate){
   var _recType = (vehicle.vehicle_type==='trailer') ? 'trailer' : 'tractor';
   var records = (maintenanceRecords||[]).filter(function(r){
     return r.vehicle_id===vehicle.id && r.vehicle_type===_recType
-      && (r.service_types||[]).indexOf(serviceType) >= 0;
+      && _mtSvcMatch(r.service_types, serviceType);
   });
   records.sort(function(a,b){return (b.service_date||'').localeCompare(a.service_date||'');});
   var lastSvc = records[0];
@@ -30099,7 +30130,10 @@ function _calcServiceStatus(vehicle, serviceType, currentKm, todayDate){
     };
   }
 
-  var dueKm = lastSvc.mileage + (interval.interval_km||0);
+  // 🆕 v258 — ไมล์ตอนซ่อมมักไม่ได้กรอก (0/ว่าง) → ห้ามคิดรอบด้วย km ไม่งั้นจะได้ "เกินหมื่นโล" มั่ว
+  //            กรณีนั้นให้ใช้ "รอบเดือน" อย่างเดียว (พี่สั่ง: ถ้าไม่รู้เลขไมล์ ลงแค่วันที่ก็พอ)
+  var lastKm = Number(lastSvc.mileage)||0;
+  var dueKm = lastKm + (interval.interval_km||0);
   var dueDateStr = null;
   if(interval.interval_months){
     var d = new Date(lastSvc.service_date);
@@ -30107,7 +30141,7 @@ function _calcServiceStatus(vehicle, serviceType, currentKm, todayDate){
     dueDateStr = d.toISOString().slice(0,10);
   }
 
-  var kmRemain = (currentKm && interval.interval_km) ? (dueKm - currentKm) : null;
+  var kmRemain = (lastKm > 0 && currentKm && interval.interval_km) ? (dueKm - currentKm) : null;
   var daysRemain = dueDateStr ? Math.floor((new Date(dueDateStr) - new Date(todayDate)) / (1000*60*60*24)) : null;
 
   var status = 'ok';
@@ -30164,6 +30198,8 @@ function calculateAlerts(){
 
     var hasOverdue = services.some(function(s){return s.status==='overdue';});
     var hasSoon = services.some(function(s){return s.status==='soon';});
+    // 🆕 v258 — "ยังไม่เคยบันทึก" ต้องไม่ถูกนับรวมเป็น 🟢 ปกติ (เดิมเงียบหายไป)
+    var hasUnknown = services.some(function(s){return s.status==='unknown';});
 
     result.push({
       vehicle: v,
@@ -30171,7 +30207,8 @@ function calculateAlerts(){
       services: services,
       hasOverdue: hasOverdue,
       hasSoon: hasSoon,
-      worstStatus: hasOverdue ? 'overdue' : (hasSoon ? 'soon' : 'ok')
+      hasUnknown: hasUnknown,
+      worstStatus: hasOverdue ? 'overdue' : (hasSoon ? 'soon' : (hasUnknown ? 'unknown' : 'ok'))
     });
   });
   return result;
@@ -30183,17 +30220,20 @@ function renderAlerts(){
   var filter = (document.getElementById('alert-filter')||{}).value || 'all';
 
   // Compute stats
-  var stats = {overdue:0, soon:0, ok:0};
+  var stats = {overdue:0, soon:0, unknown:0, ok:0};
   alerts.forEach(function(a){
     if(a.hasOverdue) stats.overdue++;
     else if(a.hasSoon) stats.soon++;
+    else if(a.hasUnknown) stats.unknown++;   // 🆕 v258 — แยกออกจาก "ปกติ"
     else stats.ok++;
   });
   var overdueEl = document.getElementById('alert-stat-overdue');
   var soonEl = document.getElementById('alert-stat-soon');
+  var unknownEl = document.getElementById('alert-stat-unknown');
   var okEl = document.getElementById('alert-stat-ok');
   if(overdueEl) overdueEl.textContent = stats.overdue;
   if(soonEl) soonEl.textContent = stats.soon;
+  if(unknownEl) unknownEl.textContent = stats.unknown;
   if(okEl) okEl.textContent = stats.ok;
 
   // Filter vehicles
@@ -30201,6 +30241,7 @@ function renderAlerts(){
     if(filter==='overdue') return a.hasOverdue;
     if(filter==='soon') return a.hasSoon && !a.hasOverdue;
     if(filter==='needs_action') return a.hasOverdue || a.hasSoon;
+    if(filter==='unknown') return a.hasUnknown && !a.hasOverdue && !a.hasSoon;  // 🆕 v258
     return true;
   });
 
@@ -34126,4 +34167,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v257 STAGING — 🚗 รถส่วนตัวกรรมการ: ทะเบียนเอกสาร พ.ร.บ./ภาษี/ประกัน + ค่าซ่อม + แจ้งเตือนต่ออายุ (PISOLN/DONUT/SOMJAI) -->
+<!-- deploy v258 STAGING — 🛠 แจ้งเตือนซ่อมบำรุง: จับรายการซ่อมแบบ keyword (เดิมหาตรงเป๊ะ→ไม่เตือนเลยสักคัน) + แยกสถานะ ⚪ ยังไม่เคยบันทึก + กันคำนวณ km มั่วเมื่อไมล์=0 -->
