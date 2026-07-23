@@ -6245,7 +6245,7 @@ function goPage(id, opts){
   if(id==='jobs'){badge.style.display='block';badge.textContent='Green Yello Transport';}
   else badge.style.display='none';
   if(id==='dashboard')renderDashboard();
-  if(id==='jobs') renderJobs();  // 🆕 วิวมือถือคงหน้า/วันที่เดิมที่ดูค้างไว้ (ไม่ reset เป็นวันนี้) · ครั้งแรกสุด default=วันนี้เอง
+  if(id==='jobs'){ renderJobs(); if(typeof _autoRefreshJobs==='function') _autoRefreshJobs(); }  // 🆕 วิวมือถือคงหน้า/วันที่เดิม · v261 กลับเข้าหน้า→ดึงงานล่าสุดของทีม (throttle)
   if(id==='users')renderUsers();
   if(id==='receipts' && typeof rcptInit==='function') rcptInit();  // 🆕 v083
   if(id==='billing'  && typeof billingInit==='function') billingInit();  // 🆕 v114
@@ -27104,7 +27104,7 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 // 🆕 v080 — Supabase snapshot cache layer (ลด Supabase egress)
 // 🆕 v155 — ย้ายที่เก็บจาก localStorage → IndexedDB (ปลด limit ~5MB,
 //           snapshot 4MB+ เก็บได้สบาย). มี fallback/migrate จากของเดิมให้อัตโนมัติ
-var _SB_CACHE_TTL_MS = 20 * 60 * 1000;  // 🆕 v260 — 3→20 นาที (ลดโหลดซ้ำในรอบวัน; มีปุ่มรีเฟรช/รีโหลดงานอยู่แล้ว)
+var _SB_CACHE_TTL_MS = 3 * 60 * 1000;  // v260→v261 คืนเป็น 3 นาที (20 นาทีทำข้อมูลเก่านานไป — พี่อยากได้ข้อมูลสด)
 var _SB_CACHE_KEY = 'gyt_sb_cache_v1';
 
 // ── IndexedDB micro-wrapper (no deps) ──────────────────────
@@ -27289,7 +27289,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.260';
+const APP_VERSION = '2026.04.29.261';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -27408,8 +27408,8 @@ document.addEventListener('visibilitychange', function(){
   var dashView = document.getElementById('pg-dash');
   var inJobsOrDash = (jobsView && getComputedStyle(jobsView).display !== 'none')
                   || (dashView && getComputedStyle(dashView).display !== 'none');
-  if(inJobsOrDash && _onlineMode && typeof refreshJobsFromCloud === 'function'){
-    refreshJobsFromCloud();
+  if(inJobsOrDash && _onlineMode && typeof _autoRefreshJobs === 'function'){
+    _autoRefreshJobs();  // v261 — ผ่าน throttle (กันซ้อนกับ refresh ตอน nav)
   }
 });
 
@@ -27449,11 +27449,21 @@ function _jobSnapKey(j){
   return (j.updatedAt || j.updated_at || j.startdate || '') + '|' + (j.status || '') + '|' + (j.plate || '') + '|' + (j.driver || '');
 }
 
+// 🆕 v261 — auto-refresh ตารางงานเมื่อกลับเข้าหน้า/สลับแท็บ (throttle กัน fetch ถี่)
+// เดิม: กด sidebar กลับมาหน้าตารางงาน = renderJobs จาก memory เท่านั้น ไม่ดึงงานใหม่ของทีม
+var _lastAutoJobsRefresh = 0;
+function _autoRefreshJobs(){
+  if(!_onlineMode) return;
+  if(document.querySelector('.modal-overlay.open')) return;     // กำลังกรอกฟอร์ม → ไม่รีเฟรช
+  if(Date.now() - _lastAutoJobsRefresh < 60000) return;          // throttle 60 วิ
+  if(typeof refreshJobsFromCloud === 'function') refreshJobsFromCloud();
+}
 async function refreshJobsFromCloud(){
   if(!_onlineMode){
     showToast('⚠ ออฟไลน์ — โหลดข้อมูลใหม่ไม่ได้');
     return;
   }
+  _lastAutoJobsRefresh = Date.now();  // 🆕 v261 — reset throttle (รวมกดปุ่มรีเฟรชเองด้วย)
   var btn = document.getElementById('btn-refresh-jobs');
   var icon = document.getElementById('refresh-icon');
   if(btn) btn.disabled = true;
@@ -34197,4 +34207,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v260 STAGING — ⚡ perf: billings โหลด lazy (ไม่บล็อกตารางงาน, payload แรก 4.5→2.1MB เร็วขึ้น ~2x) + แก้บั๊ก billings cap 1000→ครบ 5454 (sbFetchAll) + cache TTL 3→20 นาที -->
+<!-- deploy v261 STAGING — ⚡ perf v260 (billings lazy) + 🔄 auto-refresh ตารางงานตอนกลับเข้าหน้า/สลับแท็บ (throttle 60วิ) + คืน cache 20→3 นาที -->
