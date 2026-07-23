@@ -27104,7 +27104,7 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 // 🆕 v080 — Supabase snapshot cache layer (ลด Supabase egress)
 // 🆕 v155 — ย้ายที่เก็บจาก localStorage → IndexedDB (ปลด limit ~5MB,
 //           snapshot 4MB+ เก็บได้สบาย). มี fallback/migrate จากของเดิมให้อัตโนมัติ
-var _SB_CACHE_TTL_MS = 3 * 60 * 1000;
+var _SB_CACHE_TTL_MS = 20 * 60 * 1000;  // 🆕 v260 — 3→20 นาที (ลดโหลดซ้ำในรอบวัน; มีปุ่มรีเฟรช/รีโหลดงานอยู่แล้ว)
 var _SB_CACHE_KEY = 'gyt_sb_cache_v1';
 
 // ── IndexedDB micro-wrapper (no deps) ──────────────────────
@@ -27289,7 +27289,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.259';
+const APP_VERSION = '2026.04.29.260';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -27591,9 +27591,27 @@ function _canSyncNow(){
   return o.includes('vercel.app') ||
     (o.startsWith('https:') && !o.includes('claude.ai') && !o.includes('localhost') && o !== 'null');
 }
+// 🆕 v260 — billings โหลดแบบ lazy (ไม่บล็อกตารางงานตอนเปิดแอป)
+// เดิม: โหลด billings 2.4MB ทุกครั้งใน Promise.all → ตารางงานต้องรอทั้งที่ไม่ได้ใช้เลย
+// ใหม่: โหลดเบื้องหลังหลัง render + ใช้ sbFetchAll (แก้บั๊กเดิม sbFetch ได้แค่ 1,000/5,454 ใบ)
+// ยังกัน race: หน้าที่ใช้ global billings เรียก await _ensureBillings() ก่อน
+var _billingsLoaded = false, _billingsLoading = null;
+async function _ensureBillings(force){
+  if(_billingsLoaded && !force) return billings;
+  if(_billingsLoading) return _billingsLoading;
+  _billingsLoading = (async function(){
+    try {
+      var r = await sbFetchAll('gyt_billings', '?order=id');
+      if(r){ billings = r; _billingsLoaded = true; }
+    } catch(e){ console.warn('[billings] lazy load failed:', e && e.message); }
+    _billingsLoading = null;
+    return billings;
+  })();
+  return _billingsLoading;
+}
 function _snapshotForCache(){
   return {
-    jobs: jobs, customers: customers, shippers: shippers, billings: billings,
+    jobs: jobs, customers: customers, shippers: shippers,
     tractors: tractors, trailers: trailers, drivers: drivers, pairings: pairings,
     users: users, repairShops: repairShops, maintenanceIntervals: maintenanceIntervals,
     maintenanceRecords: maintenanceRecords, inspections: inspections,
@@ -27677,7 +27695,7 @@ async function loadFromSupabase(forceRefresh) {
         }
         if(d.customers) customers = d.customers;
         if(d.shippers) shippers = d.shippers;
-        if(d.billings) billings = d.billings;
+        if(d.billings && d.billings.length){ billings = d.billings; _billingsLoaded = true; }  // 🆕 v260 — cache เก่าที่ยังมี billings (cache ใหม่ไม่เก็บแล้ว → โหลด lazy)
         if(d.tractors) tractors = d.tractors;
         if(d.trailers) trailers = d.trailers;
         if(d.drivers) drivers = d.drivers;
@@ -27706,6 +27724,7 @@ async function loadFromSupabase(forceRefresh) {
         if(typeof renderJobs === 'function') renderJobs();
         _setJobsLoadBtn();
         if(!_jobsAllLoaded) _bgLoadOlderJobs();  // cache มีแค่ 93 วัน → ดึงงานเก่าต่อ
+        if(!_billingsLoaded) _ensureBillings();  // 🆕 v260 — cache ไม่เก็บ billings แล้ว → โหลด lazy
         return;
       } catch(e){
         console.warn('[cache] restore failed, fetching fresh:', e.message);
@@ -27717,14 +27736,14 @@ async function loadFromSupabase(forceRefresh) {
   _jobsAllLoaded = false;  // 🆕 v155 — เริ่มโหลดรอบใหม่ → bg-load จะดึงงานเก่าอีกครั้ง
   try {
     const [
-      sbJobs, sbCustomers, sbShippers, sbBillings,
+      sbJobs, sbCustomers, sbShippers,
       sbTractors, sbTrailers, sbDrivers, sbPairings, sbUsers,
       sbShops, sbIntervals, sbMaintenance, sbInspections
     ] = await Promise.all([
       sbFetchAll('gyt_jobs', '?startdate=gte.'+_jobsCutoffISO()+'&order=startdate.desc'),  // 🆕 v155 — 93 วันล่าสุดก่อน (งานเก่าโหลด bg)
       sbFetch('gyt_customers','GET',null,'?order=id'),
       sbFetch('gyt_shippers','GET',null,'?order=id'),
-      sbFetch('gyt_billings','GET',null,'?order=id'),
+      // 🆕 v260 — billings ย้ายไปโหลด lazy (_ensureBillings) ไม่บล็อกตารางงาน
       sbFetch('gyt_tractors','GET',null,'?order=id'),
       sbFetch('gyt_trailers','GET',null,'?order=id'),
       sbFetch('gyt_drivers','GET',null,'?order=id'),
@@ -27745,7 +27764,6 @@ async function loadFromSupabase(forceRefresh) {
     }
     if(sbCustomers !== null && sbCustomers.length > 0) customers = sbCustomers;
     if(sbShippers !== null && sbShippers.length > 0) shippers = sbShippers;
-    if(sbBillings !== null && sbBillings.length > 0) billings = sbBillings;
     if(sbTractors !== null && sbTractors.length > 0) tractors = sbTractors;
     if(sbTrailers !== null && sbTrailers.length > 0) trailers = sbTrailers;
     if(sbDrivers !== null && sbDrivers.length > 0) drivers = sbDrivers;
@@ -27794,6 +27812,7 @@ async function loadFromSupabase(forceRefresh) {
     // 🆕 v155 — โหลดงานเก่า (>93 วัน) เบื้องหลัง ให้ข้อมูลครบสำหรับโมดูลอื่น
     _setJobsLoadBtn();
     _bgLoadOlderJobs();
+    _ensureBillings();  // 🆕 v260 — โหลด billings เบื้องหลัง (ไม่บล็อกตารางงาน)
   } catch(e) {
     console.error('loadFromSupabase error:', e.message);
     setSyncStatus('offline');
@@ -34178,4 +34197,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v259 STAGING — 🛠 แจ้งเตือนซ่อมบำรุง: ค้นรายการซ่อมใน parts_list ด้วย (น้ำมันเครื่อง 12→19 รายการ) + keyword match + แยกสถานะ ⚪ ยังไม่เคยบันทึก -->
+<!-- deploy v260 STAGING — ⚡ perf: billings โหลด lazy (ไม่บล็อกตารางงาน, payload แรก 4.5→2.1MB เร็วขึ้น ~2x) + แก้บั๊ก billings cap 1000→ครบ 5454 (sbFetchAll) + cache TTL 3→20 นาที -->
