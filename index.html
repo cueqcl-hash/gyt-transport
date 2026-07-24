@@ -2925,7 +2925,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <!-- TAB: เอกสารรถ (v262) — พ.ร.บ./ภาษี/ประกันภัย/ตรวจสภาพ/ประกันสินค้า -->
         <div id="mt-pg-docs" class="mt-page" style="display:none">
           <div class="mt-help">
-            📄 <strong>เอกสารรถบริษัท</strong> — วันหมดอายุ พ.ร.บ. / ป้ายภาษี / ประกันภัย / ตรวจสภาพ (ตรอ.) / ประกันสินค้า
+            📄 <strong>เอกสารรถบริษัท</strong> — วันหมดอายุ พ.ร.บ. / ป้ายภาษี / ประกันภัย / ตรวจสภาพ / ประกันสินค้า
             <br>🔴 <strong>เลยกำหนด</strong> &nbsp;|&nbsp; 🟠 <strong>ด่วน</strong> (≤ 30 วัน) &nbsp;|&nbsp; 🟡 <strong>เตรียมต่อ</strong> (≤ 90 วัน) &nbsp;|&nbsp; ⚪ <strong>ยังไม่มีข้อมูล</strong>
             <br>💡 ต่ออายุแล้วกดปุ่ม <strong>"ต่ออายุแล้ว"</strong> ที่การ์ดรถ → ระบบเก็บเป็นประวัติ + อัปเดตวันที่ในตารางรถให้อัตโนมัติ
           </div>
@@ -3108,7 +3108,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <div class="fg"><label class="fl">วันหมดอายุใหม่ *</label><input type="date" class="fi" id="vd-doc-exp"></div>
             <div class="fg-row">
               <div class="fg"><label class="fl">ค่าใช้จ่าย (บาท)</label><input type="number" step="0.01" class="fi" id="vd-doc-amt" placeholder="เช่น 1900"></div>
-              <div class="fg"><label class="fl">บริษัทประกัน / ตรอ. / ขนส่ง</label><input type="text" class="fi" id="vd-doc-prov"></div>
+              <div class="fg"><label class="fl">บริษัทประกัน / สนง.ขนส่ง</label><input type="text" class="fi" id="vd-doc-prov"></div>
             </div>
             <div class="fg"><label class="fl">เลขกรมธรรม์ / เลขที่ใบเสร็จ</label><input type="text" class="fi" id="vd-doc-policy"></div>
             <div class="fg"><label class="fl">หมายเหตุ</label><input type="text" class="fi" id="vd-doc-note"></div>
@@ -3253,17 +3253,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         if(_vdFilter==='todo'&&!anyTodo) return '';
         if(_vdFilter==='unk'&&!anyUnk) return '';
 
-        // กฎลูกโซ่ของกรมการขนส่ง: ตรวจสภาพ + พ.ร.บ. ต้องมีก่อนถึงจะต่อภาษีได้
+        // กฎลูกโซ่: ต้องมี พ.ร.บ. ที่ยังไม่ขาด ก่อนถึงจะต่อภาษีได้
+        // (รถบรรทุก/ขนส่งไปตรวจสภาพที่สำนักงานขนส่งเอง ไม่ใช่ ตรอ. จึงไม่ผูกเป็นเงื่อนไขต่อภาษี)
         var hint='';
-        var tax=vdLatest(v.id,v.vtype,'ภาษี'), prb=vdLatest(v.id,v.vtype,'พ.ร.บ.'), insp=vdLatest(v.id,v.vtype,'ตรวจสภาพ');
+        var tax=vdLatest(v.id,v.vtype,'ภาษี'), prb=vdLatest(v.id,v.vtype,'พ.ร.บ.');
         var tn=tax?vdDays(tax.expiry_date):null;
         if(tn!==null&&tn<=90){
-          var need=[];
           var pn=prb?vdDays(prb.expiry_date):null;
-          var in_=insp?vdDays(insp.expiry_date):null;
-          if(pn===null||pn<0) need.push('<b>พ.ร.บ.</b>');
-          if(in_===null||in_<0) need.push('<b>ตรวจสภาพ (ตรอ.)</b>');
-          if(need.length) hint='⚠ ต้องต่อ '+need.join(' + ')+' ก่อนถึงจะต่อภาษีได้';
+          if(pn===null||pn<0) hint='⚠ ต้องต่อ <b>พ.ร.บ.</b> ก่อนถึงจะต่อภาษีได้';
         }
         if(!hint&&tn!==null&&tn<0) hint='⚠ ป้ายภาษีขาด '+vdOverLabel(tn).replace('เกิน ','')+' — มีค่าปรับเพิ่ม 1%/เดือน และใช้รถไม่ได้ตามกฎหมาย';
         return '<div class="pv-card'+(alert?' alert':'')+'">'+
@@ -27570,7 +27567,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.262';
+const APP_VERSION = '2026.04.29.263';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -34500,4 +34497,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v262 — 📄 แท็บ "เอกสารรถ" ในหน้าซ่อมบำรุง: พ.ร.บ./ป้ายภาษี/ประกันภัย/ตรวจสภาพ/ประกันสินค้า + เตือนเลยกำหนด-ด่วน-เตรียมต่อ + กฎลูกโซ่ (ต้องมี พ.ร.บ.+ตรอ. ก่อนต่อภาษี) + รวม badge กับแจ้งเตือนรอบซ่อม -->
+<!-- deploy v263 — 📄 แท็บ "เอกสารรถ": พ.ร.บ./ป้ายภาษี/ประกันภัย/ตรวจสภาพ/ประกันสินค้า + เตือนเลยกำหนด-ด่วน-เตรียมต่อ + กฎลูกโซ่ (ต้องมี พ.ร.บ. ก่อนต่อภาษี — รถบรรทุกตรวจสภาพที่ขนส่ง ไม่ผูกเงื่อนไข) + รวม badge กับแจ้งเตือนรอบซ่อม -->
