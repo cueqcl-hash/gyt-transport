@@ -2814,6 +2814,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="mt-tabs">
           <button class="mt-tab" id="mt-tab-records" onclick="mtSwitchTab('records')">📋 บันทึกซ่อม</button>
           <button class="mt-tab" id="mt-tab-alerts" onclick="mtSwitchTab('alerts')">🚨 แจ้งเตือน</button>
+          <button class="mt-tab" id="mt-tab-docs" onclick="mtSwitchTab('docs')">📄 เอกสารรถ</button>
           <button class="mt-tab active" id="mt-tab-shops" onclick="mtSwitchTab('shops')">🏪 อู่ซ่อม</button>
           <button class="mt-tab" id="mt-tab-intervals" onclick="mtSwitchTab('intervals')">⚙️ รอบซ่อม</button>
           <button class="mt-tab" id="mt-tab-reports" onclick="mtSwitchTab('reports')">📊 รายงาน</button>
@@ -2919,6 +2920,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               🎉 ไม่มีรถที่ต้องแจ้งเตือน — รถทุกคันอยู่ในกำหนดซ่อมปกติ
             </div>
           </div>
+        </div>
+
+        <!-- TAB: เอกสารรถ (v262) — พ.ร.บ./ภาษี/ประกันภัย/ตรวจสภาพ/ประกันสินค้า -->
+        <div id="mt-pg-docs" class="mt-page" style="display:none">
+          <div class="mt-help">
+            📄 <strong>เอกสารรถบริษัท</strong> — วันหมดอายุ พ.ร.บ. / ป้ายภาษี / ประกันภัย / ตรวจสภาพ (ตรอ.) / ประกันสินค้า
+            <br>🔴 <strong>เลยกำหนด</strong> &nbsp;|&nbsp; 🟠 <strong>ด่วน</strong> (≤ 30 วัน) &nbsp;|&nbsp; 🟡 <strong>เตรียมต่อ</strong> (≤ 90 วัน) &nbsp;|&nbsp; ⚪ <strong>ยังไม่มีข้อมูล</strong>
+            <br>💡 ต่ออายุแล้วกดปุ่ม <strong>"ต่ออายุแล้ว"</strong> ที่การ์ดรถ → ระบบเก็บเป็นประวัติ + อัปเดตวันที่ในตารางรถให้อัตโนมัติ
+          </div>
+          <div id="vd-body"><div class="mt-empty">กำลังโหลด…</div></div>
         </div>
 
         <!-- TAB: อู่ซ่อม (Phase 1B — Active) -->
@@ -3084,6 +3095,274 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           </div>
         </div>
       </div>
+
+      <!-- MODAL: ต่ออายุเอกสารรถบริษัท (v262) -->
+      <div class="modal-overlay" id="modal-vd-doc">
+        <div class="modal modal-sm">
+          <div class="modal-head">
+            <div><div class="modal-title" id="vd-doc-title">ต่ออายุเอกสาร</div></div>
+            <button class="close-x" onclick="closeModal('modal-vd-doc')">&#215;</button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="vd-doc-veh"><input type="hidden" id="vd-doc-vtype"><input type="hidden" id="vd-doc-type">
+            <div class="fg"><label class="fl">วันหมดอายุใหม่ *</label><input type="date" class="fi" id="vd-doc-exp"></div>
+            <div class="fg-row">
+              <div class="fg"><label class="fl">ค่าใช้จ่าย (บาท)</label><input type="number" step="0.01" class="fi" id="vd-doc-amt" placeholder="เช่น 1900"></div>
+              <div class="fg"><label class="fl">บริษัทประกัน / ตรอ. / ขนส่ง</label><input type="text" class="fi" id="vd-doc-prov"></div>
+            </div>
+            <div class="fg"><label class="fl">เลขกรมธรรม์ / เลขที่ใบเสร็จ</label><input type="text" class="fi" id="vd-doc-policy"></div>
+            <div class="fg"><label class="fl">หมายเหตุ</label><input type="text" class="fi" id="vd-doc-note"></div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('modal-vd-doc')">ยกเลิก</button>
+            <button class="btn btn-green" onclick="vdSaveDoc()">บันทึก</button>
+          </div>
+        </div>
+      </div>
+
+      <script>
+      // ═══════════════════════════════════════════════════════════════
+      // 🆕 v262 — เอกสารรถบริษัท (vd*) : พ.ร.บ./ภาษี/ประกันภัย/ตรวจสภาพ/ประกันสินค้า
+      // เก็บใน gyt_vehicle_docs = 1 แถวต่อการต่อ 1 ครั้ง (มีประวัติ + ค่าใช้จ่าย)
+      // ต่างจากเดิมที่เก็บเป็นช่องวันที่ช่องเดียวในตารางรถ — ตอนกดต่ออายุจะเขียนกลับ
+      // ไปที่ตารางรถให้ด้วย เพื่อให้หน้า "รายการรถ" เดิมยังแสดงตรงกัน
+      // ═══════════════════════════════════════════════════════════════
+      var _vdDocs=null,_vdLoaded=false,_vdFilter='todo',_vdNoTable=false;
+      // หางไม่มีเครื่องยนต์ → ไม่ต้องมีประกันสินค้า/ประกันภัยแยก (พ่วงกับหัวลาก)
+      var VD_TYPES_HEAD=['พ.ร.บ.','ภาษี','ประกันภัย','ตรวจสภาพ','ประกันสินค้า'];
+      var VD_TYPES_TRAILER=['พ.ร.บ.','ภาษี','ตรวจสภาพ'];
+      // เอกสาร → ช่องวันที่เดิมในตารางรถ (พ.ร.บ. ไม่มีช่องเดิม จึงเก็บแค่ในตารางใหม่)
+      var VD_LEGACY_FIELD={'ภาษี':'date_tax','ประกันภัย':'date_ins','ตรวจสภาพ':'date_inspect','ประกันสินค้า':'date_cargo_ins'};
+
+      function vdTypesFor(vtype){ return vtype==='trailer' ? VD_TYPES_TRAILER : VD_TYPES_HEAD; }
+      function vdDays(iso){ if(!iso) return null; var t=new Date(); t.setHours(0,0,0,0); return Math.round((new Date(iso+'T00:00:00')-t)/86400000); }
+      function vdStat(n){ if(n===null) return 'unk'; if(n<0) return 'over'; if(n<=30) return 'urgent'; if(n<=90) return 'soon'; return 'ok'; }
+      function vdThai(iso){
+        if(!iso) return '—';
+        var M=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+        var d=new Date(iso+'T00:00:00');
+        return d.getDate()+' '+M[d.getMonth()]+' '+(d.getFullYear()+543);
+      }
+      function vdOverLabel(n){
+        var a=Math.abs(n);
+        if(a>=365) return 'เกิน '+Math.floor(a/365)+' ปี';
+        if(a>=30)  return 'เกิน '+Math.floor(a/30)+' เดือน';
+        return 'เกิน '+a+' วัน';
+      }
+      // รถบริษัททั้งหมด (หัวลาก/สิบล้อ + หาง) — ข้ามคันที่ลบ/ขายแล้ว
+      function vdVehicles(){
+        var out=[];
+        (tractors||[]).forEach(function(t){
+          if(t.status==='ลบ'||t.status==='deleted') return;
+          out.push({id:t.id, vtype:'tractor', plate:t.plate, kind:(t.vtype||''), raw:t});
+        });
+        (trailers||[]).forEach(function(t){
+          if(t.status==='ลบ'||t.status==='deleted') return;
+          out.push({id:t.id, vtype:'trailer', plate:t.plate, kind:(t.vtype||'หางลาก'), raw:t});
+        });
+        return out;
+      }
+      function vdLatest(vehId,vtype,type){
+        var rows=(_vdDocs||[]).filter(function(d){
+          return d.vehicle_id===vehId && d.vehicle_type===vtype && d.doc_type===type;
+        });
+        if(!rows.length) return null;
+        rows.sort(function(a,b){ return (b.expiry_date||'').localeCompare(a.expiry_date||''); });
+        return rows[0];
+      }
+      function vdInit(){ if(!_vdLoaded) vdLoad(); else vdRender(); }
+      async function vdLoad(){
+        var r=await sbFetch('gyt_vehicle_docs','GET',null,'?order=expiry_date.desc');
+        if(r===null){   // ตารางยังไม่ถูกสร้าง
+          _vdNoTable=true;
+          document.getElementById('vd-body').innerHTML=
+            '<div class="mt-empty" style="text-align:left;padding:26px 30px"><b style="font-size:15px">ยังไม่ได้สร้างตารางในฐานข้อมูล</b><br><br>'+
+            'เปิด Supabase → SQL Editor → วางไฟล์ <code>vehicle_docs_setup.sql</code> → Run (ครั้งเดียวพอ)<br>'+
+            'ไฟล์นี้จะสร้างตาราง <code>gyt_vehicle_docs</code> และย้ายวันหมดอายุเดิมจากตารางรถเข้ามาให้อัตโนมัติ<br><br>'+
+            'เสร็จแล้วกลับมากดแท็บนี้ใหม่</div>';
+          return;
+        }
+        _vdDocs=r||[]; _vdLoaded=true; _vdNoTable=false; vdRender();
+      }
+      function vdSetFilter(f){ _vdFilter=f; vdRender(); }
+      function vdRender(){
+        if(_vdNoTable||!_vdDocs) return;
+        var vehs=vdVehicles();
+        var cnt={over:0,urgent:0,soon:0,ok:0,unk:0};
+        vehs.forEach(function(v){
+          vdTypesFor(v.vtype).forEach(function(t){
+            var d=vdLatest(v.id,v.vtype,t);
+            cnt[vdStat(d?vdDays(d.expiry_date):null)]++;
+          });
+        });
+        var h='<div class="alert-summary" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">'+
+          '<div class="alert-stat overdue"><div class="alert-stat-num">'+cnt.over+'</div><div class="alert-stat-label">🔴 เลยกำหนด</div></div>'+
+          '<div class="alert-stat soon"><div class="alert-stat-num">'+cnt.urgent+'</div><div class="alert-stat-label">🟠 ด่วน ≤30 วัน</div></div>'+
+          '<div class="alert-stat" style="border-color:#EAB308;background:#FEFCE8"><div class="alert-stat-num" style="color:#A16207">'+cnt.soon+'</div><div class="alert-stat-label">🟡 เตรียมต่อ ≤90 วัน</div></div>'+
+          '<div class="alert-stat ok"><div class="alert-stat-num">'+cnt.ok+'</div><div class="alert-stat-label">🟢 ปกติ</div></div>'+
+          '<div class="alert-stat" style="border-color:#9CA3AF;background:#F9FAFB"><div class="alert-stat-num" style="color:#6B7280">'+cnt.unk+'</div><div class="alert-stat-label">⚪ ยังไม่มีข้อมูล</div></div>'+
+          '</div>';
+        h+='<div class="pv-bar">'+
+          ['todo|⚠️ ต้องทำ','all|ทั้งหมด','พ.ร.บ.|พ.ร.บ.','ภาษี|ป้ายภาษี','ประกันภัย|ประกันภัย','ตรวจสภาพ|ตรวจสภาพ','ประกันสินค้า|ประกันสินค้า','unk|⚪ ยังไม่มีข้อมูล'].map(function(c){
+            var p=c.split('|');
+            return '<button class="pv-chip'+(_vdFilter===p[0]?' on':'')+'" onclick="vdSetFilter(\''+p[0]+'\')">'+p[1]+'</button>';
+          }).join('')+'</div>';
+
+        var order={over:0,urgent:1,soon:2,unk:3,ok:4};
+        function worst(v){
+          var w=9;
+          vdTypesFor(v.vtype).forEach(function(t){
+            var d=vdLatest(v.id,v.vtype,t);
+            var s=order[vdStat(d?vdDays(d.expiry_date):null)];
+            if(s<w) w=s;
+          });
+          return w;
+        }
+        var cards=vehs.slice().sort(function(a,b){ return worst(a)-worst(b); })
+                      .map(vdCard).filter(function(x){ return x; });
+        h+='<div class="pv-grid">'+(cards.length?cards.join('')
+            :'<div class="pv-empty">🎉 ไม่มีเอกสารที่ต้องดำเนินการในตัวกรองนี้</div>')+'</div>';
+        document.getElementById('vd-body').innerHTML=h;
+      }
+      function vdCard(v){
+        var types=vdTypesFor(v.vtype).slice();
+        if(VD_LEGACY_FIELD[_vdFilter]||_vdFilter==='พ.ร.บ.'){
+          if(types.indexOf(_vdFilter)<0) return '';       // เอกสารชนิดนี้ไม่ใช้กับรถประเภทนี้
+          types=[_vdFilter];
+        }
+        var order={over:0,urgent:1,soon:2,unk:3,ok:4};
+        types.sort(function(a,b){
+          var da=vdLatest(v.id,v.vtype,a), db=vdLatest(v.id,v.vtype,b);
+          return order[vdStat(da?vdDays(da.expiry_date):null)]-order[vdStat(db?vdDays(db.expiry_date):null)];
+        });
+        var rows='',alert=false,anyTodo=false,anyUnk=false;
+        types.forEach(function(t){
+          var d=vdLatest(v.id,v.vtype,t);
+          var n=d?vdDays(d.expiry_date):null, s=vdStat(n);
+          if(s==='over'||s==='urgent') alert=true;
+          if(s==='over'||s==='urgent'||s==='soon') anyTodo=true;
+          if(s==='unk') anyUnk=true;
+          var num=(n===null)?'?':n;
+          var sub=(n===null)?'ยังไม่มีข้อมูล':(n<0?vdOverLabel(n):(s==='ok'?'ปกติ':'วัน'));
+          var cls={over:'pv-over',urgent:'pv-urgent',soon:'pv-soon',ok:'pv-ok',unk:'pv-unk'}[s];
+          rows+='<div class="pv-doc"><span class="pv-dl" style="width:82px">'+t+'</span>'+
+            '<span class="pv-dd">'+(d?vdThai(d.expiry_date):'—')+'</span>'+
+            '<span class="pv-dn '+cls+'" style="cursor:pointer" title="กดเพื่อบันทึกการต่ออายุ" '+
+            'onclick="vdRenew('+v.id+',\''+v.vtype+'\',\''+t+'\')"><b>'+num+'</b><span>'+sub+'</span></span></div>';
+        });
+        if(_vdFilter==='todo'&&!anyTodo) return '';
+        if(_vdFilter==='unk'&&!anyUnk) return '';
+
+        // กฎลูกโซ่ของกรมการขนส่ง: ตรวจสภาพ + พ.ร.บ. ต้องมีก่อนถึงจะต่อภาษีได้
+        var hint='';
+        var tax=vdLatest(v.id,v.vtype,'ภาษี'), prb=vdLatest(v.id,v.vtype,'พ.ร.บ.'), insp=vdLatest(v.id,v.vtype,'ตรวจสภาพ');
+        var tn=tax?vdDays(tax.expiry_date):null;
+        if(tn!==null&&tn<=90){
+          var need=[];
+          var pn=prb?vdDays(prb.expiry_date):null;
+          var in_=insp?vdDays(insp.expiry_date):null;
+          if(pn===null||pn<0) need.push('<b>พ.ร.บ.</b>');
+          if(in_===null||in_<0) need.push('<b>ตรวจสภาพ (ตรอ.)</b>');
+          if(need.length) hint='⚠ ต้องต่อ '+need.join(' + ')+' ก่อนถึงจะต่อภาษีได้';
+        }
+        if(!hint&&tn!==null&&tn<0) hint='⚠ ป้ายภาษีขาด '+vdOverLabel(tn).replace('เกิน ','')+' — มีค่าปรับเพิ่ม 1%/เดือน และใช้รถไม่ได้ตามกฎหมาย';
+        return '<div class="pv-card'+(alert?' alert':'')+'">'+
+          '<div class="pv-head" style="cursor:default"><span class="pv-plate">'+_finEsc(v.plate||'')+'</span>'+
+          '<span class="pv-nm">'+_finEsc(v.kind||'')+'<small>'+(v.vtype==='trailer'?'🚚 หาง':'🚜 หัวลาก/สิบล้อ')+'</small></span></div>'+
+          rows+(hint?'<div class="pv-hint">'+hint+'</div>':'')+
+          '<div class="pv-foot"><button class="btn btn-sm" onclick="vdRenew('+v.id+',\''+v.vtype+'\')">ต่ออายุแล้ว</button></div></div>';
+      }
+      function vdRenew(vehId,vtype,type){
+        if(typeof hasPerm==='function' && !hasPerm('manage_maintenance')){ alert('ไม่มีสิทธิ์แก้ไขข้อมูลซ่อมบำรุง'); return; }
+        var v=vdVehicles().filter(function(x){ return x.id===vehId&&x.vtype===vtype; })[0];
+        if(!type){   // ไม่ระบุ → เลือกใบที่ด่วนที่สุดของคันนี้
+          var order={over:0,urgent:1,soon:2,unk:3,ok:4},best=null,bw=99;
+          vdTypesFor(vtype).forEach(function(t){
+            var d=vdLatest(vehId,vtype,t);
+            var w=order[vdStat(d?vdDays(d.expiry_date):null)];
+            if(w<bw){ bw=w; best=t; }
+          });
+          type=best||'พ.ร.บ.';
+        }
+        document.getElementById('vd-doc-veh').value=vehId;
+        document.getElementById('vd-doc-vtype').value=vtype;
+        document.getElementById('vd-doc-type').value=type;
+        document.getElementById('vd-doc-title').textContent='ต่ออายุ '+type+' — '+(v?v.plate:'');
+        var cur=vdLatest(vehId,vtype,type);
+        // เดาวันหมดอายุใหม่ = ของเดิม +1 ปี (ถ้าเลยกำหนดไปแล้ว ให้นับจากวันนี้ +1 ปี)
+        var nx='';
+        var base=(cur&&cur.expiry_date)?new Date(cur.expiry_date+'T00:00:00'):null;
+        if(!base||base<new Date()) base=new Date();
+        base.setFullYear(base.getFullYear()+1);
+        nx=base.toISOString().slice(0,10);
+        document.getElementById('vd-doc-exp').value=nx;
+        document.getElementById('vd-doc-amt').value='';
+        document.getElementById('vd-doc-prov').value=(cur&&cur.provider)||'';
+        document.getElementById('vd-doc-policy').value='';
+        document.getElementById('vd-doc-note').value='';
+        openModal('modal-vd-doc');
+      }
+      async function vdSaveDoc(){
+        var exp=document.getElementById('vd-doc-exp').value;
+        if(!exp){ alert('กรุณาใส่วันหมดอายุใหม่'); return; }
+        var vehId=Number(document.getElementById('vd-doc-veh').value);
+        var vtype=document.getElementById('vd-doc-vtype').value;
+        var dtype=document.getElementById('vd-doc-type').value;
+        var row={vehicle_id:vehId, vehicle_type:vtype, doc_type:dtype, expiry_date:exp,
+          amount:parseFloat(document.getElementById('vd-doc-amt').value)||null,
+          provider:document.getElementById('vd-doc-prov').value.trim()||null,
+          policy_no:document.getElementById('vd-doc-policy').value.trim()||null,
+          note:document.getElementById('vd-doc-note').value.trim()||null,
+          created_by:(typeof currentUser!=='undefined'&&currentUser&&currentUser.username)||'webapp'};
+        var r=await sb.insert('gyt_vehicle_docs',row);
+        if(r===null){ alert('บันทึกไม่สำเร็จ'); return; }
+
+        // เขียนกลับช่องวันที่เดิมในตารางรถ เพื่อให้หน้า "รายการรถ" แสดงตรงกัน
+        var fld=VD_LEGACY_FIELD[dtype];
+        if(fld){
+          var d=new Date(exp+'T00:00:00');
+          var thai=('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+(d.getFullYear()+543);
+          var patch={}; patch[fld]=thai;
+          var arr=(vtype==='trailer')?trailers:tractors;
+          var local=(arr||[]).filter(function(x){ return x.id===vehId; })[0];
+          if(local) local[fld]=thai;
+          try{ await sb.update(vtype==='trailer'?'gyt_trailers':'gyt_tractors', vehId, patch); }
+          catch(e){ console.warn('[vd] เขียนกลับตารางรถไม่สำเร็จ', e); }
+        }
+        closeModal('modal-vd-doc');
+        _vdLoaded=false; await vdLoad();
+        if(typeof showToast==='function') showToast('บันทึกการต่ออายุแล้ว');
+        vdBadge();
+      }
+      // นับเอกสารตามความด่วน — ป้อนให้ updateMaintenanceBadge() ใช้ทำ badge เมนูซ่อมบำรุง
+      // (ใช้ badge เดียวร่วมกับแจ้งเตือนรอบซ่อม จะได้ไม่มีตัวเลข 2 อันซ้อนกันบนเมนู)
+      function _vdCount(maxDays){
+        if(!_vdDocs) return 0;
+        var n=0;
+        vdVehicles().forEach(function(v){
+          vdTypesFor(v.vtype).forEach(function(t){
+            var d=vdLatest(v.id,v.vtype,t);
+            if(!d) return;                       // ยังไม่มีข้อมูล = ไม่นับเป็นแจ้งเตือน
+            var k=vdDays(d.expiry_date);
+            if(k!==null&&k<maxDays) n++;
+          });
+        });
+        return n;
+      }
+      function vdOverdueCount(){ return _vdCount(0); }    // เลยกำหนดแล้ว
+      function vdUrgentCount(){ return _vdCount(31); }    // เลยกำหนด + ด่วน ≤30 วัน
+      async function vdBadge(){
+        try{
+          if(typeof hasPerm==='function' && !hasPerm('view_maintenance')) return;
+          if(!_vdLoaded&&!_vdNoTable){
+            var r=await sbFetch('gyt_vehicle_docs','GET',null,'?order=expiry_date.desc');
+            if(r===null){ _vdNoTable=true; return; }
+            _vdDocs=r||[]; _vdLoaded=true;
+          }
+          if(typeof updateMaintenanceBadge==='function') updateMaintenanceBadge();
+        }catch(e){}
+      }
+      </script>
 
       <!-- 🆕 v153 — DRIVER PAYOUTS (ค่าใช้จ่ายคนรถ) -->
       <div id="pg-payouts" class="screen">
@@ -6182,6 +6461,8 @@ function initApp(){
   setTimeout(function(){ if(typeof updateMaintenanceBadge==='function') updateMaintenanceBadge(); }, 100);
   // 🆕 v254 — badge เตือนเอกสารรถส่วนตัวกรรมการ (≤30 วัน/เลยกำหนด)
   setTimeout(function(){ if(typeof pvBadge==='function') pvBadge(); }, 400);
+  // 🆕 v262 — โหลดเอกสารรถบริษัท แล้วรวมเข้า badge เมนูซ่อมบำรุง (เลยกำหนด/≤30 วัน)
+  setTimeout(function(){ if(typeof vdBadge==='function') vdBadge(); }, 500);
 
   const note=document.getElementById('jobs-note');
   note.style.display='none';
@@ -27289,7 +27570,7 @@ if(typeof document !== 'undefined'){
   }
 }
 
-const APP_VERSION = '2026.04.29.261';
+const APP_VERSION = '2026.04.29.262';
 
 // 🔧 v079 — กัน mouse scroll แล้วตัวเลขในช่อง number เปลี่ยนเอง (input number = พิมพ์เท่านั้น)
 document.addEventListener('wheel', function(e){
@@ -28262,7 +28543,7 @@ const DEFAULT_INTERVALS = [
 // ── Tab switching ──
 function mtSwitchTab(tab){
   mtCurrentTab = tab;
-  ['records','alerts','shops','intervals','reports'].forEach(function(t){
+  ['records','alerts','docs','shops','intervals','reports'].forEach(function(t){
     var btn = document.getElementById('mt-tab-'+t);
     var pg = document.getElementById('mt-pg-'+t);
     if(btn) btn.classList.toggle('active', t===tab);
@@ -28270,6 +28551,7 @@ function mtSwitchTab(tab){
   });
   if(tab==='shops') renderRepairShops();
   if(tab==='intervals') renderIntervalsForm();
+  if(tab==='docs' && typeof vdInit==='function') vdInit();   // 🆕 v262 — เอกสารรถ (พ.ร.บ./ภาษี/ประกัน/ตรวจสภาพ)
 }
 
 // ── Repair Shops: Render List ──
@@ -30369,22 +30651,33 @@ function updateMaintenanceBadge(){
     var alerts = calculateAlerts();
     var overdueCount = alerts.filter(function(a){return a.hasOverdue;}).length;
     var soonCount = alerts.filter(function(a){return a.hasSoon && !a.hasOverdue;}).length;
+    // 🆕 v262 — รวมเอกสารรถ (พ.ร.บ./ภาษี/ประกัน/ตรวจสภาพ) เข้า badge เดียวกัน
+    var docOver = (typeof vdOverdueCount==='function') ? vdOverdueCount() : 0;
+    var docSoon = (typeof vdUrgentCount==='function') ? (vdUrgentCount() - docOver) : 0;
+    var redCount  = overdueCount + docOver;
+    var warnCount = soonCount + docSoon;
     var navMaint = document.getElementById('nav-maintenance');
     if(!navMaint) return;
     // Remove old badge
     var oldBadge = navMaint.querySelector('.nav-badge');
     if(oldBadge) oldBadge.remove();
-    if(overdueCount > 0){
+    function _mtTitle(vehN, vehWord, docN){
+      var p = [];
+      if(vehN) p.push(vehN + ' ' + vehWord);
+      if(docN) p.push(docN + ' เอกสาร');
+      return p.join(' · ');
+    }
+    if(redCount > 0){
       var b = document.createElement('span');
       b.className = 'nav-badge';
-      b.textContent = overdueCount;
-      b.title = overdueCount + ' คันเกินกำหนดซ่อม';
+      b.textContent = redCount;
+      b.title = _mtTitle(overdueCount, 'คันเกินกำหนดซ่อม', docOver) + ' — เลยกำหนดแล้ว';
       navMaint.appendChild(b);
-    } else if(soonCount > 0){
+    } else if(warnCount > 0){
       var b = document.createElement('span');
       b.className = 'nav-badge warn';
-      b.textContent = soonCount;
-      b.title = soonCount + ' คันใกล้ครบรอบซ่อม';
+      b.textContent = warnCount;
+      b.title = _mtTitle(soonCount, 'คันใกล้ครบรอบซ่อม', docSoon) + ' — ใกล้ถึงกำหนด';
       navMaint.appendChild(b);
     }
   } catch(e){
@@ -34207,4 +34500,4 @@ async function rcptLoadDoneList(){
 /* 🆕 PWA — ลงทะเบียน service worker (network-first ไม่ cache ค้าง กัน auto-update พัง) */
 if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('[pwa] sw', e); }); }); }
 </script>
-<!-- deploy v261 STAGING — ⚡ perf v260 (billings lazy) + 🔄 auto-refresh ตารางงานตอนกลับเข้าหน้า/สลับแท็บ (throttle 60วิ) + คืน cache 20→3 นาที -->
+<!-- deploy v262 — 📄 แท็บ "เอกสารรถ" ในหน้าซ่อมบำรุง: พ.ร.บ./ป้ายภาษี/ประกันภัย/ตรวจสภาพ/ประกันสินค้า + เตือนเลยกำหนด-ด่วน-เตรียมต่อ + กฎลูกโซ่ (ต้องมี พ.ร.บ.+ตรอ. ก่อนต่อภาษี) + รวม badge กับแจ้งเตือนรอบซ่อม -->
